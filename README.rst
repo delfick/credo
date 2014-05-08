@@ -6,22 +6,18 @@ Something to do with credentials.
 Usage
 -----
 
-Something like 
+Something like::
 
     credulous exec bash -c 'echo $AWS_ACCESS_KEY_ID'
 
 Installation
 ------------
 
-Use pip!:
-
-.. code-block:: bash
+Use pip!::
 
     pip install credulous
 
-Or if you're developing it:
-
-.. code-block:: bash
+Or if you're developing it::
 
     pip install -e .
     pip install -e ".[tests]"
@@ -29,9 +25,7 @@ Or if you're developing it:
 Tests
 -----
 
-Run the helpful script:
-
-.. code-block:: bash
+Run the helpful script::
 
     ./test.sh
 
