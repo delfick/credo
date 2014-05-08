@@ -29,3 +29,15 @@ class CredulousError(Exception):
 class NoExecCommand(CredulousError):
     desc = "No exec command to execute"
 
+class NoConfigFile(CredulousError):
+    desc = "No config file"
+
+class BadConfigFile(CredulousError):
+    desc = "Bad config file"
+
+class NotEnoughInfo(CredulousError):
+    desc = "Need more information"
+
+class BadConfig(CredulousError):
+    desc = "Bad Config"
+

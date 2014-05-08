@@ -3,6 +3,13 @@ Credulous
 
 Something to do with credentials.
 
+Usage
+-----
+
+Something like 
+
+    credulous exec bash -c 'echo $AWS_ACCESS_KEY_ID'
+
 Installation
 ------------
 

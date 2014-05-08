@@ -87,7 +87,7 @@ class CliParser(object):
             raise CredulousError("Well this is weird, I thought the action was different than it turned out to be", expected=expected_action, parsed=cred_args.action)
 
         credulous = Credulous()
-        credulous.setup(**vars(cred_args))
+        credulous.give_options(**vars(cred_args))
         return credulous
 
     def parse_help(self, argv):
@@ -119,6 +119,7 @@ def main(argv=None):
 
     try:
         credulous, kwargs, function = CliParser().parse_args(argv)
+        credulous.explore()
         function(credulous, **kwargs)
     except CredulousError as error:
         print ""
