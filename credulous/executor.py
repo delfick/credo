@@ -1,4 +1,6 @@
-from credulous.errors import CredulousError
+from credulous.errors import CredulousError, NoExecCommand
+from credulous.actions import do_display, do_exec
+from credulous.overview import Credulous
 
 from rainbow_logging_handler import RainbowLoggingHandler
 import argparse
@@ -17,17 +19,107 @@ def setup_logging():
     log.addHandler(handler)
     log.setLevel(logging.INFO)
 
-def get_parser():
-    parser = argparse.ArgumentParser(description="Credulous executor")
-    return parser
+class CliParser(object):
+    def split_argv(self, argv=None):
+        """Split the args into (cred_opts, action, action_opts)"""
+        if argv is None:
+            argv = sys.argv[1:]
+
+        for index, arg in enumerate(argv):
+            if arg in self.actions:
+                return argv[:index+1], arg, argv[index+1:]
+
+        # Couldn't find a valid action :(
+        return argv, arg, []
+
+    def parse_args(self, argv=None):
+        """
+        Get us (credulous, kwargs, function)
+
+        Where credulous is an overview object of our credulous collection
+
+        kwargs is the extra arguments to call the function with
+
+        And function is what we want to call with the kwargs
+        The function should have the signature function(credulous, **kwargs)
+        """
+        cred_args, action, action_args = self.split_argv()
+        credulous = self.make_credulous(cred_args, action)
+        kwargs, function = self.actions[action](action_args)
+        return credulous, kwargs, function
+
+    @property
+    def actions(self):
+        return {
+              "help": self.parse_help
+            , "exec": self.parse_exec
+            , "display": self.parse_display
+            }
+
+    def cred_parser(self):
+        """Parser for all the common credulous options"""
+        parser = argparse.ArgumentParser(description="Credulous executor")
+
+        parser.add_argument("action"
+            , help = "What should credulous do today?"
+            , choices = self.actions
+            )
+
+        parser.add_argument("--account"
+            , help = "The account to use"
+            )
+
+        parser.add_argument("--iam-user"
+            , help = "The iam-user to use"
+            )
+
+        parser.add_argument("--repo"
+            , help = "The repo to use"
+            )
+
+        return parser
+
+    def make_credulous(self, cred_args, expected_action):
+        """Make a Credulous object that knows things"""
+        cred_parser = self.cred_parser()
+        cred_args = cred_parser.parse_args(cred_args)
+        if cred_args.action != expected_action:
+            raise CredulousError("Well this is weird, I thought the action was different than it turned out to be", expected=expected_action, parsed=cred_args.action)
+
+        credulous = Credulous()
+        credulous.setup(**vars(cred_args))
+        return credulous
+
+    def parse_help(self, argv):
+        """Just prints help and quits"""
+        # It's late, I'm tired....
+        print "Help is not here"
+        sys.exit(1)
+
+    def parse_display(self, argv):
+        """Display doesn't have arguments yet"""
+        parser = argparse.ArgumentParser(description="Print out export statements for your aws creds")
+        args = vars(parser.parse_args(argv))
+        return args, do_display
+
+    def parse_exec(self, argv):
+        """Exec passes on everything else also doesn't have arguments yet"""
+        parser = argparse.ArgumentParser(description="Run the provided command using a sub shell with the aws credentials in it")
+        if argv and argv[0] in ("--help", "-h"):
+            parser.parse_args([argv[0]])
+            # argparse should already quit before this point
+            sys.exit(1)
+        else:
+            if not argv:
+                raise NoExecCommand("argv is empty!")
+            return {"command": argv}, do_exec
 
 def main(argv=None):
-    parser = get_parser()
-    args = parser.parse_args(argv)
     setup_logging()
 
     try:
-        print "Do things here", args
+        credulous, kwargs, function = CliParser().parse_args(argv)
+        function(credulous, **kwargs)
     except CredulousError as error:
         print ""
         print "!" * 80

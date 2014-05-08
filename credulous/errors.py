@@ -26,3 +26,6 @@ class CredulousError(Exception):
             else:
                 return "{0}".format(info)
 
+class NoExecCommand(CredulousError):
+    desc = "No exec command to execute"
+
