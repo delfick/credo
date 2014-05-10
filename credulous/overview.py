@@ -1,9 +1,9 @@
+from credulous.asker import ask_for_choice, ask_for_choice_or_new
 from credulous.errors import NoConfigFile, BadConfigFile
 from credulous.credentials import Credentials
 from credulous.explorer import Explorer
 
 import json
-import sys
 import os
 
 class Unspecified(object):
@@ -43,7 +43,7 @@ class Credulous(object):
         if len(completed) is 1:
             val = completed.keys()[0]
         else:
-            val = self.ask_for_choice(category, sorted(completed.keys()))
+            val = ask_for_choice(category, sorted(completed.keys()))
 
         chosen.append((nxt, val))
         if not chain:
@@ -70,7 +70,7 @@ class Credulous(object):
         if container not in directory_structure:
             directory_structure[container] = {}
 
-        val = self.ask_for_choice_or_new(category, sorted(key for key in directory_structure[container].keys() if not key.startswith('/')))
+        val = ask_for_choice_or_new(category, sorted(key for key in directory_structure[container].keys() if not key.startswith('/')))
         location = os.path.join(directory_structure['/location/'], val)
         if val not in directory_structure[container]:
             directory_structure[container][val] = {'/files/': [], '/location/': location}
@@ -85,57 +85,6 @@ class Credulous(object):
             return credentials
         else:
             return self.make_credentials(directory_structure[container][val], list(chain), list(chosen))
-
-    def ask_for_choice(self, needed, choices):
-        """Ask for a value from some choices"""
-        mapped = dict(enumerate(sorted(choices)))
-        no_value = True
-        while no_value:
-            print >> sys.stderr, "Please choose a value from the following"
-            for num, val in mapped.items():
-                print >> sys.stderr, "{0}) {1}".format(num, val)
-
-            sys.stderr.write(": ")
-            sys.stderr.flush()
-            response = raw_input()
-
-            if response is None or not response.isdigit() or int(response) not in mapped:
-                print >> sys.stderr, "Please choose a valid response ({0} is not valid)".format(response)
-            else:
-                no_value = False
-                return mapped[int(response)]
-
-    def ask_for_choice_or_new(self, needed, choices):
-        mapped = dict(enumerate(sorted(choices)))
-        no_value = True
-        while no_value:
-            print >> sys.stderr, "Choose a {0}".format(needed)
-            if mapped:
-                maximum = max(mapped.keys())
-                print >> sys.stderr, "Please choose a value from the following"
-                num = -1
-                for num, val in mapped.items():
-                    print >> sys.stderr, "{0}) {1}".format(num, val)
-                print >> sys.stderr, "{0}) {1}".format(num+1, "Make your own value")
-
-                sys.stderr.write(": ")
-                sys.stderr.flush()
-                response = raw_input()
-
-                if response is None or not response.isdigit() or int(response) < 0 or int(response) < maximum:
-                    print >> sys.stderr, "Please choose a valid response ({0} is not valid)".format(response)
-                else:
-                    no_value = False
-                    response = int(response)
-                    if response in mapped:
-                        return mapped[response]
-            else:
-                no_value = False
-
-            if not no_value:
-                sys.stderr.write("Enter your custom value: ")
-                sys.stderr.flush()
-                return raw_input()
 
     def find_options(self, config_file=Unspecified, root_dir=Unspecified, **kwargs):
         """Setup the credulous!"""
