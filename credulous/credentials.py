@@ -1,5 +1,5 @@
-class FingerprintFiles(object):
-    """Knows about fingerprint files"""
+class Credentials(object):
+    """Knows about credential files"""
     def __init__(self, location, chosen):
         self.chosen = chosen
         self.location = location

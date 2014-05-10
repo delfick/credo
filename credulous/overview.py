@@ -1,5 +1,5 @@
 from credulous.errors import NoConfigFile, BadConfigFile, NotEnoughInfo, CredulousError, BadConfig
-from credulous.aws import FingerprintFiles
+from credulous.credentials import Credentials
 
 import json
 import sys
@@ -19,10 +19,13 @@ class Credulous(object):
     @property
     def chosen(self):
         """Return our chosen creds"""
-        destination, chosen = self.traverse_and_ask([("repos", "repo"), ("accounts", "account_id"), ("users", "iam_user")], self.explore())
-        return FingerprintFiles(destination, chosen)
+        if not hasattr(self, "_chosen"):
+            destination, chosen = self.find_credentials()
+            self.set_options(**chosen)
+            self._chosen = Credentials(destination, chosen)
+        return self._chosen
 
-    def traverse_and_ask(self, chain, directory_structure, chosen=[]):
+    def find_credentials(self, directory_structure=None, chain=None, chosen=None):
         """
         Traverse our directory structure, asking as necessary
 
@@ -32,36 +35,26 @@ class Credulous(object):
 
         and chosen is a dictionary of all our choices
         """
-        if not chain:
-            raise CredulousError("Well, we failed at making this recursive function :(")
+        if directory_structure is None:
+            _, directory_structure = self.explore()
 
-        category, nxt = chain[0]
-        for_looking_at = directory_structure[category]
-        if not for_looking_at:
-            raise NotEnoughInfo("Directory is empty, still looking for things", chain=chain, chosen=chosen)
+        if chain is None:
+            chain = [("repo", "Repository"), ("account", "Account"), ("user", "User")]
 
-        chain.pop(0)
-        result = None
-        if not getattr(self, nxt, Unspecified) in (Unspecified, "", None):
-            val = getattr(self, nxt)
+        if chosen is None:
+            chosen = []
+
+        nxt, category = chain.pop(0)
+        if len(directory_structure) is 1:
+            val = directory_structure.keys()[0]
         else:
-            keys = for_looking_at.keys()
-            if len(keys) is 1:
-                val = keys[0]
-            else:
-                val = self.ask_for_choice(nxt, keys)
+            val = self.ask_for_choice(category, sorted(directory_structure.keys()))
 
-            setattr(self, nxt, val)
-
-        if val not in for_looking_at:
-            raise BadConfig("Wanted a {0} that doesn't exist".format(nxt), wanted=val)
-
-        result = for_looking_at[val]
         chosen.append((nxt, val))
         if not chain:
-            return result["/location/"], dict(chosen)
+            return directory_structure[val], dict(chosen)
         else:
-            return self.traverse_and_ask(list(chain), result, list(chosen))
+            return self.find_credentials(directory_structure[val], list(chain), list(chosen))
 
     def ask_for_choice(self, needed, choices):
         """Ask for a value from some choices"""
@@ -80,7 +73,7 @@ class Credulous(object):
                 no_value = False
                 return mapped[int(response)]
 
-    def give_options(self, config_file=Unspecified, root_dir=Unspecified, **kwargs):
+    def find_options(self, config_file=Unspecified, root_dir=Unspecified, **kwargs):
         """Setup the credulous!"""
         if config_file is Unspecified:
             config_file = self.find_config_file(config_file)
@@ -97,8 +90,12 @@ class Credulous(object):
         if root_dir is not Unspecified:
             self.root_dir = root_dir
 
-        for attribute in ("iam_user", "account_id", "repo"):
-            if not hasattr(self, attribute) and attribute in kwargs:
+        self.set_options(**kwargs)
+
+    def set_options(self, **kwargs):
+        """Set specific options"""
+        for attribute in ("user", "account", "repo"):
+            if not getattr(self, attribute, None) and attribute in kwargs:
                 setattr(self, attribute, kwargs[attribute])
 
     def explore(self):
@@ -106,10 +103,10 @@ class Credulous(object):
         if not os.path.exists(self.root_dir):
             return {}
 
-        everything = self.find_repo_structure(self.root_dir, ["repos", "accounts", "users", "fingerprints"])
+        everything = self.find_repo_structure(self.root_dir, ["repos", "accounts", "users"], required_file="credentials.json")
         return everything
 
-    def find_repo_structure(self, root_dir, chain, collection=None):
+    def find_repo_structure(self, root_dir, chain, collection=None, sofar=None, complete=None, required_file=None):
         """
         Recursively explore a directory structure and put it in a dictionary
 
@@ -125,27 +122,51 @@ class Credulous(object):
 
         And we did
 
-            collection = find_repo_structure(<root>, ["repos", "fingerprints"])
+            collection, complete = find_repo_structure(<root>, ["repos", "accounts"], required_file="credentials.json")
 
         collection would become
 
             { "repos":
-              { "github.com:blah" : {"/files/": ["fingerprint1.blah"], "/location/": "#{<root>}/repos/github.com:blah"}
-              , "bitbucket.com:blah": {"/files/": ["fingerprint2.blah"], "/location/": "#{<root>}/repos/bitbucket.com:blah"}
+              { "github.com:blah" :
+                { "accounts":
+                  { "prod": { "/files/": ["credentials.json"], "/location/": "#{<root>}/repos/github.com:blah/prod" }
+                  }
+                , "/files/": []
+                , "/location/": "#{<root>}/repos/github.com:blah/prod"
+                }
+              , "bitbucket.com:blah":
+                { "accounts":
+                  { "dev": { "/files/": "not_credentials.something", "/location/": "#{<root>}/repos/bitbucket.com:blah/dev" }
+                  }
+                , "/files/": []
+                , "/location/": "#{<root>}/repos/bitbucket.com:blah"
+                }
               }
             , "/files/": []
             , "/location/": "#{<root>}/repos"
             }
+
+        and complete would become
+
+            {"github.com:blah": {"prod": {}}}
         """
+        if sofar is None:
+            sofar = []
+
+        if complete is None:
+            complete = {}
+
         if collection is None:
             collection = {}
 
         dirs = []
         files = []
+        basenames = []
         for filename in os.listdir(root_dir):
             location = os.path.join(root_dir, filename)
             if os.path.isfile(location):
                 files.append(location)
+                basenames.append(filename)
             else:
                 dirs.append((filename, location))
 
@@ -153,16 +174,25 @@ class Credulous(object):
         collection["/location/"] = root_dir
 
         if not chain:
-            return
+            if required_file and required_file in basenames:
+                c = complete
+                for part in sofar:
+                    if part not in c:
+                        c[part] = {}
+                    c = c[part]
+            return os.path.join(root_dir, required_file)
 
         # Pop the chain!
         category = chain.pop(0)
         collection[category] = {}
 
         for filename, location in dirs:
-            collection[category][filename] = self.find_repo_structure(location, list(chain))
+            result = self.find_repo_structure(location, list(chain), sofar=list(sofar) + [filename], complete=complete, required_file=required_file)
+            if result:
+                result = result[0]
+            collection[category][filename] = result
 
-        return collection
+        return collection, complete
 
     def find_config_file(self, config_file=Unspecified):
         """Find a config file, use the one given if specified"""
@@ -180,9 +210,9 @@ class Credulous(object):
         return home_config
 
     def read_from_config(self, config_file):
-        """Call give_options using options from the config file"""
+        """Call find_options using options from the config file"""
         # What's an error handling?
         options = json.load(open(config_file))
         options["config_file"] = None
-        self.give_options(**options)
+        self.find_options(**options)
 
