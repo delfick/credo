@@ -47,7 +47,7 @@ class Credulous(object):
 
         chosen.append((nxt, val))
         if not chain:
-            return directory_structure[val]["/credentials/"]
+            return directory_structure[val]
         else:
             return self.find_credentials(directory_structure[val], list(chain), list(chosen))
 

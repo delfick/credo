@@ -1,3 +1,4 @@
+import copy
 import os
 
 def do_display(credulous, **kwargs):
@@ -19,10 +20,35 @@ def do_exec(credulous, command, **kwargs):
     environment.update(AWS_ACCESS_KEY_ID=access_key, AWS_SECRET_ACCESS_KEY=secret_key)
     os.execvpe(command[0], command, environment)
 
+def do_showone(credulous, **kwargs):
+    """Show info about one of the creds"""
+    print credulous.chosen.as_string()
+
 def do_showavailable(credulous, **kwargs):
     """Show all what available repos, accounts and users we have"""
     directory_structure, completed = credulous.explore()
     headings = ["Repositories", "Accounts", "Users"]
+
+    completed = copy.deepcopy(completed)
+    if credulous.user:
+        for repo, accounts in completed.items():
+            for account, users in accounts.items():
+                for user in users.keys():
+                    if user != credulous.user:
+                        del users[user]
+
+    for repo, accounts in completed.items():
+        for account, users in accounts.items():
+            if credulous.account and account:
+                del accounts[account]
+            if not users and account in accounts:
+                del accounts[account]
+
+    for repo, accounts in completed.items():
+        if credulous.repo and repo != credulous.repo:
+            del completed[repo]
+        if not accounts and repo in completed:
+            del completed[repo]
 
     def get_displayable(root, headings, indent="", underline_chain=None, sofar=None):
         """
@@ -63,6 +89,8 @@ def do_showavailable(credulous, **kwargs):
                 indented_key = get_indented(key)
                 children[indented_key] = get_displayable(val, list(headings), indent + "    ", list(underline_chain), list(sofar) + [indented_key])
 
+            if not children:
+                return None
             return get_underlined(heading, heading_underline), children
 
     def display_result(result):
@@ -83,6 +111,10 @@ def do_showavailable(credulous, **kwargs):
     result = get_displayable(completed, headings)
     if not result:
         print "Didn't find any credential files"
+        filters = [("repo", credulous.repo), ("account", credulous.account), ("user", credulous.user)]
+        if any(val for _, val in filters):
+            print "Had a filter of: {0}".format(" | ".join("{0}={1}".format(key, val) for key, val in filters if val))
+
     else:
         display_result(result)
 
