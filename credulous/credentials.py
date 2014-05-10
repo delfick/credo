@@ -1,8 +1,15 @@
 from credulous.errors import BadCredentialFile
 
 from crypto import decrypt, encrypt, find_key_for_fingerprint
+import copy
 import json
 import os
+
+def ask_user_for_secrets():
+    """Ask the user for access_key and secret_key"""
+    access_key = raw_input("Access key: ")
+    secret_key = raw_input("Secret key: ")
+    return access_key, secret_key
 
 class Credentials(object):
     """Knows about credential files"""
@@ -13,6 +20,25 @@ class Credentials(object):
         self.repo = repo
         self.account = account
         self.location = location
+
+    @classmethod
+    def make(kls, location, repo, account, user):
+        credentials = kls(location, repo, account, user)
+        access_key, secret_key = ask_user_for_secrets()
+        credentials.override_file(access_key=access_key, secret_key=secret_key)
+        print "Created credentials at {0}".format(credentials.location)
+        return credentials
+
+    def override_file(self, **overrides):
+        """Override values in our file"""
+        values = {}
+        try:
+            values = self.read()
+        except:
+            pass
+
+        values.update(overrides)
+        self._values = values
 
     @property
     def access_key(self):
@@ -32,6 +58,15 @@ class Credentials(object):
                     self._values[key] = self.decrypt(self._values[key], decrypting=key, location=self.location)
         return self._values
 
+    @property
+    def encrypted_values(self):
+        """Return _values as a dictionary with some encrypted values"""
+        values = copy.deepcopy(self.values)
+        for key in self.needs_encryption:
+            if key in values:
+                values[key] = self.encrypt(values[key], encrypting=key)
+        return values
+
     def read(self):
         """Read in our location as a json file"""
         if not os.path.exists(self.location):
@@ -46,6 +81,23 @@ class Credentials(object):
             return json.load(open(self.location))
         except ValueError as err:
             raise BadCredentialFile("Credentials file not valid json", location=self.location, error=err)
+
+    def save(self):
+        """Write our values to our json file"""
+        dirname = os.path.dirname(self.location)
+        if not os.path.exists(dirname):
+            try:
+                os.makedirs(dirname)
+            except OSError as err:
+                raise BadCredentialFile("Can't create parent directory", err=err)
+
+        if not os.access(dirname, os.W_OK):
+            raise BadCredentialFile("Don't have write permissions to parent directory", location=self.location)
+
+        try:
+            json.dump(self.encrypted_values, open(self.location, 'w'))
+        except ValueError as err:
+            raise BadCredentialFile("Can't write credentials as json", err=err, location=self.location)
 
     def shell_exports(self):
         """Return list of (key, val) exports we want to have in the shell"""

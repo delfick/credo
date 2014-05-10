@@ -16,6 +16,11 @@ def do_exec(credulous, command, **kwargs):
     environment.update(dict(credulous.chosen.shell_exports()))
     os.execvpe(command[0], command, environment)
 
+def do_import(credulous):
+    """Import some creds"""
+    credentials = credulous.make_credentials()
+    credentials.save()
+
 def do_showavailable(credulous, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
     explorer = credulous.make_explorer()

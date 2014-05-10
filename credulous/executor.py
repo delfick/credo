@@ -1,4 +1,4 @@
-from credulous.actions import do_display, do_exec, do_showavailable
+from credulous.actions import do_display, do_exec, do_showavailable, do_import
 from credulous.errors import CredulousError, NoExecCommand
 from credulous.overview import Credulous
 
@@ -54,6 +54,7 @@ class CliParser(object):
               "help": self.parse_help
             , "exec": self.parse_exec
             , "show": self.parse_show
+            , "import": self.parse_import
             , "display": self.parse_display
             }
 
@@ -112,7 +113,7 @@ class CliParser(object):
         return args, do_display
 
     def parse_show(self, action, argv):
-        """Available doesn't have arguments yet"""
+        """Parser for showing available credentials"""
         parser = argparse.ArgumentParser(description="Show you the credentials you have")
         parser.add_argument("--all"
             , help = "Force show all available"
@@ -126,6 +127,12 @@ class CliParser(object):
             )
         args = self.args_from_subparser(action, parser, argv)
         return args, do_showavailable
+
+    def parse_import(self, action, argv):
+        """Import doesn't have any arguments yet"""
+        parser = argparse.ArgumentParser(description="Import amazon secrets")
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_import
 
     def parse_exec(self, action, argv):
         """Exec passes on everything else also doesn't have arguments yet"""

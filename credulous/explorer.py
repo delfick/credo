@@ -111,7 +111,7 @@ class Explorer(object):
                 }
               }
             , "/files/": []
-            , "/location/": "#{<root>}/repos"
+            , "/location/": "#{<root>}"
             }
 
         and complete would become

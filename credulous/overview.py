@@ -1,4 +1,5 @@
 from credulous.errors import NoConfigFile, BadConfigFile
+from credulous.credentials import Credentials
 from credulous.explorer import Explorer
 
 import json
@@ -50,6 +51,41 @@ class Credulous(object):
         else:
             return self.find_credentials(completed[val], list(chain), list(chosen))
 
+    def make_credentials(self, directory_structure=None, chain=None, chosen=None):
+        """
+        Traverse our directory structure, asking as necessary
+
+        and create new parts of the structure as necessary
+        """
+        if directory_structure is None:
+            directory_structure = self.make_explorer().directory_structure
+
+        if chain is None:
+            chain = [("repos", "repo", "Repository"), ("accounts", "account", "Account"), ("users", "user", "User")]
+
+        if chosen is None:
+            chosen = []
+
+        container, nxt, category = chain.pop(0)
+        if container not in directory_structure:
+            directory_structure[container] = {}
+
+        val = self.ask_for_choice_or_new(category, sorted(key for key in directory_structure[container].keys() if not key.startswith('/')))
+        location = os.path.join(directory_structure['/location/'], val)
+        if val not in directory_structure[container]:
+            directory_structure[container][val] = {'/files/': [], '/location/': location}
+
+        chosen.append((nxt, val))
+        if not chain:
+            credentials_location = os.path.join(location, "credentials.json")
+            credentials = Credentials.make(credentials_location, **dict(chosen))
+            if credentials_location not in directory_structure['/files/']:
+                directory_structure['/files/'].append(credentials_location)
+            directory_structure['/credentials/'] = credentials
+            return credentials
+        else:
+            return self.make_credentials(directory_structure[container][val], list(chain), list(chosen))
+
     def ask_for_choice(self, needed, choices):
         """Ask for a value from some choices"""
         mapped = dict(enumerate(sorted(choices)))
@@ -66,6 +102,34 @@ class Credulous(object):
             else:
                 no_value = False
                 return mapped[int(response)]
+
+    def ask_for_choice_or_new(self, needed, choices):
+        mapped = dict(enumerate(sorted(choices)))
+        no_value = True
+        while no_value:
+            print >> sys.stderr, "Choose a {0}".format(needed)
+            if mapped:
+                maximum = max(mapped.keys())
+                print >> sys.stderr, "Please choose a value from the following"
+                num = -1
+                for num, val in mapped.items():
+                    print >> sys.stderr, "{0}) {1}".format(num, val)
+                print >> sys.stderr, "{0}) {1}".format(num+1, "Make your own value")
+
+                response = raw_input(": ")
+
+                if response is None or not response.isdigit() or int(response) < 0 or int(response) < maximum:
+                    print >> sys.stderr, "Please choose a valid response ({0} is not valid)".format(response)
+                else:
+                    no_value = False
+                    response = int(response)
+                    if response in mapped:
+                        return mapped[response]
+            else:
+                no_value = False
+
+            if not no_value:
+                return raw_input("Enter your custom value: ")
 
     def find_options(self, config_file=Unspecified, root_dir=Unspecified, **kwargs):
         """Setup the credulous!"""
