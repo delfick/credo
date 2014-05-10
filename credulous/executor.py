@@ -30,7 +30,7 @@ class CliParser(object):
                 return argv[:index+1], arg, argv[index+1:]
 
         # Couldn't find a valid action :(
-        return argv, arg, []
+        return argv, None, []
 
     def parse_args(self, argv=None):
         """
