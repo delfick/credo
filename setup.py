@@ -9,6 +9,7 @@ setup(
     , install_requires =
       [ "rainbow_logging_handler"
       , "pycrypto"
+      , "paramiko"
       ]
 
     , extras_require =
