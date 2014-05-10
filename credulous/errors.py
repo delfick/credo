@@ -41,3 +41,12 @@ class NotEnoughInfo(CredulousError):
 class BadConfig(CredulousError):
     desc = "Bad Config"
 
+class BadCredentialFile(CredulousError):
+    desc = "Bad credentials file"
+
+class BadPrivateKey(CredulousError):
+    desc = "Bad private ssh key"
+
+class BadCypherText(CredulousError):
+    desc = "Couldn't decrypt text"
+

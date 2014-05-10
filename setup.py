@@ -8,6 +8,7 @@ setup(
 
     , install_requires =
       [ "rainbow_logging_handler"
+      , "pycrypto"
       ]
 
     , extras_require =
