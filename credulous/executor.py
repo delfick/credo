@@ -1,4 +1,4 @@
-from credulous.actions import do_display, do_exec, do_showavailable, do_showone
+from credulous.actions import do_display, do_exec, do_showavailable
 from credulous.errors import CredulousError, NoExecCommand
 from credulous.overview import Credulous
 
@@ -113,10 +113,16 @@ class CliParser(object):
 
     def parse_show(self, action, argv):
         """Available doesn't have arguments yet"""
-        parser = argparse.ArgumentParser(description="Print out all our available repos, accounts and users")
+        parser = argparse.ArgumentParser(description="Show you the credentials you have")
         parser.add_argument("--all"
             , help = "Force show all available"
             , action = "store_true"
+            , dest = "force_show_all"
+            )
+        parser.add_argument("--no-collapse"
+            , help = "Don't collapse output if we only find one"
+            , action = "store_false"
+            , dest = "collapse_if_one"
             )
         args = self.args_from_subparser(action, parser, argv)
         return args, do_showavailable

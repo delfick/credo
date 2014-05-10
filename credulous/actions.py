@@ -1,5 +1,9 @@
-import copy
 import os
+
+def _print_list_of_tuples(lst, prefix):
+    """Helper for printing out a list of tuples"""
+    if any(val for _, val in lst):
+        print "{0}: {1}".format(prefix, " | ".join("{0}={1}".format(key, val) for key, val in lst if val))
 
 def do_display(credulous, **kwargs):
     """Just print out the chosen creds"""
@@ -20,13 +24,10 @@ def do_exec(credulous, command, **kwargs):
     environment.update(AWS_ACCESS_KEY_ID=access_key, AWS_SECRET_ACCESS_KEY=secret_key)
     os.execvpe(command[0], command, environment)
 
-def do_showone(credulous, **kwargs):
-    """Show info about one of the creds"""
-    print credulous.chosen.as_string()
-
-def do_showavailable(credulous, **kwargs):
+def do_showavailable(credulous, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
     directory_structure, completed, fltr = credulous.explore(filtered=not force_show_all)
+    _print_list_of_tuples(fltr, "Using the filters")
 
     headings = ["Repositories", "Accounts", "Users"]
 
@@ -73,6 +74,12 @@ def do_showavailable(credulous, **kwargs):
                 return None
             return get_underlined(heading, heading_underline), children
 
+    def display_creds(cred, indent=""):
+        """Display info about the creds"""
+        as_string = cred.as_string()
+        for line in as_string.split('\n'):
+            print "{0}{1}".format(indent * 3, line)
+
     def display_result(result):
         """Display the result from get_displayable"""
         heading, children = result
@@ -84,17 +91,32 @@ def do_showavailable(credulous, **kwargs):
             if isinstance(values, list) or isinstance(values, tuple) or isinstance(values, dict):
                 display_result(values)
             elif values:
-                as_string = values.as_string()
-                for line in as_string.split('\n'):
-                    print "{0}{1}".format("    " * 3, line)
+                display_creds(values, "    ")
 
-    result = get_displayable(completed, headings)
-    if not result:
+    # Complain if no found credentials
+    if not completed:
         print "Didn't find any credential files"
-        filters = [("repo", credulous.repo), ("account", credulous.account), ("user", credulous.user)]
-        if any(val for _, val in filters):
-            print "Had a filter of: {0}".format(" | ".join("{0}={1}".format(key, val) for key, val in filters if val))
+        return
 
-    else:
-        display_result(result)
+    # Special case if we only found one
+    if collapse_if_one:
+        r = completed
+        chain = []
+        while True:
+            if not r:
+                break
+
+            if len(r) > 1:
+                break
+
+            chain.append(r.keys()[0])
+            r = r[r.keys()[0]]
+            if not isinstance(r, list) and not isinstance(r, tuple) and not isinstance(r, dict):
+                _print_list_of_tuples(zip(["repo", "account", "user"], chain), "Only found one set of credentials")
+                display_creds(r)
+                return
+
+    # Or just do them all if found more than one
+    result = get_displayable(completed, headings)
+    display_result(result)
 
