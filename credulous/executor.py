@@ -1,5 +1,5 @@
+from credulous.actions import do_display, do_exec, do_showavailable
 from credulous.errors import CredulousError, NoExecCommand
-from credulous.actions import do_display, do_exec
 from credulous.overview import Credulous
 
 from rainbow_logging_handler import RainbowLoggingHandler
@@ -54,6 +54,7 @@ class CliParser(object):
               "help": self.parse_help
             , "exec": self.parse_exec
             , "display": self.parse_display
+            , "available": self.parse_available
             }
 
     def cred_parser(self):
@@ -69,8 +70,8 @@ class CliParser(object):
             , help = "The account to use"
             )
 
-        parser.add_argument("--iam-user"
-            , help = "The iam-user to use"
+        parser.add_argument("--user"
+            , help = "The user to use"
             )
 
         parser.add_argument("--repo"
@@ -87,7 +88,7 @@ class CliParser(object):
             raise CredulousError("Well this is weird, I thought the action was different than it turned out to be", expected=expected_action, parsed=cred_args.action)
 
         credulous = Credulous()
-        credulous.give_options(**vars(cred_args))
+        credulous.find_options(**vars(cred_args))
         return credulous
 
     def parse_help(self, argv):
@@ -101,6 +102,12 @@ class CliParser(object):
         parser = argparse.ArgumentParser(description="Print out export statements for your aws creds")
         args = vars(parser.parse_args(argv))
         return args, do_display
+
+    def parse_available(self, argv):
+        """Available doesn't have arguments yet"""
+        parser = argparse.ArgumentParser(description="Print out all our available repos, accounts and users")
+        args = vars(parser.parse_args(argv))
+        return args, do_showavailable
 
     def parse_exec(self, argv):
         """Exec passes on everything else also doesn't have arguments yet"""
