@@ -1,4 +1,4 @@
-from credulous.errors import NoConfigFile, BadConfigFile, NotEnoughInfo, CredulousError, BadConfig
+from credulous.errors import NoConfigFile, BadConfigFile
 from credulous.credentials import Credentials
 
 import json
