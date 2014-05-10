@@ -33,25 +33,25 @@ class Explorer(object):
         fltr = [(key, val) for key, val in ("repo", repo), ("account", account), ("user", user), if val]
 
         if fltr:
-            if self.user:
-                for repo, accounts in result.items():
-                    for account, users in accounts.items():
-                        for user in users.keys():
-                            if user != self.user:
-                                del users[user]
+            if user:
+                for the_repo, accounts in result.items():
+                    for the_account, users in accounts.items():
+                        for the_user in users.keys():
+                            if the_user != user:
+                                del users[the_user]
 
-            for repo, accounts in result.items():
-                for account, users in accounts.items():
-                    if self.account and self.account != account:
-                        del accounts[account]
-                    if not users and account in accounts:
-                        del accounts[account]
+            for the_repo, accounts in result.items():
+                for the_account, users in accounts.items():
+                    if account and the_account != account:
+                        del accounts[the_account]
+                    if not users and the_account in accounts:
+                        del accounts[the_account]
 
-            for repo, accounts in result.items():
-                if self.repo and repo != self.repo:
-                    del result[repo]
-                if not accounts and repo in result:
-                    del result[repo]
+            for the_repo, accounts in result.items():
+                if repo and the_repo != repo:
+                    del result[the_repo]
+                if not accounts and the_repo in result:
+                    del result[the_repo]
 
         return result, fltr
 
