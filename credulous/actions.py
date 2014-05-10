@@ -8,7 +8,7 @@ def _print_list_of_tuples(lst, prefix):
 def do_display(credulous, **kwargs):
     """Just print out the chosen creds"""
     for key, val in credulous.chosen.shell_exports():
-        print "export {0}='{1}'".format(key, val)
+        print "export {0}={1}".format(key, val)
 
 def do_exec(credulous, command, **kwargs):
     """Exec some command with aws credentials in the environment"""
