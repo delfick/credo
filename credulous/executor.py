@@ -45,7 +45,7 @@ class CliParser(object):
         """
         cred_args, action, action_args = self.split_argv()
         credulous = self.make_credulous(cred_args, action)
-        kwargs, function = self.actions[action](action_args)
+        kwargs, function = self.actions[action](action, action_args)
         return credulous, kwargs, function
 
     @property
@@ -80,6 +80,14 @@ class CliParser(object):
 
         return parser
 
+    def args_from_subparser(self, action, parser, argv):
+        """Get us args from our parser as a dictionary and make sure our usage statement is nice"""
+        cred_usage = self.cred_parser().format_usage().split(":", 1)[1].strip().split("\n")[0]
+        subparser_usage = parser.format_usage()
+        subparser_usage = subparser_usage[subparser_usage.index(parser.prog)+len(parser.prog):].strip()
+        parser.usage = "{0} <|| {1} ||> {2}".format(cred_usage, action, subparser_usage)
+        return vars(parser.parse_args(argv))
+
     def make_credulous(self, cred_args, expected_action):
         """Make a Credulous object that knows things"""
         cred_parser = self.cred_parser()
@@ -91,36 +99,33 @@ class CliParser(object):
         credulous.find_options(**vars(cred_args))
         return credulous
 
-    def parse_help(self, argv):
+    def parse_help(self, action, argv):
         """Just prints help and quits"""
         # It's late, I'm tired....
         print "Help is not here"
         sys.exit(1)
 
-    def parse_display(self, argv):
+    def parse_display(self, action, argv):
         """Display doesn't have arguments yet"""
         parser = argparse.ArgumentParser(description="Print out export statements for your aws creds")
-        args = vars(parser.parse_args(argv))
+        args = self.args_from_subparser(action, parser, argv)
         return args, do_display
 
-    def parse_show(self, argv):
+    def parse_show(self, action, argv):
         """Available doesn't have arguments yet"""
         parser = argparse.ArgumentParser(description="Print out all our available repos, accounts and users")
         parser.add_argument("--all"
             , help = "Force show all available"
             , action = "store_true"
             )
-        args = vars(parser.parse_args(argv))
-        if args["all"]:
-            return args, do_showavailable
-        else:
-            return args, do_showone
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_showavailable
 
-    def parse_exec(self, argv):
+    def parse_exec(self, action, argv):
         """Exec passes on everything else also doesn't have arguments yet"""
         parser = argparse.ArgumentParser(description="Run the provided command using a sub shell with the aws credentials in it")
         if argv and argv[0] in ("--help", "-h"):
-            parser.parse_args([argv[0]])
+            self.args_from_subparser(action, parser, argv)
             # argparse should already quit before this point
             sys.exit(1)
         else:
