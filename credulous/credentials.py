@@ -1,6 +1,6 @@
 from credulous.errors import BadCredentialFile
 
-from crypto import decrypt, find_key_for_fingerprint
+from crypto import decrypt, encrypt, find_key_for_fingerprint
 import json
 import os
 
@@ -65,6 +65,14 @@ class Credentials(object):
         fingerprint = self.values.get("fingerprint", None)
         private_key_loc = find_key_for_fingerprint(fingerprint, default="id_rsa")
         return decrypt(value, private_key_loc, **info)
+
+    def encrypt(self, value, **info):
+        """
+        Encrypt the specified value
+        And figure out what public keys to encrypt with
+        """
+        public_key_loc = os.path.expanduser("~/.ssh/id_rsa.pub")
+        return encrypt(value, public_key_loc, **info)
 
     def as_string(self):
         """Return information about credentials as a string"""

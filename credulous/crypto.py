@@ -8,13 +8,14 @@ from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 from Crypto.Util import asn1
 from Crypto.Hash import MD5
+import Crypto
 
 from binascii import unhexlify, a2b_base64
 from base64 import b64decode
 from getpass import getpass
 import os
 
-def encrypt(message, public_key_loc):
+def encrypt(message, public_key_loc, **info):
     """Encrypt the specified message using specified public key and return as base64 encoded string"""
     key = open(public_key_loc, "r").read()
     rsakey = RSA.importKey(key)
@@ -32,7 +33,10 @@ def decrypt(package, private_key_loc, **info):
     except TypeError:
         raise BadCypherText("Value not valid base64 encoding", **info)
 
-    return rsakey.decrypt(decoded)
+    try:
+        return rsakey.decrypt(decoded)
+    except ValueError as err:
+        raise BadCypherText(err=err, **info)
 
 def find_key_for_fingerprint(fingerprint, default="id_rsa"):
     """Find a private key for this fingerprint or if no fingerprint then default to ~/.ssh/<default>"""
@@ -67,7 +71,11 @@ def private_key_to_rsa_object(location):
         # First we must decrypt!
         objdec = decrypt_key(info_lines, key_lines, location)
         data = a2b_base64(b(''.join(key_lines)))
-        key = unpad(objdec.decrypt(data), objdec.block_size)
+        try:
+            key = unpad(objdec.decrypt(data), objdec.block_size)
+        except Crypto.Util.Padding.PaddingError as err:
+            raise BadPrivateKey("Couldn't decrypt, perhaps bad password?", err=err)
+
         seq = asn1.DerSequence()
         seq.decode(key)
         return RSA.construct( (seq[0], seq[1]) )
