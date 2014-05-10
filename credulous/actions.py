@@ -26,29 +26,9 @@ def do_showone(credulous, **kwargs):
 
 def do_showavailable(credulous, **kwargs):
     """Show all what available repos, accounts and users we have"""
-    directory_structure, completed = credulous.explore()
+    directory_structure, completed, fltr = credulous.explore(filtered=not force_show_all)
+
     headings = ["Repositories", "Accounts", "Users"]
-
-    completed = copy.deepcopy(completed)
-    if credulous.user:
-        for repo, accounts in completed.items():
-            for account, users in accounts.items():
-                for user in users.keys():
-                    if user != credulous.user:
-                        del users[user]
-
-    for repo, accounts in completed.items():
-        for account, users in accounts.items():
-            if credulous.account and account:
-                del accounts[account]
-            if not users and account in accounts:
-                del accounts[account]
-
-    for repo, accounts in completed.items():
-        if credulous.repo and repo != credulous.repo:
-            del completed[repo]
-        if not accounts and repo in completed:
-            del completed[repo]
 
     def get_displayable(root, headings, indent="", underline_chain=None, sofar=None):
         """

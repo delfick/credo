@@ -31,7 +31,7 @@ class Credulous(object):
         and return the credentials object we find
         """
         if directory_structure is None:
-            _, directory_structure = self.explore()
+            _, directory_structure, _ = self.explore()
 
         if chain is None:
             chain = [("repo", "Repository"), ("account", "Account"), ("user", "User")]
@@ -93,12 +93,40 @@ class Credulous(object):
             if not getattr(self, attribute, None) and attribute in kwargs:
                 setattr(self, attribute, kwargs[attribute])
 
-    def explore(self):
+    def explore(self, filtered=False):
         """Explore our root directory"""
         if not os.path.exists(self.root_dir):
             return {}
 
-        return self.find_repo_structure(self.root_dir)
+        fltr = []
+        directory_structure, completed = self.find_repo_structure(self.root_dir)
+
+        if filtered:
+            fltr = [(key, val) for key, val in ("repo", self.repo), ("account", self.account), ("user", self.user), if val]
+
+            if fltr:
+                if self.user:
+                    for repo, accounts in completed.items():
+                        for account, users in accounts.items():
+                            for user in users.keys():
+                                if user != self.user:
+                                    del users[user]
+
+                for repo, accounts in completed.items():
+                    for account, users in accounts.items():
+                        if self.account and self.account != account:
+                            del accounts[account]
+                        if not users and account in accounts:
+                            del accounts[account]
+
+                for repo, accounts in completed.items():
+                    if self.repo and repo != self.repo:
+                        del completed[repo]
+                    if not accounts and repo in completed:
+                        del completed[repo]
+
+        return directory_structure, completed, fltr
+
 
     def find_repo_structure(self, root_dir, chain=None, collection=None, sofar=None, complete=None):
         """
