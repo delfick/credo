@@ -10,6 +10,8 @@ setup(
       [ "rainbow_logging_handler"
       , "pycrypto"
       , "paramiko"
+      , "keyring"
+      , "boto"
       ]
 
     , extras_require =

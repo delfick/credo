@@ -1,5 +1,5 @@
+from credulous.errors import NoConfigFile, BadConfigFile, CredulousError
 from credulous.asker import ask_for_choice, ask_for_choice_or_new
-from credulous.errors import NoConfigFile, BadConfigFile
 from credulous.credentials import Credentials
 from credulous.explorer import Explorer
 
@@ -43,6 +43,8 @@ class Credulous(object):
         if len(completed) is 1:
             val = completed.keys()[0]
         else:
+            if not completed:
+                raise CredulousError("Told to find a key that doesn't exist", repo=self.repo, account=self.account, user=self.user)
             val = ask_for_choice(category, sorted(completed.keys()))
 
         chosen.append((nxt, val))
@@ -70,7 +72,10 @@ class Credulous(object):
         if container not in directory_structure:
             directory_structure[container] = {}
 
-        val = ask_for_choice_or_new(category, sorted(key for key in directory_structure[container].keys() if not key.startswith('/')))
+        if getattr(self, nxt, None):
+            val = getattr(self, nxt)
+        else:
+            val = ask_for_choice_or_new(category, sorted(key for key in directory_structure[container].keys() if not key.startswith('/')))
         location = os.path.join(directory_structure['/location/'], val)
         if val not in directory_structure[container]:
             directory_structure[container][val] = {'/files/': [], '/location/': location}
