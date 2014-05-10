@@ -12,9 +12,8 @@ def do_display(credulous, **kwargs):
 
 def do_exec(credulous, command, **kwargs):
     """Exec some command with aws credentials in the environment"""
-    access_key, secret_key = credulous.current_creds
     environment = dict(os.environ)
-    environment.update(AWS_ACCESS_KEY_ID=access_key, AWS_SECRET_ACCESS_KEY=secret_key)
+    environment.update(dict(credulous.chosen.shell_exports()))
     os.execvpe(command[0], command, environment)
 
 def do_showavailable(credulous, force_show_all=False, collapse_if_one=True, **kwargs):

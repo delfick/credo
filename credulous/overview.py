@@ -12,11 +12,6 @@ class Credulous(object):
     """Incredible credulous knows all"""
 
     @property
-    def current_creds(self):
-        """Return our current creds"""
-        return self.chosen.access_key, self.chosen.secret_key
-
-    @property
     def chosen(self):
         """Return our chosen creds"""
         if not hasattr(self, "_chosen"):
