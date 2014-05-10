@@ -31,7 +31,7 @@ class Credulous(object):
         and return the credentials object we find
         """
         if completed is None:
-            completed = self.make_explorer().completed
+            completed, _ = self.make_explorer().filtered(repo=self.repo, account=self.account, user=self.user)
 
         if chain is None:
             chain = [("repo", "Repository"), ("account", "Account"), ("user", "User")]
@@ -95,7 +95,9 @@ class Credulous(object):
             for num, val in mapped.items():
                 print >> sys.stderr, "{0}) {1}".format(num, val)
 
-            response = raw_input(": ")
+            sys.stderr.write(": ")
+            sys.stderr.flush()
+            response = raw_input()
 
             if response is None or not response.isdigit() or int(response) not in mapped:
                 print >> sys.stderr, "Please choose a valid response ({0} is not valid)".format(response)
@@ -116,7 +118,9 @@ class Credulous(object):
                     print >> sys.stderr, "{0}) {1}".format(num, val)
                 print >> sys.stderr, "{0}) {1}".format(num+1, "Make your own value")
 
-                response = raw_input(": ")
+                sys.stderr.write(": ")
+                sys.stderr.flush()
+                response = raw_input()
 
                 if response is None or not response.isdigit() or int(response) < 0 or int(response) < maximum:
                     print >> sys.stderr, "Please choose a valid response ({0} is not valid)".format(response)
@@ -129,7 +133,9 @@ class Credulous(object):
                 no_value = False
 
             if not no_value:
-                return raw_input("Enter your custom value: ")
+                sys.stderr.write("Enter your custom value: ")
+                sys.stderr.flush()
+                return raw_input()
 
     def find_options(self, config_file=Unspecified, root_dir=Unspecified, **kwargs):
         """Setup the credulous!"""
