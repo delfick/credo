@@ -20,6 +20,7 @@ def do_import(credulous):
     """Import some creds"""
     credentials = credulous.make_credentials()
     credentials.save()
+    print "Created credentials at {0}".format(credentials.location)
 
 def do_showavailable(credulous, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""

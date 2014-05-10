@@ -26,7 +26,6 @@ class Credentials(object):
         credentials = kls(location, repo, account, user)
         access_key, secret_key = ask_user_for_secrets()
         credentials.override_file(access_key=access_key, secret_key=secret_key)
-        print "Created credentials at {0}".format(credentials.location)
         return credentials
 
     def override_file(self, **overrides):
