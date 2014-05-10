@@ -43,6 +43,8 @@ class Crypto(object):
         """Find a private key for this fingerprint or if no fingerprint then default to ~/.ssh/<default>"""
         if fingerprint is None:
             location = os.path.expanduser("~/.ssh/{0}".format(default))
+        else:
+            raise NotImplementedError("Haven't quite got around to this yet")
 
         if not os.path.exists(location):
             raise BadPrivateKey("Couldn't find one to use")
