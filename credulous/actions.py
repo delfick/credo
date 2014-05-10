@@ -22,9 +22,9 @@ def do_exec(credulous, command, **kwargs):
 def do_showavailable(credulous, **kwargs):
     """Show all what available repos, accounts and users we have"""
     directory_structure, completed = credulous.explore()
-    structure = [("repos", "Repositories"), ("accounts", "Accounts"), ("users", "Users")]
+    headings = ["Repositories", "Accounts", "Users"]
 
-    def get_displayable(root, chain, indent="", heading_chain=None, sofar=None, complete=None):
+    def get_displayable(root, headings, indent="", underline_chain=None, sofar=None):
         """
         Return a structure for printing out our available credentials
         return as (heading, children)
@@ -32,14 +32,11 @@ def do_showavailable(credulous, **kwargs):
         Where children is
             {child: (heading, grandchildren), child2: (heading, grandchildren)}
         """
-        if complete is None:
-            complete = completed
-
         if sofar is None:
             sofar = []
 
-        if heading_chain is None:
-            heading_chain = ["="]
+        if underline_chain is None:
+            underline_chain = ["="]
 
         def get_indented(s, prefix=""):
             """Print the string with leading indentation"""
@@ -52,28 +49,21 @@ def do_showavailable(credulous, **kwargs):
             else:
                 return "{0}:".format(get_indented(s, ">> "))
 
-        if chain:
-            category, heading = chain.pop(0)
-
-            if any(child in complete for child in root[category]):
-                heading_underline = None
-                if heading_chain:
-                    heading_underline = heading_chain.pop(0)
-
-                children = {}
-                for key, val in root[category].items():
-                    if key in complete:
-                        indented_key = get_indented(key)
-                        children[indented_key] = get_displayable(val, list(chain), indent + "    ", list(heading_chain), list(sofar) + [indented_key], complete=complete[key])
-
-                return get_underlined(heading, heading_underline), children
+        if not headings:
+            return root
         else:
-            if root and "/files/" in root and "credentials.json" in [os.path.basename(fle) for fle in root["/files/"]]:
-                valid = complete
-                for part in sofar:
-                    if part not in valid:
-                        valid[part] = {}
-                    valid = valid[part]
+            heading = headings.pop(0)
+
+            heading_underline = None
+            if underline_chain:
+                heading_underline = underline_chain.pop(0)
+
+            children = {}
+            for key, val in root.items():
+                indented_key = get_indented(key)
+                children[indented_key] = get_displayable(val, list(headings), indent + "    ", list(underline_chain), list(sofar) + [indented_key])
+
+            return get_underlined(heading, heading_underline), children
 
     def display_result(result):
         """Display the result from get_displayable"""
@@ -83,10 +73,14 @@ def do_showavailable(credulous, **kwargs):
         for child, values in children.items():
             print ""
             print child
-            if values:
+            if isinstance(values, list) or isinstance(values, tuple) or isinstance(values, dict):
                 display_result(values)
+            elif values:
+                as_string = values.as_string()
+                for line in as_string.split('\n'):
+                    print "{0}{1}".format("    " * 3, line)
 
-    result = get_displayable(directory_structure, structure)
+    result = get_displayable(completed, headings)
     if not result:
         print "Didn't find any credential files"
     else:

@@ -20,20 +20,15 @@ class Credulous(object):
     def chosen(self):
         """Return our chosen creds"""
         if not hasattr(self, "_chosen"):
-            destination, chosen = self.find_credentials()
-            self.set_options(**chosen)
-            self._chosen = Credentials(destination, chosen)
+            self._chosen = self.find_credentials()
+            self.set_options(repo=self._chosen.repo, account=self._chosen.account, user=self._chosen.user)
         return self._chosen
 
     def find_credentials(self, directory_structure=None, chain=None, chosen=None):
         """
         Traverse our directory structure, asking as necessary
 
-        Return (location, chosen)
-
-        Where location is the path of the final level
-
-        and chosen is a dictionary of all our choices
+        and return the credentials object we find
         """
         if directory_structure is None:
             _, directory_structure = self.explore()
@@ -52,7 +47,7 @@ class Credulous(object):
 
         chosen.append((nxt, val))
         if not chain:
-            return directory_structure[val], dict(chosen)
+            return directory_structure[val]["/credentials/"]
         else:
             return self.find_credentials(directory_structure[val], list(chain), list(chosen))
 
@@ -103,10 +98,9 @@ class Credulous(object):
         if not os.path.exists(self.root_dir):
             return {}
 
-        everything = self.find_repo_structure(self.root_dir, ["repos", "accounts", "users"], required_file="credentials.json")
-        return everything
+        return self.find_repo_structure(self.root_dir)
 
-    def find_repo_structure(self, root_dir, chain, collection=None, sofar=None, complete=None, required_file=None):
+    def find_repo_structure(self, root_dir, chain=None, collection=None, sofar=None, complete=None):
         """
         Recursively explore a directory structure and put it in a dictionary
 
@@ -115,28 +109,47 @@ class Credulous(object):
             <root>/
 
                 github.com:blah/
-                    fingerprint1.blah
+                    prod/
+                        user1/
+                            credentials.json
 
                 bitbucket.com:blah
-                    fingerprint2.blah
+                    dev/
+                        user1/
 
         And we did
 
-            collection, complete = find_repo_structure(<root>, ["repos", "accounts"], required_file="credentials.json")
+            collection, complete = find_repo_structure(<root>)
 
         collection would become
 
             { "repos":
               { "github.com:blah" :
                 { "accounts":
-                  { "prod": { "/files/": ["credentials.json"], "/location/": "#{<root>}/repos/github.com:blah/prod" }
+                  { "prod":
+                    { "users":
+                      { "user1": { "/files/": ["credentials.json"], "/credentials/": <Credentials object over crdentials.json>, "/location/": <location> }
+                      , "/files/": []
+                      , "/location/": "#{<root>}/repos/github.com:blah/prod/user1"
+                      }
+                    , "/files/": []
+                    , "/location/": "#{<root>}/repos/github.com:blah/prod"
+                    }
                   }
                 , "/files/": []
                 , "/location/": "#{<root>}/repos/github.com:blah/prod"
                 }
               , "bitbucket.com:blah":
                 { "accounts":
-                  { "dev": { "/files/": "not_credentials.something", "/location/": "#{<root>}/repos/bitbucket.com:blah/dev" }
+                  { "dev":
+                    { "users":
+                      { "user1": {"/files/": [], "/location/": <location> }
+                      , "/files/" []
+                      , "/location/": "#{<root>}/repos/bitbucket.com:blah/dev/user1"
+                      }
+                    , "/files/": []
+                    , "/location/": "#{<root>}/repos/bitbucket.com:blah/dev"
+                    }
                   }
                 , "/files/": []
                 , "/location/": "#{<root>}/repos/bitbucket.com:blah"
@@ -150,6 +163,9 @@ class Credulous(object):
 
             {"github.com:blah": {"prod": {}}}
         """
+        if chain is None:
+            chain = ["repos", "accounts", "users"]
+
         if sofar is None:
             sofar = []
 
@@ -174,20 +190,24 @@ class Credulous(object):
         collection["/location/"] = root_dir
 
         if not chain:
-            if required_file and required_file in basenames:
+            required_file = "credentials.json"
+            if required_file in basenames:
+                credential = Credentials(os.path.join(root_dir, required_file), repo=sofar[0], account=sofar[1], user=sofar[2])
                 c = complete
-                for part in sofar:
+                for part in sofar[:-1]:
                     if part not in c:
                         c[part] = {}
                     c = c[part]
-            return os.path.join(root_dir, required_file)
+                c[sofar[-1]] = credential
+                collection["/credentials/"] = credential
+            return
 
         # Pop the chain!
         category = chain.pop(0)
         collection[category] = {}
 
         for filename, location in dirs:
-            result = self.find_repo_structure(location, list(chain), sofar=list(sofar) + [filename], complete=complete, required_file=required_file)
+            result = self.find_repo_structure(location, list(chain), sofar=list(sofar) + [filename], complete=complete)
             if result:
                 result = result[0]
             collection[category][filename] = result
