@@ -3,8 +3,14 @@ import os
 def do_display(credulous, **kwargs):
     """Just print out the chosen creds"""
     access_key, secret_key = credulous.current_creds
-    print "export AWS_ACCESS_KEY_ID='{0}'".format(access_key)
-    print "export AWS_SECRET_ACCESS_KEY='{0}'".format(secret_key)
+    exportable = lambda key, val: "export {0}='{1}'".format(key, val)
+    maybe = lambda key: getattr(credulous, key, None)
+
+    print exportable("AWS_ACCESS_KEY_ID", access_key)
+    print exportable("AWS_SECRET_ACCESS_KEY", secret_key)
+    print exportable("CREDULOUS_CURRENT_REPO", maybe("repo"))
+    print exportable("CREDULOUS_CURRENT_ACCOUNT", maybe("account"))
+    print exportable("CREDULOUS_CURRENT_USER", maybe("user"))
 
 def do_exec(credulous, command, **kwargs):
     """Exec some command with aws credentials in the environment"""
