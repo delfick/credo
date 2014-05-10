@@ -18,7 +18,13 @@ def do_exec(credulous, command, **kwargs):
 
 def do_showavailable(credulous, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
-    directory_structure, completed, fltr = credulous.explore(filtered=not force_show_all)
+    explorer = credulous.make_explorer()
+
+    if force_show_all:
+        completed, fltr = explorer.completed, []
+    else:
+        completed, fltr = explorer.filtered(repo=credulous.repo, account=credulous.account, user=credulous.user)
+
     _print_list_of_tuples(fltr, "Using the filters")
 
     headings = ["Repositories", "Accounts", "Users"]

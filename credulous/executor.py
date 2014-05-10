@@ -144,7 +144,6 @@ def main(argv=None):
 
     try:
         credulous, kwargs, function = CliParser().parse_args(argv)
-        credulous.explore()
         function(credulous, **kwargs)
     except CredulousError as error:
         print ""

@@ -1,5 +1,5 @@
 from credulous.errors import NoConfigFile, BadConfigFile
-from credulous.credentials import Credentials
+from credulous.explorer import Explorer
 
 import json
 import sys
@@ -19,14 +19,18 @@ class Credulous(object):
             self.set_options(repo=self._chosen.repo, account=self._chosen.account, user=self._chosen.user)
         return self._chosen
 
-    def find_credentials(self, directory_structure=None, chain=None, chosen=None):
+    def make_explorer(self):
+        """Make us an explorer"""
+        return Explorer(self.root_dir)
+
+    def find_credentials(self, completed=None, chain=None, chosen=None):
         """
         Traverse our directory structure, asking as necessary
 
         and return the credentials object we find
         """
-        if directory_structure is None:
-            _, directory_structure, _ = self.explore()
+        if completed is None:
+            completed = self.make_explorer().completed
 
         if chain is None:
             chain = [("repo", "Repository"), ("account", "Account"), ("user", "User")]
@@ -35,16 +39,16 @@ class Credulous(object):
             chosen = []
 
         nxt, category = chain.pop(0)
-        if len(directory_structure) is 1:
-            val = directory_structure.keys()[0]
+        if len(completed) is 1:
+            val = completed.keys()[0]
         else:
-            val = self.ask_for_choice(category, sorted(directory_structure.keys()))
+            val = self.ask_for_choice(category, sorted(completed.keys()))
 
         chosen.append((nxt, val))
         if not chain:
-            return directory_structure[val]
+            return completed[val]
         else:
-            return self.find_credentials(directory_structure[val], list(chain), list(chosen))
+            return self.find_credentials(completed[val], list(chain), list(chosen))
 
     def ask_for_choice(self, needed, choices):
         """Ask for a value from some choices"""
@@ -87,155 +91,6 @@ class Credulous(object):
         for attribute in ("user", "account", "repo"):
             if not getattr(self, attribute, None) and attribute in kwargs:
                 setattr(self, attribute, kwargs[attribute])
-
-    def explore(self, filtered=False):
-        """Explore our root directory"""
-        if not os.path.exists(self.root_dir):
-            return {}
-
-        fltr = []
-        directory_structure, completed = self.find_repo_structure(self.root_dir)
-
-        if filtered:
-            fltr = [(key, val) for key, val in ("repo", self.repo), ("account", self.account), ("user", self.user), if val]
-
-            if fltr:
-                if self.user:
-                    for repo, accounts in completed.items():
-                        for account, users in accounts.items():
-                            for user in users.keys():
-                                if user != self.user:
-                                    del users[user]
-
-                for repo, accounts in completed.items():
-                    for account, users in accounts.items():
-                        if self.account and self.account != account:
-                            del accounts[account]
-                        if not users and account in accounts:
-                            del accounts[account]
-
-                for repo, accounts in completed.items():
-                    if self.repo and repo != self.repo:
-                        del completed[repo]
-                    if not accounts and repo in completed:
-                        del completed[repo]
-
-        return directory_structure, completed, fltr
-
-
-    def find_repo_structure(self, root_dir, chain=None, collection=None, sofar=None, complete=None):
-        """
-        Recursively explore a directory structure and put it in a dictionary
-
-        So say we had a directory of
-
-            <root>/
-
-                github.com:blah/
-                    prod/
-                        user1/
-                            credentials.json
-
-                bitbucket.com:blah
-                    dev/
-                        user1/
-
-        And we did
-
-            collection, complete = find_repo_structure(<root>)
-
-        collection would become
-
-            { "repos":
-              { "github.com:blah" :
-                { "accounts":
-                  { "prod":
-                    { "users":
-                      { "user1": { "/files/": ["credentials.json"], "/credentials/": <Credentials object over crdentials.json>, "/location/": <location> }
-                      , "/files/": []
-                      , "/location/": "#{<root>}/repos/github.com:blah/prod/user1"
-                      }
-                    , "/files/": []
-                    , "/location/": "#{<root>}/repos/github.com:blah/prod"
-                    }
-                  }
-                , "/files/": []
-                , "/location/": "#{<root>}/repos/github.com:blah/prod"
-                }
-              , "bitbucket.com:blah":
-                { "accounts":
-                  { "dev":
-                    { "users":
-                      { "user1": {"/files/": [], "/location/": <location> }
-                      , "/files/" []
-                      , "/location/": "#{<root>}/repos/bitbucket.com:blah/dev/user1"
-                      }
-                    , "/files/": []
-                    , "/location/": "#{<root>}/repos/bitbucket.com:blah/dev"
-                    }
-                  }
-                , "/files/": []
-                , "/location/": "#{<root>}/repos/bitbucket.com:blah"
-                }
-              }
-            , "/files/": []
-            , "/location/": "#{<root>}/repos"
-            }
-
-        and complete would become
-
-            {"github.com:blah": {"prod": {}}}
-        """
-        if chain is None:
-            chain = ["repos", "accounts", "users"]
-
-        if sofar is None:
-            sofar = []
-
-        if complete is None:
-            complete = {}
-
-        if collection is None:
-            collection = {}
-
-        dirs = []
-        files = []
-        basenames = []
-        for filename in os.listdir(root_dir):
-            location = os.path.join(root_dir, filename)
-            if os.path.isfile(location):
-                files.append(location)
-                basenames.append(filename)
-            else:
-                dirs.append((filename, location))
-
-        collection["/files/"] = files
-        collection["/location/"] = root_dir
-
-        if not chain:
-            required_file = "credentials.json"
-            if required_file in basenames:
-                credential = Credentials(os.path.join(root_dir, required_file), repo=sofar[0], account=sofar[1], user=sofar[2])
-                c = complete
-                for part in sofar[:-1]:
-                    if part not in c:
-                        c[part] = {}
-                    c = c[part]
-                c[sofar[-1]] = credential
-                collection["/credentials/"] = credential
-            return
-
-        # Pop the chain!
-        category = chain.pop(0)
-        collection[category] = {}
-
-        for filename, location in dirs:
-            result = self.find_repo_structure(location, list(chain), sofar=list(sofar) + [filename], complete=complete)
-            if result:
-                result = result[0]
-            collection[category][filename] = result
-
-        return collection, complete
 
     def find_config_file(self, config_file=Unspecified):
         """Find a config file, use the one given if specified"""
