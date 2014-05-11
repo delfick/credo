@@ -59,8 +59,11 @@ class Crypto(object):
         try:
             key = paramiko.RSAKey.from_private_key_file(location, password=None)
         except paramiko.PasswordRequiredException:
-            passphrase = getpass("Password for your private key ({0})\n:".format(location))
-            key = paramiko.RSAKey.from_private_key_file(location, password=passphrase )
+            try:
+                passphrase = getpass("Password for your private key ({0})\n:".format(location))
+                key = paramiko.RSAKey.from_private_key_file(location, password=passphrase )
+            except paramiko.ssh_exception.SSHException as err:
+                raise BadPrivateKey("Couldn't decode key, perhaps bad password?", err=err)
 
         key = RSA.construct((key.n, key.e, key.d, key.p, key.q))
         self.keys[location] = key
