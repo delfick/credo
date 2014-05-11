@@ -25,7 +25,7 @@ class Explorer(object):
     def explore(self):
         """Explore our root directory"""
         if not os.path.exists(self.root_dir):
-            return {}
+            return {"/location/": self.root_dir, "/files/": []}, {}
         return self.find_repo_structure(self.root_dir)
 
     def filtered(self, repo=None, account=None, user=None):
