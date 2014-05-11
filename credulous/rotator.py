@@ -34,7 +34,6 @@ class Rotator(object):
         def expire(key, value, multiplier=2):
             """Expire a key or mark as expired if necessary"""
             if self.determine_if_expired(value, multiplier=multiplier):
-                print "Expiring ", key, value, multiplier
                 if value.get("aws_access_key_id") != iam_access_key:
                     self.expire(user, value.get("aws_access_key_id"), iam_connection)
                     counts["deleted"] += 1
