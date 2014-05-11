@@ -1,14 +1,18 @@
 from credulous.asker import ask_user_for_secrets
 from credulous.errors import BadCredentialFile
+from credulous.rotator import Rotator
 
 from crypto import Crypto
+import logging
 import copy
 import json
 import os
 
+log = logging.getLogger("credulous.credentials")
+
 class Credentials(object):
     """Knows about credential files"""
-    needs_encryption = ["access_key", "secret_key"]
+    needs_encryption = ["aws_access_key_id", "aws_secret_access_key"]
 
     def __init__(self, location, repo, account, user):
         self.crypto = Crypto()
@@ -22,45 +26,63 @@ class Credentials(object):
     def make(kls, location, repo, account, user):
         credentials = kls(location, repo, account, user)
         access_key, secret_key = ask_user_for_secrets()
-        credentials.override_file(access_key=access_key, secret_key=secret_key)
+        if not os.path.exists(location):
+            credentials._values = {}
+
+        already_have = False
+        for values in credentials.values.values():
+            if values.get("aws_access_key_id") == access_key and values.get("aws_secret_access_key") == secret_key:
+                already_have = True
+
+        if not already_have:
+            credentials._values, _, _ = credentials.rotate(access_key, secret_key)
+        else:
+            log.info("Already have those credentials!")
+
         return credentials
 
-    def override_file(self, **overrides):
-        """Override values in our file"""
-        values = {}
-        try:
-            values = self.read()
-        except:
-            pass
-
-        values.update(overrides)
-        self._values = values
+    @property
+    def aws_access_key_id(self):
+        return self.current_key["aws_access_key_id"]
 
     @property
-    def access_key(self):
-        return self.values["access_key"]
+    def aws_secret_access_key(self):
+        return self.current_key["aws_secret_access_key"]
 
     @property
-    def secret_key(self):
-        return self.values["secret_key"]
+    def current_key(self):
+        """Get the current key to use and rotate if we need to"""
+        self._values, current = self.rotate()
+        return current
+
+    @property
+    def access_keys(self):
+        """Get all the known access keys"""
+        result = []
+        for value in self.values.values():
+            if "aws_access_key_id" in value:
+                result.append(value["aws_access_key_id"])
+        return result
 
     @property
     def values(self):
         """Read in and decrypt our values and memoize the result"""
         if not hasattr(self, "_values"):
             self._values = self.read()
-            for key in self.needs_encryption:
-                if key in self._values:
-                    self._values[key] = self.decrypt(self._values[key], decrypting=key, location=self.location)
+            for key_values in self._values.values():
+                for key in self.needs_encryption:
+                    if key in key_values:
+                        key_values[key] = self.decrypt(key_values[key], decrypting=key, location=self.location)
         return self._values
 
     @property
     def encrypted_values(self):
         """Return _values as a dictionary with some encrypted values"""
         values = copy.deepcopy(self.values)
-        for key in self.needs_encryption:
-            if key in values:
-                values[key] = self.encrypt(values[key], encrypting=key)
+        for key_values in values.values():
+            for key in self.needs_encryption:
+                if key in key_values:
+                    key_values[key] = self.encrypt(key_values[key], encrypting=key)
         return values
 
     def read(self):
@@ -91,15 +113,27 @@ class Credentials(object):
             raise BadCredentialFile("Don't have write permissions to parent directory", location=self.location)
 
         try:
-            json.dump(self.encrypted_values, open(self.location, 'w'))
+            vals = self.encrypted_values
+        except UnicodeDecodeError as err:
+            raise BadCredentialFile("Can't get encrypted values for the credentials file!", err=err, location=self.location)
+
+        try:
+            contents = json.dumps(vals)
         except ValueError as err:
-            raise BadCredentialFile("Can't write credentials as json", err=err, location=self.location)
+            raise BadCredentialFile("Can't create credentials as json", err=err, location=self.location)
+
+        try:
+            with open(self.location, "w") as fle:
+                log.info("Saving credentials for %s|%s|%s with access_keys %s", self.repo, self.account, self.user, self.access_keys)
+                fle.write(contents)
+        except OSError as err:
+            raise BadCredentialFile("Can't write to the credentials file", err=err, location=self.location)
 
     def shell_exports(self):
         """Return list of (key, val) exports we want to have in the shell"""
         return [
-              ("AWS_ACCESS_KEY_ID", self.access_key)
-            , ("AWS_SECRET_ACCESS_KEY", self.secret_key)
+              ("AWS_ACCESS_KEY_ID", self.aws_access_key_id)
+            , ("AWS_SECRET_ACCESS_KEY", self.aws_secret_access_key)
             , ("CREDULOUS_CURRENT_REPO", self.repo)
             , ("CREDULOUS_CURRENT_ACCOUNT", self.account)
             , ("CREDULOUS_CURRENT_USER", self.user)
@@ -120,9 +154,13 @@ class Credentials(object):
         And figure out what public keys to encrypt with
         """
         public_key_loc = os.path.expanduser("~/.ssh/id_rsa.pub")
-        return self.crypto.encrypt(value, public_key_loc, **info)
+        return self.crypto.encrypt(str(value), public_key_loc, **info)
 
     def as_string(self):
         """Return information about credentials as a string"""
         return "Credentials!"
+
+    def rotate(self, access_key=None, secret_key=None):
+        """Rotate our keys and return what the new values should be"""
+        return Rotator().rotate(self.values, self.user, access_key=access_key, secret_key=secret_key)
 

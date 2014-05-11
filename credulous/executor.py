@@ -1,4 +1,4 @@
-from credulous.actions import do_display, do_exec, do_showavailable, do_import
+from credulous.actions import do_display, do_exec, do_showavailable, do_import, do_rotate
 from credulous.errors import CredulousError, NoExecCommand
 from credulous.overview import Credulous
 
@@ -55,6 +55,7 @@ class CliParser(object):
             , "exec": self.parse_exec
             , "show": self.parse_show
             , "import": self.parse_import
+            , "rotate": self.parse_rotate
             , "display": self.parse_display
             }
 
@@ -133,6 +134,12 @@ class CliParser(object):
         parser = argparse.ArgumentParser(description="Import amazon secrets")
         args = self.args_from_subparser(action, parser, argv)
         return args, do_import
+
+    def parse_rotate(self, action, argv):
+        """Rotate doesn't have any arguments yet"""
+        parser = argparse.ArgumentParser(description="Rotate amazon secrets")
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_rotate
 
     def parse_exec(self, action, argv):
         """Exec passes on everything else also doesn't have arguments yet"""

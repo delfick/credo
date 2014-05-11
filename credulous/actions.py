@@ -16,11 +16,18 @@ def do_exec(credulous, command, **kwargs):
     environment.update(dict(credulous.chosen.shell_exports()))
     os.execvpe(command[0], command, environment)
 
-def do_import(credulous):
+def do_import(credulous, **kwargs):
     """Import some creds"""
     credentials = credulous.make_credentials()
     credentials.save()
     print "Created credentials at {0}".format(credentials.location)
+
+def do_rotate(credulous, **kwargs):
+    """Rotate some keys"""
+    credentials = credulous.chosen
+    credentials._values, _, counts = credentials.rotate()
+    credentials.save()
+    print "Created {0} credentials and deleted {1} credentials".format(counts["created"], counts["deleted"])
 
 def do_showavailable(credulous, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
