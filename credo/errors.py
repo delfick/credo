@@ -50,3 +50,6 @@ class BadPrivateKey(CredoError):
 class BadCypherText(CredoError):
     desc = "Couldn't decrypt text"
 
+class BadConfiguration(CredoError):
+    desc = "Bad configuration"
+

@@ -80,6 +80,10 @@ class CliParser(object):
             , help = "The repo to use"
             )
 
+        parser.add_argument("--creds"
+            , help = "Set user and account with user@account syntax"
+            )
+
         return parser
 
     def args_from_subparser(self, action, parser, argv):

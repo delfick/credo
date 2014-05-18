@@ -1,4 +1,4 @@
-from credo.errors import NoConfigFile, BadConfigFile, CredoError
+from credo.errors import NoConfigFile, BadConfigFile, CredoError, BadConfiguration
 from credo.asker import ask_for_choice, ask_for_choice_or_new
 from credo.credentials import Credentials
 from credo.explorer import Explorer
@@ -112,6 +112,15 @@ class Credo(object):
 
     def set_options(self, **kwargs):
         """Set specific options"""
+        if not getattr(self, "user", None) and not getattr(self, "account", None) and kwargs.get("creds"):
+            creds = kwargs["creds"]
+            if '@' not in creds:
+                raise BadConfiguration("Creds option needs to be user@account", got=creds)
+
+            user, account = creds.split("@")
+            self.user = user.strip()
+            self.account = account.strip()
+
         for attribute in ("user", "account", "repo"):
             if not getattr(self, attribute, None) and attribute in kwargs:
                 setattr(self, attribute, kwargs[attribute])
