@@ -5,38 +5,38 @@ def _print_list_of_tuples(lst, prefix):
     if any(val for _, val in lst):
         print "{0}: {1}".format(prefix, " | ".join("{0}={1}".format(key, val) for key, val in lst if val))
 
-def do_display(credulous, **kwargs):
+def do_display(credo, **kwargs):
     """Just print out the chosen creds"""
-    for key, val in credulous.chosen.shell_exports():
+    for key, val in credo.chosen.shell_exports():
         print "export {0}={1}".format(key, val)
 
-def do_exec(credulous, command, **kwargs):
+def do_exec(credo, command, **kwargs):
     """Exec some command with aws credentials in the environment"""
     environment = dict(os.environ)
-    environment.update(dict(credulous.chosen.shell_exports()))
+    environment.update(dict(credo.chosen.shell_exports()))
     os.execvpe(command[0], command, environment)
 
-def do_import(credulous, **kwargs):
+def do_import(credo, **kwargs):
     """Import some creds"""
-    credentials = credulous.make_credentials()
+    credentials = credo.make_credentials()
     credentials.save()
     print "Created credentials at {0}".format(credentials.location)
 
-def do_rotate(credulous, **kwargs):
+def do_rotate(credo, **kwargs):
     """Rotate some keys"""
-    credentials = credulous.chosen
+    credentials = credo.chosen
     credentials._values, _, counts = credentials.rotate()
     credentials.save()
     print "Created {0} credentials and deleted {1} credentials".format(counts["created"], counts["deleted"])
 
-def do_showavailable(credulous, force_show_all=False, collapse_if_one=True, **kwargs):
+def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
-    explorer = credulous.make_explorer()
+    explorer = credo.make_explorer()
 
     if force_show_all:
         completed, fltr = explorer.completed, []
     else:
-        completed, fltr = explorer.filtered(repo=credulous.repo, account=credulous.account, user=credulous.user)
+        completed, fltr = explorer.filtered(repo=credo.repo, account=credo.account, user=credo.user)
 
     _print_list_of_tuples(fltr, "Using the filters")
 

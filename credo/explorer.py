@@ -1,10 +1,10 @@
-from credulous.credentials import Credentials
+from credo.credentials import Credentials
 
 import copy
 import os
 
 class Explorer(object):
-    """Knows how to read a credulous repo structure"""
+    """Knows how to read a credo repo structure"""
     def __init__(self, root_dir):
         self.root_dir = root_dir
 

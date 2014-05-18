@@ -1,7 +1,7 @@
-from credulous.errors import NoConfigFile, BadConfigFile, CredulousError
-from credulous.asker import ask_for_choice, ask_for_choice_or_new
-from credulous.credentials import Credentials
-from credulous.explorer import Explorer
+from credo.errors import NoConfigFile, BadConfigFile, CredoError
+from credo.asker import ask_for_choice, ask_for_choice_or_new
+from credo.credentials import Credentials
+from credo.explorer import Explorer
 
 import json
 import os
@@ -9,8 +9,8 @@ import os
 class Unspecified(object):
     """Telling the difference between None and just not specified"""
 
-class Credulous(object):
-    """Incredible credulous knows all"""
+class Credo(object):
+    """Incredible credo knows all"""
 
     @property
     def chosen(self):
@@ -44,7 +44,7 @@ class Credulous(object):
             val = completed.keys()[0]
         else:
             if not completed:
-                raise CredulousError("Told to find a key that doesn't exist", repo=self.repo, account=self.account, user=self.user)
+                raise CredoError("Told to find a key that doesn't exist", repo=self.repo, account=self.account, user=self.user)
             val = ask_for_choice(category, sorted(completed.keys()))
 
         chosen.append((nxt, val))
@@ -92,7 +92,7 @@ class Credulous(object):
             return self.make_credentials(directory_structure[container][val], list(chain), list(chosen))
 
     def find_options(self, config_file=Unspecified, root_dir=Unspecified, **kwargs):
-        """Setup the credulous!"""
+        """Setup the credo!"""
         if config_file is Unspecified:
             config_file = self.find_config_file(config_file)
 
@@ -121,14 +121,14 @@ class Credulous(object):
         if config_file is not Unspecified:
             return config_file
 
-        credulous_home = os.path.expanduser("~/.credulous")
-        home_config = os.path.join(credulous_home, "config.json")
+        credo_home = os.path.expanduser("~/.credo")
+        home_config = os.path.join(credo_home, "config.json")
         if os.path.exists(home_config) and os.stat(home_config).st_size > 0:
             return home_config
 
-        if not os.path.exists(credulous_home):
-            os.makedirs(credulous_home)
-        json.dump({"root_dir": os.path.expanduser("~/.credulous/repos")}, open(home_config, "w"))
+        if not os.path.exists(credo_home):
+            os.makedirs(credo_home)
+        json.dump({"root_dir": os.path.expanduser("~/.credo/repos")}, open(home_config, "w"))
         return home_config
 
     def read_from_config(self, config_file):

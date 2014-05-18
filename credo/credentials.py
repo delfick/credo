@@ -1,6 +1,6 @@
-from credulous.asker import ask_user_for_secrets
-from credulous.errors import BadCredentialFile
-from credulous.rotator import Rotator
+from credo.asker import ask_user_for_secrets
+from credo.errors import BadCredentialFile
+from credo.rotator import Rotator
 
 from crypto import Crypto
 import logging
@@ -8,7 +8,7 @@ import copy
 import json
 import os
 
-log = logging.getLogger("credulous.credentials")
+log = logging.getLogger("credo.credentials")
 
 class Credentials(object):
     """Knows about credential files"""

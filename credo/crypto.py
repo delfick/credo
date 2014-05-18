@@ -1,4 +1,4 @@
-from credulous.errors import BadPrivateKey, BadCypherText
+from credo.errors import BadPrivateKey, BadCypherText
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
@@ -9,7 +9,7 @@ import paramiko
 import logging
 import os
 
-log = logging.getLogger("credulous.crypto")
+log = logging.getLogger("credo.crypto")
 
 class Crypto(object):
     """Knows how to do crypto"""

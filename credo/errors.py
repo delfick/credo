@@ -1,11 +1,11 @@
-class CredulousError(Exception):
+class CredoError(Exception):
     """Helpful class for creating custom exceptions"""
     desc = ""
 
     def __init__(self, message="", **kwargs):
         self.kwargs = kwargs
         self.message = message
-        super(CredulousError, self).__init__(message)
+        super(CredoError, self).__init__(message)
 
     def __str__(self):
         desc = self.desc
@@ -26,27 +26,27 @@ class CredulousError(Exception):
             else:
                 return "{0}".format(info)
 
-class NoExecCommand(CredulousError):
+class NoExecCommand(CredoError):
     desc = "No exec command to execute"
 
-class NoConfigFile(CredulousError):
+class NoConfigFile(CredoError):
     desc = "No config file"
 
-class BadConfigFile(CredulousError):
+class BadConfigFile(CredoError):
     desc = "Bad config file"
 
-class NotEnoughInfo(CredulousError):
+class NotEnoughInfo(CredoError):
     desc = "Need more information"
 
-class BadConfig(CredulousError):
+class BadConfig(CredoError):
     desc = "Bad Config"
 
-class BadCredentialFile(CredulousError):
+class BadCredentialFile(CredoError):
     desc = "Bad credentials file"
 
-class BadPrivateKey(CredulousError):
+class BadPrivateKey(CredoError):
     desc = "Bad private ssh key"
 
-class BadCypherText(CredulousError):
+class BadCypherText(CredoError):
     desc = "Couldn't decrypt text"
 

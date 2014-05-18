@@ -1,5 +1,5 @@
-from credulous.errors import CredulousError, BadCredentialFile
-from credulous.asker import ask_for_choice_or_new
+from credo.errors import CredoError, BadCredentialFile
+from credo.asker import ask_for_choice_or_new
 
 from boto.iam.connection import IAMConnection
 import datetime
@@ -7,7 +7,7 @@ import logging
 import boto
 import time
 
-log = logging.getLogger("credulous.rotator")
+log = logging.getLogger("credo.rotator")
 
 class Rotator(object):
     """Knows how to rotate aws credentials"""
@@ -111,7 +111,7 @@ class Rotator(object):
                 return access_key, secret_key
             else:
                 if not any("aws_access_key_id" in value and "aws_secret_access_key" in value for value in values.values()):
-                    raise CredulousError("Don't have any keys to use to ask amazon for rotating keys :(")
+                    raise CredoError("Don't have any keys to use to ask amazon for rotating keys :(")
 
                 current = self.as_sorted([(key, value) for key, value in values.items() if value])[-1][1]
                 return current["aws_access_key_id"], current["aws_secret_access_key"]
@@ -154,7 +154,7 @@ class Rotator(object):
                 for missed in missing:
                     if missed != access_key:
                         aws_cred = aws_access_keys[missed]
-                        val = ask_for_choice_or_new("How should we deal with credential amazon has but credulous doesn't know about? ({0})".format(missed), ("Delete access key", "quit"))
+                        val = ask_for_choice_or_new("How should we deal with credential amazon has but credo doesn't know about? ({0})".format(missed), ("Delete access key", "quit"))
                         if val == "quit":
                             raise BadCredentialFile("User quit when deciding what to do with missing credentials")
                         elif val == "Delete access key":

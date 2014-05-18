@@ -1,4 +1,4 @@
-from credulous.errors import BadConfigFile
+from credo.errors import BadConfigFile
 
 import ConfigParser
 import keyring

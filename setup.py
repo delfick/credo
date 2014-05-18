@@ -1,9 +1,9 @@
 from setuptools import setup, find_packages
 
 setup(
-      name = "credulous"
+      name = "credo"
     , version = "0.1"
-    , packages = ['credulous'] + ['credulous.%s' % pkg for pkg in find_packages('credulous')]
+    , packages = ['credo'] + ['credo.%s' % pkg for pkg in find_packages('credo')]
     , include_package_data = True
 
     , install_requires =
@@ -24,12 +24,12 @@ setup(
 
     , entry_points =
       { 'console_scripts' :
-        [ 'credulous = credulous.executor:main'
+        [ 'credo = credo.executor:main'
         ]
       }
 
     # metadata for upload to PyPI
-    , url = "http://credulous.readthedocs.org"
+    , url = "http://credo.readthedocs.org"
     , author = "Stephen Moore"
     , author_email = "stephen@delfick.com"
     , description = "Manager for aws credentials"

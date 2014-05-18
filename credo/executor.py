@@ -1,6 +1,6 @@
-from credulous.actions import do_display, do_exec, do_showavailable, do_import, do_rotate
-from credulous.errors import CredulousError, NoExecCommand
-from credulous.overview import Credulous
+from credo.actions import do_display, do_exec, do_showavailable, do_import, do_rotate
+from credo.errors import CredoError, NoExecCommand
+from credo.overview import Credo
 
 from rainbow_logging_handler import RainbowLoggingHandler
 import argparse
@@ -34,19 +34,19 @@ class CliParser(object):
 
     def parse_args(self, argv=None):
         """
-        Get us (credulous, kwargs, function)
+        Get us (credo, kwargs, function)
 
-        Where credulous is an overview object of our credulous collection
+        Where credo is an overview object of our credo collection
 
         kwargs is the extra arguments to call the function with
 
         And function is what we want to call with the kwargs
-        The function should have the signature function(credulous, **kwargs)
+        The function should have the signature function(credo, **kwargs)
         """
         cred_args, action, action_args = self.split_argv()
-        credulous = self.make_credulous(cred_args, action)
+        credo = self.make_credo(cred_args, action)
         kwargs, function = self.actions[action](action, action_args)
-        return credulous, kwargs, function
+        return credo, kwargs, function
 
     @property
     def actions(self):
@@ -60,11 +60,11 @@ class CliParser(object):
             }
 
     def cred_parser(self):
-        """Parser for all the common credulous options"""
-        parser = argparse.ArgumentParser(description="Credulous executor")
+        """Parser for all the common credo options"""
+        parser = argparse.ArgumentParser(description="Credo executor")
 
         parser.add_argument("action"
-            , help = "What should credulous do today?"
+            , help = "What should credo do today?"
             , choices = self.actions
             )
 
@@ -90,16 +90,16 @@ class CliParser(object):
         parser.usage = "{0} <|| {1} ||> {2}".format(cred_usage, action, subparser_usage)
         return vars(parser.parse_args(argv))
 
-    def make_credulous(self, cred_args, expected_action):
-        """Make a Credulous object that knows things"""
+    def make_credo(self, cred_args, expected_action):
+        """Make a Credo object that knows things"""
         cred_parser = self.cred_parser()
         cred_args = cred_parser.parse_args(cred_args)
         if cred_args.action != expected_action:
-            raise CredulousError("Well this is weird, I thought the action was different than it turned out to be", expected=expected_action, parsed=cred_args.action)
+            raise CredoError("Well this is weird, I thought the action was different than it turned out to be", expected=expected_action, parsed=cred_args.action)
 
-        credulous = Credulous()
-        credulous.find_options(**vars(cred_args))
-        return credulous
+        credo = Credo()
+        credo.find_options(**vars(cred_args))
+        return credo
 
     def parse_help(self, action, argv):
         """Just prints help and quits"""
@@ -157,9 +157,9 @@ def main(argv=None):
     setup_logging()
 
     try:
-        credulous, kwargs, function = CliParser().parse_args(argv)
-        function(credulous, **kwargs)
-    except CredulousError as error:
+        credo, kwargs, function = CliParser().parse_args(argv)
+        function(credo, **kwargs)
+    except CredoError as error:
         print ""
         print "!" * 80
         print "Something went wrong! -- {0}".format(error.__class__.__name__)
