@@ -1,15 +1,17 @@
 from credo.actions import do_display, do_exec, do_showavailable, do_import, do_rotate
 from credo.errors import CredoError, NoExecCommand
 from credo.overview import Credo
+from credo.crypto import Crypto
 
 from rainbow_logging_handler import RainbowLoggingHandler
 import argparse
 import logging
 import sys
+import os
 
 log = logging.getLogger("executor")
 
-def setup_logging():
+def setup_logging(verbose=False):
     log = logging.getLogger("")
     handler = RainbowLoggingHandler(sys.stderr)
     handler._column_color['%(asctime)s'] = ('cyan', None, False)
@@ -17,7 +19,7 @@ def setup_logging():
     handler._column_color['%(message)s'][logging.INFO] = ('blue', None, False)
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)-7s %(name)-15s %(message)s"))
     log.addHandler(handler)
-    log.setLevel(logging.INFO)
+    log.setLevel([logging.INFO, logging.DEBUG][verbose])
 
 class CliParser(object):
     def split_argv(self, argv=None):
@@ -84,6 +86,11 @@ class CliParser(object):
             , help = "Set user and account with user@account syntax"
             )
 
+        parser.add_argument("-v", "--verbose"
+            , help = "Show debug log messages"
+            , action = "store_true"
+            )
+
         return parser
 
     def args_from_subparser(self, action, parser, argv):
@@ -98,12 +105,26 @@ class CliParser(object):
         """Make a Credo object that knows things"""
         cred_parser = self.cred_parser()
         cred_args = cred_parser.parse_args(cred_args)
+        setup_logging(verbose=cred_args.verbose)
+
         if cred_args.action != expected_action:
             raise CredoError("Well this is weird, I thought the action was different than it turned out to be", expected=expected_action, parsed=cred_args.action)
 
-        credo = Credo()
+        credo = Credo(self.make_crypto())
         credo.find_options(**vars(cred_args))
         return credo
+
+    def make_crypto(self, ssh_key_folders=None):
+        """Make the crypto object"""
+        if not ssh_key_folders:
+            home_ssh = os.path.expanduser("~/.ssh")
+            if os.path.exists(home_ssh) and os.access(home_ssh, os.R_OK):
+                ssh_key_folders = [home_ssh]
+
+        crypto = Crypto()
+        for folder in ssh_key_folders:
+            crypto.find_private_keys_in(folder)
+        return crypto
 
     def parse_help(self, action, argv):
         """Just prints help and quits"""
@@ -158,8 +179,6 @@ class CliParser(object):
             return {"command": argv}, do_exec
 
 def main(argv=None):
-    setup_logging()
-
     try:
         credo, kwargs, function = CliParser().parse_args(argv)
         function(credo, **kwargs)

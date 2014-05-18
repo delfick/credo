@@ -53,3 +53,15 @@ class BadCypherText(CredoError):
 class BadConfiguration(CredoError):
     desc = "Bad configuration"
 
+class NoCredentialsFound(CredoError):
+    desc = "Couldn't find any credentials"
+
+class BadFolder(CredoError):
+    desc = "Something wrong with a folder"
+
+class CantEncrypt(CredoError):
+    desc = "Can't do encryption"
+
+class BadPlainText(CredoError):
+    desc = "Can't encrypt value"
+

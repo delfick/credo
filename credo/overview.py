@@ -1,6 +1,6 @@
 from credo.errors import NoConfigFile, BadConfigFile, CredoError, BadConfiguration
 from credo.asker import ask_for_choice, ask_for_choice_or_new
-from credo.credentials import Credentials
+from credo.loader import CredentialInfo, Loader
 from credo.explorer import Explorer
 
 import json
@@ -12,17 +12,26 @@ class Unspecified(object):
 class Credo(object):
     """Incredible credo knows all"""
 
+    def __init__(self, crypto):
+        self.crypto = crypto
+
     @property
     def chosen(self):
         """Return our chosen creds"""
         if not hasattr(self, "_chosen"):
             self._chosen = self.find_credentials()
-            self.set_options(repo=self._chosen.repo, account=self._chosen.account, user=self._chosen.user)
+            self.add_public_keys(self.repo, self.crypto)
+            self.set_options(repo=self._chosen.credential_info.repo, account=self._chosen.credential_info.account, user=self._chosen.credential_info.user)
         return self._chosen
+
+    @property
+    def can_encrypt(self):
+        """Say whether we have any public keys to encrypt with"""
+        return self.crypto.has_public_keys()
 
     def make_explorer(self):
         """Make us an explorer"""
-        return Explorer(self.root_dir)
+        return Explorer(self.root_dir, self.crypto)
 
     def find_credentials(self, completed=None, chain=None, chosen=None):
         """
@@ -82,10 +91,12 @@ class Credo(object):
 
         chosen.append((nxt, val))
         if not chain:
-            credentials_location = os.path.join(location, "credentials.json")
-            credentials = Credentials.make(credentials_location, **dict(chosen))
-            if credentials_location not in directory_structure['/files/']:
-                directory_structure['/files/'].append(credentials_location)
+            chosen.append(("location", os.path.join(location, "credentials.json")))
+            credential_info = CredentialInfo(**dict(chosen))
+
+            credentials = Loader().from_file(credential_info, self.crypto, default_type="amazon")
+            if credential_info.location not in directory_structure['/files/']:
+                directory_structure['/files/'].append(credential_info.location)
             directory_structure['/credentials/'] = credentials
             return credentials
         else:
@@ -146,4 +157,9 @@ class Credo(object):
         options = json.load(open(config_file))
         options["config_file"] = None
         self.find_options(**options)
+
+    def add_public_keys(self, repo, crypto):
+        """Find public keys for this repo and add them to the crypto object"""
+        public_key = os.path.expanduser("~/.ssh/id_rsa.pub")
+        crypto.add_public_keys([open(public_key).read()])
 

@@ -1,11 +1,12 @@
-from credo.credentials import Credentials
+from credo.loader import Loader, CredentialInfo
 
 import copy
 import os
 
 class Explorer(object):
     """Knows how to read a credo repo structure"""
-    def __init__(self, root_dir):
+    def __init__(self, root_dir, crypto):
+        self.crypto = crypto
         self.root_dir = root_dir
 
     @property
@@ -147,7 +148,8 @@ class Explorer(object):
         if not chain:
             required_file = "credentials.json"
             if required_file in basenames:
-                credential = Credentials(os.path.join(root_dir, required_file), repo=sofar[0], account=sofar[1], user=sofar[2])
+                credential_info = CredentialInfo(os.path.join(root_dir, required_file), *sofar)
+                credential = Loader.from_file(credential_info, self.crypto)
                 c = complete
                 for part in sofar[:-1]:
                     if part not in c:

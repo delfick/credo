@@ -35,6 +35,7 @@ class Rotator(object):
             """Expire a key or mark as expired if necessary"""
             if self.determine_if_expired(value, multiplier=multiplier):
                 if value.get("aws_access_key_id") != iam_access_key:
+                    log.info("Expiring key %s\thalf_life=%s\tage=%s", value.get("aws_access_key_id"), value.get("half_life"), time.time() - value.get("create_epoch"))
                     self.expire(user, value.get("aws_access_key_id"), iam_connection)
                     counts["deleted"] += 1
                 else:
@@ -113,8 +114,19 @@ class Rotator(object):
                 if not any("aws_access_key_id" in value and "aws_secret_access_key" in value for value in values.values()):
                     raise CredoError("Don't have any keys to use to ask amazon for rotating keys :(")
 
-                current = self.as_sorted([(key, value) for key, value in values.items() if value])[-1][1]
-                return current["aws_access_key_id"], current["aws_secret_access_key"]
+                return self.working_keys(values)
+
+            def working_keys(self, keys):
+
+                for key, value in values.items():
+                    if "aws_access_key_id" in values and "aws_secret_access_key" in values:
+                        try:
+                            IAMConnection(value["aws_access_key_id"], value["aws_secret_access_key"]).get_account_summary()
+                        except Exception as error:
+                            from nose.tools import set_trace; set_trace()
+                            print error
+
+                return values.items()[0]["aws_access_key_id"], values.items()[0]["aws_secret_access_key"]
 
     def use_new_key(self, extra_options, user, access_key, secret_key, half_life, create_epoch=None):
         """Return us the dictionary representing a new aws credentials"""

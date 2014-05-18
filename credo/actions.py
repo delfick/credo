@@ -1,4 +1,10 @@
+from asker import ask_user_for_secrets
+from credo.errors import CantEncrypt
+
+import logging
 import os
+
+log = logging.getLogger("credo.actions")
 
 def _print_list_of_tuples(lst, prefix):
     """Helper for printing out a list of tuples"""
@@ -19,15 +25,23 @@ def do_exec(credo, command, **kwargs):
 def do_import(credo, **kwargs):
     """Import some creds"""
     credentials = credo.make_credentials()
+    credo.add_public_keys(credo.repo, credo.crypto)
+    log.debug("Crypto has private keys %s", credo.crypto.keys.private_keys.values())
+    log.debug("Crypto has public_keys %s", credo.crypto.keys.public_keys.keys())
+
+    if not credo.can_encrypt:
+        raise CantEncrypt("No public keys to encrypt with", repo=credo.repo)
+
+    access_key, secret_key = ask_user_for_secrets()
+    credentials.add_key(access_key, secret_key)
     credentials.save()
     print "Created credentials at {0}".format(credentials.location)
 
 def do_rotate(credo, **kwargs):
     """Rotate some keys"""
     credentials = credo.chosen
-    credentials._values, _, counts = credentials.rotate()
-    credentials.save()
-    print "Created {0} credentials and deleted {1} credentials".format(counts["created"], counts["deleted"])
+    counts = credentials.rotate()
+    print "Created {0} credentials and deleted {1} credentials".format(counts.get("created"), counts.get("deleted"))
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
