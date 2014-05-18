@@ -52,10 +52,10 @@ class Rotator(object):
                 expire(ok, other, multiplier=1)
 
         # Now we create new keys
-        empty_slots = [(key, value) for value in targets.items() if not value]
+        empty_slots = [(key, value) for key, value in targets.items() if not value]
         if not any(targets.values()) or empty_slots:
             if empty_slots:
-                key, value = empty_slots[0][0]
+                key, value = empty_slots[0]
             else:
                 key, value = "key1", {}
 

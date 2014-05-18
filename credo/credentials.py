@@ -52,7 +52,7 @@ class Credentials(object):
     @property
     def current_key(self):
         """Get the current key to use and rotate if we need to"""
-        self._values, current = self.rotate()
+        self._values, current, _ = self.rotate()
         return current
 
     @property
