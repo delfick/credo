@@ -68,19 +68,19 @@ class CliParser(object):
             , choices = self.actions
             )
 
-        parser.add_argument("--account"
+        parser.add_argument("-a", "--account"
             , help = "The account to use"
             )
 
-        parser.add_argument("--user"
+        parser.add_argument("-u", "--user"
             , help = "The user to use"
             )
 
-        parser.add_argument("--repo"
+        parser.add_argument("-r", "--repo"
             , help = "The repo to use"
             )
 
-        parser.add_argument("--creds"
+        parser.add_argument("-c", "--creds"
             , help = "Set user and account with user@account syntax"
             )
 
