@@ -71,7 +71,9 @@ class AmazonKey(object):
         verifier_maker = lambda *args, **kwargs: kls.verifier_maker(type("key", (AmazonKey, ), {"account": account, "__init__": lambda s: None})(), *args, **kwargs)
         fingerprinted = crypto.fingerprinted({"aws_access_key_id": aws_access_key_id, "aws_secret_access_key": aws_secret_access_key}, verifier_maker)
         key_info = {"fingerprints": fingerprinted, "create_epoch": create_epoch or time.time()}
-        return AmazonKey(key_info, account, crypto)
+        key = AmazonKey(key_info, account, crypto)
+        key._decrypted = [(aws_access_key_id, aws_secret_access_key)]
+        return key
 
     def basic_validation(self):
         """Make sure the keys have basic requirements"""
@@ -93,6 +95,11 @@ class AmazonKey(object):
 
     def credentials(self):
         """Goes through our fingerprints and yields all our decryptable credentials as [aws_access_key_id, aws_secret_access_key]"""
+        if getattr(self, "_decrypted", None):
+            for key in self._decrypted:
+                yield key
+            return
+
         for decrypted in self.crypto.decrypt_by_fingerprint(self.fingerprints, self.verifier_maker):
             yield decrypted["aws_access_key_id"], decrypted["aws_secret_access_key"]
 
