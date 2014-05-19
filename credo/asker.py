@@ -6,11 +6,12 @@ import boto
 import sys
 import os
 
-def ask_for_choice(needed, choices):
+def ask_for_choice(message, choices):
     """Ask for a value from some choices"""
     mapped = dict(enumerate(sorted(choices)))
     no_value = True
     while no_value:
+        print >> sys.stderr, message
         print >> sys.stderr, "Please choose a value from the following"
         for num, val in mapped.items():
             print >> sys.stderr, "{0}) {1}".format(num, val)

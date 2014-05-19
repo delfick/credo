@@ -153,6 +153,9 @@ class SSHKeys(object):
         log.debug("Using private key at %s (%s) to decrypt (%s)", location, fingerprint, " || ".join("{0}={1}".format(key, val) for key, val in info.items()))
 
         key = self.rsaobj_from_location(location)
+        if not key:
+            raise BadPrivateKey("Couldn't decode the key", location=location)
+
         key = RSA.construct((key.n, key.e, key.d, key.p, key.q))
         self.rsa_objs[fingerprint] = key
         return key
