@@ -1,17 +1,21 @@
-from credo.errors import BadPrivateKey, BadCypherText, BadFolder, CredoError, BadPlainText
+from credo.errors import (
+      BadSSHKey, BadCypherText, BadFolder, CredoError
+    , BadPlainText, PasswordRequired, BadPrivateKey, BadPublicKey
+    )
+from credo.asker import ask_for_choice
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 
 from base64 import b64decode
 from binascii import hexlify
+from paramiko import Message
 from getpass import getpass
-import subprocess
-import paramiko
 import tempfile
+import paramiko
 import logging
-import shlex
 import os
+import re
 
 log = logging.getLogger("credo.crypto")
 
@@ -41,41 +45,97 @@ class SSHKeys(object):
             if not filename.endswith(".pub") and filename not in ("known_hosts", "authorized_keys", "config"):
                 location = os.path.join(folder, filename)
                 if os.access(location, os.R_OK):
-                    fingerprint = self.get_fingerprint(location=location)
-                    if fingerprint:
+                    try:
+                        fingerprint = self.make_fingerprint(self.rsaobj_from_location(location))
                         self.private_keys[fingerprint] = location
+                    except BadSSHKey:
+                        pass
+
+    def make_fingerprint(self, rsa_obj):
+        """Get us a fingerprint from this rsa_obj"""
+        string = hexlify(rsa_obj.get_fingerprint())
+        return ":".join(re.findall("..", string))
 
     def add_public_keys(self, public_keys):
         """Add the specified public keys"""
         for key in public_keys:
-            fingerprint = self.get_fingerprint(key)
-            if fingerprint:
+            try:
+                fingerprint = self.make_fingerprint(self.rsaobj_from_pem(key))
                 self.public_keys[fingerprint] = key
+            except BadSSHKey:
+                pass
 
-    def get_fingerprint(self, pem_data=None, location=None):
-        """Get a fingerprint from pem_data"""
+    def rsaobj_from_location(self, location):
+        """
+        Get us a fingerprint from this location
+
+        If the location is a password protected private key, then we look for a public key
+        If we can't find a public key, then we ask for the password and get the fingerprint that way
+
+        If it isn't a private key, then we raise a credo.NotSSHKey exception
+        """
+        try:
+            obj = self.make_rsaobj(location, private=True)
+            return obj
+        except PasswordRequired:
+            pub_key = "{0}.pub".format(location)
+            if os.path.exists(pub_key):
+                try:
+                    return self.make_rsaobj(pub_key)
+                except BadSSHKey as err:
+                    log.info("Something wrong with public key %s: %s", pub_key, err)
+                    raise
+
+        while True:
+            log.info("Couldn't find a public key for password protected private key at %s", location)
+            password = self.get_password(location)
+            try:
+                obj = self.make_rsaobj(location, password=password, private=True)
+                return obj
+            except BadSSHKey:
+                choice = ask_for_choice("Couldn't decode the key ({0})", ["Try again", "Ignore"])
+                if choice == "Ignore":
+                    return
+
+    def rsaobj_from_pem(self, pem_data):
+        """Get us a fingerprint from a public key pem_data."""
         tmp = None
         try:
-            tmp = tempfile.NamedTemporaryFile(delete=False).name
-            if pem_data:
-                with open(tmp, 'w') as fle:
-                    fle.write(pem_data)
-                key_location = tmp
-            else:
-                key_location = location
-
-            try:
-                if location:
-                    log.debug("Looking for fingerprint from %s", location)
-                result = subprocess.check_output(shlex.split("ssh-keygen -lf {0}".format(key_location)), stderr=open(os.devnull, 'w'))
-                fingerprint = result.split(" ")[1]
-                log.debug("Found fingerprint!! %s", fingerprint)
-                return fingerprint
-            except subprocess.CalledProcessError:
-                return
+            tmp = tempfile.NamedTemporaryFile(delete=True).name
+            with open(tmp, 'w') as fle:
+                fle.write(pem_data)
+            return self.make_rsaobj(tmp)
         finally:
             if tmp and os.path.exists(tmp):
                 os.remove(tmp)
+
+    def make_rsaobj(self, location, password=None, private=False):
+        """Get us an rsa object for this location"""
+        try:
+            if private:
+                return paramiko.RSAKey.from_private_key_file(location, password=password)
+            else:
+                txt = open(location).read()
+                if not txt.startswith("ssh-rsa"):
+                    raise BadPublicKey("Doesn't start with ssh-rsa")
+                split = txt.split(" ")
+                if len(split) < 2:
+                    raise BadPublicKey("Expecting more")
+
+                try:
+                    der = b64decode(split[1])
+                except TypeError:
+                    raise BadPublicKey("Couldn't decode")
+
+                return paramiko.RSAKey(msg=Message(der))
+        except paramiko.PasswordRequiredException:
+            raise PasswordRequired()
+        except paramiko.ssh_exception.SSHException as err:
+            raise BadSSHKey("Couldn't decode key, perhaps bad password?", err=err)
+
+    def get_password(self, source):
+        """Ask user for a password"""
+        return getpass("Password for your private key ({0})\n:".format(source))
 
     def private_key_to_rsa_object(self, fingerprint, **info):
         """Get us a RSA object from our private key on disk"""

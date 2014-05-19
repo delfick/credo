@@ -44,8 +44,8 @@ class BadConfig(CredoError):
 class BadCredentialFile(CredoError):
     desc = "Bad credentials file"
 
-class BadPrivateKey(CredoError):
-    desc = "Bad private ssh key"
+class BadSSHKey(CredoError):
+    desc = "Bad ssh key"
 
 class BadCypherText(CredoError):
     desc = "Couldn't decrypt text"
@@ -64,4 +64,13 @@ class CantEncrypt(CredoError):
 
 class BadPlainText(CredoError):
     desc = "Can't encrypt value"
+
+class PasswordRequired(CredoError):
+    desc = "Need a password"
+
+class BadPrivateKey(BadSSHKey):
+    desc = "Bad private ssh key"
+
+class BadPublicKey(BadSSHKey):
+    desc = "Bad public ssh key"
 
