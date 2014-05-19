@@ -46,8 +46,9 @@ class SSHKeys(object):
                 location = os.path.join(folder, filename)
                 if os.access(location, os.R_OK):
                     try:
-                        fingerprint = self.make_fingerprint(self.rsaobj_from_location(location))
-                        self.private_keys[fingerprint] = location
+                        fingerprint = self.make_fingerprint(self.rsaobj_from_location(location, only_need_public=True))
+                        if fingerprint:
+                            self.private_keys[fingerprint] = location
                     except BadSSHKey:
                         pass
 
@@ -65,7 +66,7 @@ class SSHKeys(object):
             except BadSSHKey:
                 pass
 
-    def rsaobj_from_location(self, location):
+    def rsaobj_from_location(self, location, only_need_public=False):
         """
         Get us a fingerprint from this location
 
@@ -78,16 +79,19 @@ class SSHKeys(object):
             obj = self.make_rsaobj(location, private=True)
             return obj
         except PasswordRequired:
-            pub_key = "{0}.pub".format(location)
-            if os.path.exists(pub_key):
-                try:
-                    return self.make_rsaobj(pub_key)
-                except BadSSHKey as err:
-                    log.info("Something wrong with public key %s: %s", pub_key, err)
-                    raise
+            if only_need_public:
+                pub_key = "{0}.pub".format(location)
+                if os.path.exists(pub_key):
+                    try:
+                        return self.make_rsaobj(pub_key)
+                    except BadSSHKey as err:
+                        log.info("Something wrong with public key %s: %s", pub_key, err)
+                        raise
 
         while True:
-            log.info("Couldn't find a public key for password protected private key at %s", location)
+            if only_need_public:
+                log.info("Couldn't find a public key for password protected private key at %s", location)
+
             password = self.get_password(location)
             try:
                 obj = self.make_rsaobj(location, password=password, private=True)
@@ -148,15 +152,7 @@ class SSHKeys(object):
         location = self.private_keys[fingerprint]
         log.debug("Using private key at %s (%s) to decrypt (%s)", location, fingerprint, " || ".join("{0}={1}".format(key, val) for key, val in info.items()))
 
-        try:
-            key = paramiko.RSAKey.from_private_key_file(location, password=None)
-        except paramiko.PasswordRequiredException:
-            try:
-                passphrase = getpass("Password for your private key ({0})\n:".format(location))
-                key = paramiko.RSAKey.from_private_key_file(location, password=passphrase )
-            except paramiko.ssh_exception.SSHException as err:
-                raise BadPrivateKey("Couldn't decode key, perhaps bad password?", err=err)
-
+        key = self.rsaobj_from_location(location)
         key = RSA.construct((key.n, key.e, key.d, key.p, key.q))
         self.rsa_objs[fingerprint] = key
         return key
