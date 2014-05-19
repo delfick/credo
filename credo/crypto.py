@@ -76,8 +76,7 @@ class SSHKeys(object):
         If it isn't a private key, then we raise a credo.NotSSHKey exception
         """
         try:
-            obj = self.make_rsakey(location, private=True)
-            return obj
+            return self.make_rsakey(location, private=True)
         except PasswordRequired:
             if only_need_public:
                 pub_key = "{0}.pub".format(location)
@@ -95,8 +94,7 @@ class SSHKeys(object):
             password = getpass("Password for your private key ({0})\n:".format(location))
 
             try:
-                obj = self.make_rsakey(location, password=password, private=True)
-                return obj
+                return self.make_rsakey(location, password=password, private=True)
             except BadSSHKey:
                 choice = ask_for_choice("Couldn't decode the key ({0})".format(location), ["Try again", "Ignore"])
                 if choice == "Ignore":
