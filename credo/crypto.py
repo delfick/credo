@@ -85,7 +85,6 @@ class SSHKeys(object):
                         return self.make_rsakey(pub_key)
                     except BadSSHKey as err:
                         log.info("Something wrong with public key %s: %s", pub_key, err)
-                        raise
 
         while True:
             if only_need_public:
