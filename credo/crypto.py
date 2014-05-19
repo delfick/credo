@@ -34,6 +34,11 @@ class SSHKeys(object):
         """Says whether we have a public key with this fingerprint"""
         return fingerprint in self.public_keys
 
+    def make_fingerprint(self, rsa_obj):
+        """Get us a fingerprint from this rsa_obj"""
+        string = hexlify(rsa_obj.get_fingerprint())
+        return ":".join(re.findall("..", string))
+
     def find_private_keys(self, folder):
         """Find more private keys in specified folder"""
         if not os.path.exists(folder):
@@ -51,11 +56,6 @@ class SSHKeys(object):
                             self.private_keys[fingerprint] = location
                     except BadSSHKey:
                         pass
-
-    def make_fingerprint(self, rsa_obj):
-        """Get us a fingerprint from this rsa_obj"""
-        string = hexlify(rsa_obj.get_fingerprint())
-        return ":".join(re.findall("..", string))
 
     def add_public_keys(self, public_keys):
         """Add the specified public keys"""
@@ -92,7 +92,8 @@ class SSHKeys(object):
             if only_need_public:
                 log.info("Couldn't find a public key for password protected private key at %s", location)
 
-            password = self.get_password(location)
+            password = getpass("Password for your private key ({0})\n:".format(location))
+
             try:
                 obj = self.make_rsakey(location, password=password, private=True)
                 return obj
@@ -137,10 +138,6 @@ class SSHKeys(object):
         except paramiko.ssh_exception.SSHException as err:
             raise BadSSHKey("Couldn't decode key, perhaps bad password?", err=err)
 
-    def get_password(self, source):
-        """Ask user for a password"""
-        return getpass("Password for your private key ({0})\n:".format(source))
-
     def private_key_to_rsa_object(self, fingerprint, **info):
         """Get us a RSA object from our private key on disk"""
         if fingerprint in self.rsa_objs:
@@ -163,7 +160,7 @@ class SSHKeys(object):
     def encrypt(self, message, fingerprint, **info):
         """Encrypt the specified message using specified public key and return as base64 encoded string"""
         log.debug("Using public key with fingerprint %s to encrypt (%s)", fingerprint, " || ".join("{0}={1}".format(key, val) for key, val in info.items()))
-        rsakey = RSA.importKey(self.public_key_pem(fingerprint))
+        rsakey = RSA.importKey(self.public_keys[fingerprint])
         rsakey = PKCS1_OAEP.new(rsakey)
         try:
             encrypted = rsakey.encrypt(message)
@@ -185,14 +182,6 @@ class SSHKeys(object):
             return rsakey.decrypt(decoded)
         except ValueError as err:
             raise BadCypherText(err=err, **info)
-
-    def public_key_pem(self, fingerprint):
-        """Return the PEM encoding of the public key for this fingerprint"""
-        return self.public_keys[fingerprint]
-
-    def private_key_pem(self, fingerprint):
-        """Return the PEM encoding of the private key for this fingerprint"""
-        return open(self.private_keys[fingerprint]).read()
 
 class Crypto(object):
     """Knows how to do crypto"""
