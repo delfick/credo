@@ -46,7 +46,7 @@ class SSHKeys(object):
                 location = os.path.join(folder, filename)
                 if os.access(location, os.R_OK):
                     try:
-                        fingerprint = self.make_fingerprint(self.rsaobj_from_location(location, only_need_public=True))
+                        fingerprint = self.make_fingerprint(self.rsakey_from_location(location, only_need_public=True))
                         if fingerprint:
                             self.private_keys[fingerprint] = location
                     except BadSSHKey:
@@ -61,12 +61,12 @@ class SSHKeys(object):
         """Add the specified public keys"""
         for key in public_keys:
             try:
-                fingerprint = self.make_fingerprint(self.rsaobj_from_pem(key))
+                fingerprint = self.make_fingerprint(self.rsakey_from_pem(key))
                 self.public_keys[fingerprint] = key
             except BadSSHKey:
                 pass
 
-    def rsaobj_from_location(self, location, only_need_public=False):
+    def rsakey_from_location(self, location, only_need_public=False):
         """
         Get us a fingerprint from this location
 
@@ -76,14 +76,14 @@ class SSHKeys(object):
         If it isn't a private key, then we raise a credo.NotSSHKey exception
         """
         try:
-            obj = self.make_rsaobj(location, private=True)
+            obj = self.make_rsakey(location, private=True)
             return obj
         except PasswordRequired:
             if only_need_public:
                 pub_key = "{0}.pub".format(location)
                 if os.path.exists(pub_key):
                     try:
-                        return self.make_rsaobj(pub_key)
+                        return self.make_rsakey(pub_key)
                     except BadSSHKey as err:
                         log.info("Something wrong with public key %s: %s", pub_key, err)
                         raise
@@ -94,26 +94,26 @@ class SSHKeys(object):
 
             password = self.get_password(location)
             try:
-                obj = self.make_rsaobj(location, password=password, private=True)
+                obj = self.make_rsakey(location, password=password, private=True)
                 return obj
             except BadSSHKey:
-                choice = ask_for_choice("Couldn't decode the key ({0})", ["Try again", "Ignore"])
+                choice = ask_for_choice("Couldn't decode the key ({0})".format(location), ["Try again", "Ignore"])
                 if choice == "Ignore":
                     return
 
-    def rsaobj_from_pem(self, pem_data):
+    def rsakey_from_pem(self, pem_data):
         """Get us a fingerprint from a public key pem_data."""
         tmp = None
         try:
             tmp = tempfile.NamedTemporaryFile(delete=True).name
             with open(tmp, 'w') as fle:
                 fle.write(pem_data)
-            return self.make_rsaobj(tmp)
+            return self.make_rsakey(tmp)
         finally:
             if tmp and os.path.exists(tmp):
                 os.remove(tmp)
 
-    def make_rsaobj(self, location, password=None, private=False):
+    def make_rsakey(self, location, password=None, private=False):
         """Get us an rsa object for this location"""
         try:
             if private:
@@ -152,7 +152,7 @@ class SSHKeys(object):
         location = self.private_keys[fingerprint]
         log.debug("Using private key at %s (%s) to decrypt (%s)", location, fingerprint, " || ".join("{0}={1}".format(key, val) for key, val in info.items()))
 
-        key = self.rsaobj_from_location(location)
+        key = self.rsakey_from_location(location)
         if not key:
             raise BadPrivateKey("Couldn't decode the key", location=location)
 
