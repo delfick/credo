@@ -126,7 +126,7 @@ class AmazonKey(object):
 
     def verifier_maker(self, encrypted, decrypted):
         """Return what our verifier should represent"""
-        return hashlib.sha1("{0}||{1}".format(self.account, encrypted["aws_access_key_id"])).hexdigest()
+        return hashlib.sha1("{0}||{1}".format(self.account, decrypted["aws_access_key_id"])).hexdigest()
 
 class AmazonKeys(object):
     """Collection of Amazon keys"""
