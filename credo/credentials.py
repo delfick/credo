@@ -36,6 +36,10 @@ class IamPair(object):
         """Get a connection for these keys"""
         return IAMConnection(self.aws_access_key_id, self.aws_secret_access_key)
 
+    def ask_amazon_for_account(self):
+        """Get the account alias for this key"""
+        return self.connection.get_account_alias()["list_account_aliases_response"]["list_account_aliases_result"]["account_aliases"][0]
+
     @property
     def works(self):
         """Says whether this key works and is active"""
@@ -60,18 +64,24 @@ class IamPair(object):
 
 class AmazonKey(object):
     """Represents the information and meta information required for amazon credentials"""
-    def __init__(self, key_info, account, crypto):
+    def __init__(self, key_info, account, account_alias, crypto):
         self.crypto = crypto
         self.account = account
         self.key_info = key_info
+        self.account_alias = account_alias
 
     @classmethod
-    def using(kls, aws_access_key_id, aws_secret_access_key, account, crypto, create_epoch=None):
+    def using(kls, aws_access_key_id, aws_secret_access_key, account, account_alias, crypto, create_epoch=None):
         """Create an AmazonKey from the provided details"""
-        verifier_maker = lambda *args, **kwargs: kls.verifier_maker(type("key", (AmazonKey, ), {"account": account, "__init__": lambda s: None})(), *args, **kwargs)
+        iam_pair = IamPair(aws_access_key_id, aws_secret_access_key, account)
+        def verifier_maker(*args, **kwargs):
+            kwargs["iam_pair"] = iam_pair
+            instance = type("key", (AmazonKey, ), {"account": account, "__init__": lambda s: None})()
+            return kls.verifier_maker(instance, *args, **kwargs)
+
         fingerprinted = crypto.fingerprinted({"aws_access_key_id": aws_access_key_id, "aws_secret_access_key": aws_secret_access_key}, verifier_maker)
         key_info = {"fingerprints": fingerprinted, "create_epoch": create_epoch or time.time()}
-        key = AmazonKey(key_info, account, crypto)
+        key = AmazonKey(key_info, account, account_alias, crypto)
         key._decrypted = [(aws_access_key_id, aws_secret_access_key)]
         return key
 
@@ -120,22 +130,32 @@ class AmazonKey(object):
 
         and <other_options> includes {"create_epoch"}
         """
+        def verifier_maker(*args, **kwargs):
+            kwargs["iam_pair"] = self.iam_pair
+            return self.verifier_maker(*args, **kwargs)
+
         create_epoch = self.iam_pair.create_epoch
-        fingerprints = self.crypto.fingerprinted({"aws_access_key_id": self.iam_pair.aws_access_key_id, "aws_secret_access_key": self.iam_pair.aws_secret_access_key}, self.verifier_maker)
+        fingerprints = self.crypto.fingerprinted({"aws_access_key_id": self.iam_pair.aws_access_key_id, "aws_secret_access_key": self.iam_pair.aws_secret_access_key}, verifier_maker)
         return {"fingerprints": fingerprints, "create_epoch": create_epoch}
 
-    def verifier_maker(self, encrypted, decrypted):
+    def verifier_maker(self, encrypted, decrypted, iam_pair=None):
         """Return what our verifier should represent"""
-        return hashlib.sha1("{0}||{1}".format(self.account, decrypted["aws_access_key_id"])).hexdigest()
+        if iam_pair is not None:
+            account = iam_pair.ask_amazon_for_account()
+        else:
+            account = self.account_alias
+
+        return hashlib.sha1("{0} && {1}".format(decrypted["aws_access_key_id"], account)).hexdigest()
 
 class AmazonKeys(object):
     """Collection of Amazon keys"""
-    def __init__(self, keys, account, crypto):
+    def __init__(self, keys, account, account_alias, crypto):
         if not keys:
             keys = []
 
         self.account = account
-        self.keys = [AmazonKey(key, account, crypto) for key in keys]
+        self.account_alias = account_alias
+        self.keys = [AmazonKey(key, account, account_alias, crypto) for key in keys]
 
     def add(self, key):
         """Add a key"""
@@ -194,7 +214,7 @@ class AmazonCredentials(object):
         self.contents = contents
         self.credential_info = credential_info
 
-        self.keys = AmazonKeys(self.contents.get("keys"), self.credential_info.account, crypto)
+        self.keys = AmazonKeys(self.contents.get("keys"), self.credential_info.account, self.credential_info.account_alias, crypto)
 
     @property
     def location(self):
@@ -202,7 +222,7 @@ class AmazonCredentials(object):
 
     def add_key(self, aws_access_key_id, aws_secret_access_key):
         """Add a key"""
-        self.keys.add(AmazonKey.using(aws_access_key_id, aws_secret_access_key, self.credential_info.account, self.crypto))
+        self.keys.add(AmazonKey.using(aws_access_key_id, aws_secret_access_key, self.credential_info.account, self.credential_info.account_alias, self.crypto))
 
     @property
     def encrypted_values(self):

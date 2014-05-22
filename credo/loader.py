@@ -5,7 +5,17 @@ from collections import namedtuple
 import json
 import os
 
-CredentialInfo = namedtuple("CredentialInfo", ("location", "repo", "account", "user"))
+class CredentialInfo(namedtuple("CredentialInfo", ("location", "repo", "account", "user"))):
+    @property
+    def account_alias(self):
+        """Return the account name or find an account_alias file"""
+        if not getattr(self, "_account_alias", None):
+            alias = self.account
+            alias_location = os.path.join(os.path.dirname(self.location), "..", "account_alias")
+            if os.path.exists(alias_location) and os.access(alias_location, os.R_OK):
+                alias = open(alias_location).read().strip().split("\n")[0]
+            self._account_alias = alias
+        return self._account_alias
 
 class Loader(object):
     """Knows how to load credentials from a file"""
