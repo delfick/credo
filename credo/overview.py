@@ -80,19 +80,26 @@ class Credo(object):
             val = getattr(self, nxt)
         else:
             val = ask_for_choice_or_new(category, sorted(key for key in directory_structure[container].keys() if not key.startswith('/')))
+
         location = os.path.join(directory_structure['/location/'], val)
         if val not in directory_structure[container]:
             directory_structure[container][val] = {'/files/': [], '/location/': location}
 
         chosen.append((nxt, val))
         if not chain:
-            chosen.append(("location", os.path.join(location, "credentials.json")))
-            credential_info = CredentialInfo(**dict(chosen))
+            credentials = None
+            if container in directory_structure and val in directory_structure[container]:
+                credentials = directory_structure[container][val].get('/credentials/')
 
-            credentials = Loader().from_file(credential_info, self.crypto, default_type="amazon")
-            if credential_info.location not in directory_structure['/files/']:
-                directory_structure['/files/'].append(credential_info.location)
-            directory_structure['/credentials/'] = credentials
+            credentials_location = os.path.join(location, "credentials.json")
+            if not credentials or os.path.abspath(credentials_location) != os.path.abspath(credentials.location):
+                chosen.append(("location", credentials_location))
+                credential_info = CredentialInfo(**dict(chosen))
+
+                credentials = Loader.from_file(credential_info, self.crypto, default_type="amazon")
+                if credential_info.location not in directory_structure['/files/']:
+                    directory_structure['/files/'].append(credential_info.location)
+                directory_structure['/credentials/'] = credentials
             return credentials
         else:
             return self.make_credentials(directory_structure[container][val], list(chain), list(chosen))

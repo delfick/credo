@@ -164,10 +164,9 @@ class Explorer(object):
         collection[category] = {}
 
         for filename, location in dirs:
-            result = self.find_repo_structure(location, list(chain), sofar=list(sofar) + [filename], complete=complete)
-            if result:
-                result = result[0]
-            collection[category][filename] = result
+            nxt_collection = {}
+            collection[category][filename] = nxt_collection
+            self.find_repo_structure(location, list(chain), collection=nxt_collection, sofar=list(sofar) + [filename], complete=complete)
 
         return collection, complete
 
