@@ -1,7 +1,7 @@
 from credo.errors import (
       BadSSHKey, BadCypherText, BadFolder, CredoError
     , BadPlainText, PasswordRequired, BadPrivateKey, BadPublicKey
-    , NoSuchFingerPrint
+    , NoSuchFingerPrint, CantFindPrivateKey
     )
 from credo.asker import ask_for_choice
 
@@ -33,6 +33,19 @@ class KeyCollection(object):
         self._location_to_private_rsaobj = {}
 
         self._location_to_fingerprint = {}
+
+    def get_any_private_fingerprint(self, **info):
+        """Get any of the private fingerprints"""
+        fullfilled = [fingerprint for fingerprint, rsaobj in self.private_fingerprints.items() if rsaobj and fingerprint in self.public_fingerprints]
+        if fullfilled:
+            return fullfilled[0]
+
+        # None already, let's get one that we have a public key for
+        unfullfilled = [fingerprint for fingerprint, rsaobj in self.private_fingerprints.items() if fingerprint in self.public_fingerprints]
+        if unfullfilled:
+            return self.make_fingerprint(self.private_rsaobj_for(unfullfilled[0]))
+
+        raise CantFindPrivateKey(**info)
 
     def add_public_key(self, pem_data):
         """Record this public key"""
@@ -292,14 +305,15 @@ class Crypto(object):
         """Say whether we have a private key for any of these fingerprints"""
         return any(fingerprint in self.keys.collection.private_fingerprints for fingerprint in fingerprints)
 
-    def is_signature_valid(self, signed, signature, fingerprint):
+    def is_signature_valid(self, signed, fingerprint, signature):
         """Return whether this signature is valid for the signed data"""
         return self.keys.collection.public_rsaobj_for(fingerprint).verify_ssh_sig(signed, paramiko.Message(unhexlify(signature)))
 
-    def create_signature(self, for_signing, fingerprint):
+    def create_signature(self, for_signing):
         """Return a signature given this data"""
+        fingerprint = self.keys.collection.get_any_private_fingerprint(need_private_key_for="signing")
         message = self.keys.collection.private_rsaobj_for(fingerprint).sign_ssh_data(for_signing)
-        return hexlify(str(message))
+        return fingerprint, hexlify(str(message))
 
     def decrypt_by_fingerprint(self, fingerprints, verifier_maker, **info):
         """Yield each different decrypted value if we find any and check against the verifier"""
@@ -316,7 +330,7 @@ class Crypto(object):
                         decrypted[key] = self.keys.decrypt(val, fingerprint, **info)
 
                 new_verifier = verifier_maker(values, decrypted)
-                if not self.is_signature_valid(new_verifier, values["__account_verifier__"], fingerprint):
+                if not self.is_signature_valid(new_verifier, *values["__account_verifier__"]):
                     log.error("Ignoring decrypted secrets, because can't verify __account_verifier__")
                 else:
                     decrypted["__account_verifier__"] = values["__account_verifier__"]
@@ -346,7 +360,7 @@ class Crypto(object):
                 encrypted[key] = self.keys.encrypt(val, fingerprint, **info)
 
             info["key"] = "__account_verifier__"
-            encrypted["__account_verifier__"] = self.create_signature(verifier_maker(encrypted, decrypted_vals), fingerprint)
+            encrypted["__account_verifier__"] = self.create_signature(verifier_maker(encrypted, decrypted_vals))
             result[fingerprint] = encrypted
 
         return result
