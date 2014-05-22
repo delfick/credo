@@ -74,3 +74,6 @@ class BadPrivateKey(BadSSHKey):
 class BadPublicKey(BadSSHKey):
     desc = "Bad public ssh key"
 
+class NoSuchFingerPrint(CredoError):
+    desc = "Haven't registered a key with specified fingerprint"
+

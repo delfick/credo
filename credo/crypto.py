@@ -1,14 +1,15 @@
 from credo.errors import (
       BadSSHKey, BadCypherText, BadFolder, CredoError
     , BadPlainText, PasswordRequired, BadPrivateKey, BadPublicKey
+    , NoSuchFingerPrint
     )
 from credo.asker import ask_for_choice
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
 
+from binascii import hexlify, unhexlify
 from base64 import b64decode
-from binascii import hexlify
 from paramiko import Message
 from getpass import getpass
 import tempfile
@@ -19,88 +20,80 @@ import re
 
 log = logging.getLogger("credo.crypto")
 
-class SSHKeys(object):
-    """Stores private and public ssh keys by fingerprint"""
+class KeyCollection(object):
+    """Keeps private and public keys"""
     def __init__(self):
-        self.rsa_objs = {}
-        self.public_keys = {}
-        self.private_keys = {}
+        self.public_fingerprints = {}
+        self.private_fingerprints = {}
 
-    def have_private(self, fingerprint):
-        """Says whether we have a private key with this fingerprint"""
-        return fingerprint in self.private_keys
+        self.private_key_locations = {}
+        self.fingerprint_to_location = {}
 
-    def have_public(self, fingerprint):
-        """Says whether we have a public key with this fingerprint"""
-        return fingerprint in self.public_keys
+        self._location_to_public_rsaobj = {}
+        self._location_to_private_rsaobj = {}
+
+        self._location_to_fingerprint = {}
+
+    def add_public_key(self, pem_data):
+        """Record this public key"""
+        rsaobj = self.rsaobj_from_pem(pem_data)
+        fingerprint = self.make_fingerprint(rsaobj)
+        self.public_fingerprints[fingerprint] = rsaobj
+
+    def add_private_key(self, location):
+        """
+        Record this private key
+
+        Only get the fingerprint from the public key for now if it needs a password
+        So we can delay getting the password till it's absolutely necessary
+        """
+        rsaobj = self.rsaobj_from_location(location, only_need_public=True)
+        fingerprint = self.make_fingerprint(rsaobj)
+        self.private_fingerprints[fingerprint] = None
+        self.private_key_locations[fingerprint] = location
+        self.fingerprint_to_location[fingerprint] = location
+
+    def location_for_fingerprint(self, fingerprint):
+        """Return the location of the fingerprint if we have one"""
+        return self.fingerprint_to_location.get(fingerprint)
+
+    def public_pem_for(self, fingerprint):
+        """Get the public pem data for this fingerprint"""
+        return "ssh-rsa {0}".format(self.public_rsaobj_for(fingerprint).get_base64())
+
+    def public_rsaobj_for(self, fingerprint):
+        """Get the rsaobj for this public fingerprint"""
+        if fingerprint in self.public_fingerprints:
+            return self.public_fingerprints[fingerprint]
+
+        if fingerprint in self.private_fingerprints:
+            return self.private_fingerprints[fingerprint]
+
+        raise NoSuchFingerPrint(fingerprint=fingerprint, looking_for="public")
+
+    def private_rsaobj_for(self, fingerprint):
+        """
+        Get the rsaobj for this private fingerprint
+
+        If we don't have the rsaobj but we do have the location,
+        then we get the rsaobj for the private part as well first
+        """
+        if not self.private_fingerprints.get(fingerprint):
+            if fingerprint not in self.private_key_locations:
+                raise NoSuchFingerPrint(fingerprint=fingerprint, looking_for="private")
+
+            rsaobj = self.rsaobj_from_location(self.private_key_locations[fingerprint])
+            self.private_fingerprints[fingerprint] = rsaobj
+
+        return self.private_fingerprints[fingerprint]
 
     def make_fingerprint(self, rsa_obj):
         """Get us a fingerprint from this rsa_obj"""
         string = hexlify(rsa_obj.get_fingerprint())
         return ":".join(re.findall("..", string))
 
-    def find_private_keys(self, folder):
-        """Find more private keys in specified folder"""
-        if not os.path.exists(folder):
-            raise BadFolder("Doesn't exist", folder=folder)
-        if not os.access(folder, os.R_OK):
-            raise BadFolder("Not readable", folder=folder)
-
-        for filename in os.listdir(folder):
-            if not filename.endswith(".pub") and filename not in ("known_hosts", "authorized_keys", "config"):
-                location = os.path.join(folder, filename)
-                if os.access(location, os.R_OK):
-                    try:
-                        fingerprint = self.make_fingerprint(self.rsakey_from_location(location, only_need_public=True))
-                        if fingerprint:
-                            self.private_keys[fingerprint] = location
-                    except BadSSHKey:
-                        pass
-
-    def add_public_keys(self, public_keys):
-        """Add the specified public keys"""
-        for key in public_keys:
-            try:
-                fingerprint = self.make_fingerprint(self.rsakey_from_pem(key))
-                self.public_keys[fingerprint] = key
-            except BadSSHKey:
-                pass
-
-    def rsakey_from_location(self, location, only_need_public=False):
-        """
-        Get us a fingerprint from this location
-
-        If the location is a password protected private key, then we look for a public key
-        If we can't find a public key, then we ask for the password and get the fingerprint that way
-
-        If it isn't a private key, then we raise a credo.NotSSHKey exception
-        """
-        try:
-            return self.make_rsakey(location, private=True)
-        except PasswordRequired:
-            if only_need_public:
-                pub_key = "{0}.pub".format(location)
-                if os.path.exists(pub_key):
-                    try:
-                        return self.make_rsakey(pub_key)
-                    except BadSSHKey as err:
-                        log.info("Something wrong with public key %s: %s", pub_key, err)
-
-        while True:
-            if only_need_public:
-                log.info("Couldn't find a public key for password protected private key at %s", location)
-
-            password = getpass("Password for your private key ({0})\n:".format(location))
-
-            try:
-                return self.make_rsakey(location, password=password, private=True)
-            except BadSSHKey:
-                choice = ask_for_choice("Couldn't decode the key ({0})".format(location), ["Try again", "Ignore"])
-                if choice == "Ignore":
-                    return
-
-    def rsakey_from_pem(self, pem_data):
-        """Get us a fingerprint from a public key pem_data."""
+    def rsaobj_from_pem(self, pem_data):
+        """Get us a paramiko.RSAKey from a public key pem_data."""
         tmp = None
         try:
             tmp = tempfile.NamedTemporaryFile(delete=True).name
@@ -110,6 +103,54 @@ class SSHKeys(object):
         finally:
             if tmp and os.path.exists(tmp):
                 os.remove(tmp)
+
+    def rsaobj_from_location(self, location, only_need_public=False):
+        """
+        Get us a paramiko.RSAKey from this location
+
+        If the location is a password protected private key and only_need_public then we look for a public key
+        If we can't find a public key, then we ask for the password and get the fingerprint that way
+
+        If it isn't a private key, then we raise a credo.NotSSHKey exception
+        """
+        if only_need_public:
+            if location in self._location_to_public_rsaobj:
+                return self._location_to_public_rsaobj[location]
+        else:
+            if location in self._location_to_private_rsaobj:
+                return self._location_to_private_rsaobj[location]
+
+        rsaobj = None
+        try:
+            rsaobj = self.make_rsakey(location, private=True)
+            self._location_to_private_rsaobj[location] = rsaobj
+        except PasswordRequired:
+            if only_need_public:
+                pub_key = "{0}.pub".format(location)
+                if os.path.exists(pub_key):
+                    try:
+                        rsaobj = self.make_rsakey(pub_key)
+                        self._location_to_public_rsaobj[location] = rsaobj
+                    except BadSSHKey as err:
+                        log.info("Something wrong with public key %s: %s", pub_key, err)
+
+        if rsaobj is None:
+            while True:
+                if only_need_public:
+                    log.info("Couldn't find a public key for password protected private key at %s", location)
+
+                password = getpass("Password for your private key ({0})\n:".format(location))
+
+                try:
+                    rsaobj = self.make_rsakey(location, password=password, private=True)
+                    self._location_to_private_rsaobj[location] = rsaobj
+                    break
+                except BadSSHKey:
+                    choice = ask_for_choice("Couldn't decode the key ({0})".format(location), ["Try again", "Ignore"])
+                    if choice == "Ignore":
+                        return
+
+        return rsaobj
 
     def make_rsakey(self, location, password=None, private=False):
         """Get us an rsa object for this location"""
@@ -135,29 +176,67 @@ class SSHKeys(object):
         except paramiko.ssh_exception.SSHException as err:
             raise BadSSHKey("Couldn't decode key, perhaps bad password?", err=err)
 
+class SSHKeys(object):
+    """Stores private and public ssh keys by fingerprint"""
+    def __init__(self):
+        self._RSA = {}
+        self.collection = KeyCollection()
+
+    def have_private(self, fingerprint):
+        """Says whether we have a private key with this fingerprint"""
+        return fingerprint in self.collection.private_fingerprints
+
+    def have_public(self, fingerprint):
+        """Says whether we have a public key with this fingerprint"""
+        return fingerprint in self.collection.public_fingerprints
+
+    def find_private_keys(self, folder):
+        """Find more private keys in specified folder"""
+        if not os.path.exists(folder):
+            raise BadFolder("Doesn't exist", folder=folder)
+        if not os.access(folder, os.R_OK):
+            raise BadFolder("Not readable", folder=folder)
+
+        for filename in os.listdir(folder):
+            if not filename.endswith(".pub") and filename not in ("known_hosts", "authorized_keys", "config"):
+                location = os.path.join(folder, filename)
+                if os.access(location, os.R_OK):
+                    try:
+                        self.collection.add_private_key(location)
+                    except BadSSHKey:
+                        pass
+
+    def add_public_keys(self, public_keys):
+        """Add the specified public keys"""
+        for pem_data in public_keys:
+            try:
+                self.collection.add_public_key(pem_data)
+            except BadSSHKey:
+                pass
+
     def private_key_to_rsa_object(self, fingerprint, **info):
         """Get us a RSA object from our private key on disk"""
-        if fingerprint in self.rsa_objs:
-            return self.rsa_objs[fingerprint]
+        if fingerprint in self._RSA:
+            return self._RSA[fingerprint]
 
-        if fingerprint not in self.private_keys:
+        if not self.have_private(fingerprint):
             raise BadPrivateKey("Don't have a private key for specified fingerprint", fingerprint=fingerprint)
 
-        location = self.private_keys[fingerprint]
-        log.debug("Using private key at %s (%s) to decrypt (%s)", location, fingerprint, " || ".join("{0}={1}".format(key, val) for key, val in info.items()))
-
-        key = self.rsakey_from_location(location)
-        if not key:
-            raise BadPrivateKey("Couldn't decode the key", location=location)
+        key = self.collection.private_rsaobj_for(fingerprint)
+        location = self.collection.location_for_fingerprint(fingerprint)
+        location_str = ""
+        if location:
+            location_str = "at %s ".format(location)
+        log.debug("Using private key %s(%s) to decrypt (%s)", location_str, fingerprint, " || ".join("{0}={1}".format(key, val) for key, val in info.items()))
 
         key = RSA.construct((key.n, key.e, key.d, key.p, key.q))
-        self.rsa_objs[fingerprint] = key
+        self._RSA[fingerprint] = key
         return key
 
     def encrypt(self, message, fingerprint, **info):
         """Encrypt the specified message using specified public key and return as base64 encoded string"""
         log.debug("Using public key with fingerprint %s to encrypt (%s)", fingerprint, " || ".join("{0}={1}".format(key, val) for key, val in info.items()))
-        rsakey = RSA.importKey(self.public_keys[fingerprint])
+        rsakey = RSA.importKey(self.collection.public_pem_for(fingerprint))
         rsakey = PKCS1_OAEP.new(rsakey)
         try:
             encrypted = rsakey.encrypt(message)
@@ -187,7 +266,21 @@ class Crypto(object):
             keys = SSHKeys()
         self.keys = keys
 
-    def find_private_keys_in(self, folder):
+    @property
+    def private_key_fingerprints(self):
+        """Proxy our key collection"""
+        return self.keys.collection.private_fingerprints
+
+    @property
+    def public_key_fingerprints(self):
+        """Proxy our key collection"""
+        return self.keys.collection.public_fingerprints
+
+    def has_public_keys(self):
+        """Return whether we have any public keys"""
+        return len(self.public_key_fingerprints) > 0
+
+    def find_private_keys(self, folder):
         """Find keys to add"""
         self.keys.find_private_keys(folder)
 
@@ -195,13 +288,18 @@ class Crypto(object):
         """Add public keys"""
         self.keys.add_public_keys(public_keys)
 
-    def has_public_keys(self):
-        """Say True if we have any public keys"""
-        return len(self.keys.public_keys) > 0
-
     def decryptable(self, fingerprints):
         """Say whether we have a private key for any of these fingerprints"""
-        return any(self.keys.have_private(fingerprint) for fingerprint in fingerprints)
+        return any(fingerprint in self.keys.collection.private_fingerprints for fingerprint in fingerprints)
+
+    def is_signature_valid(self, signed, signature, fingerprint):
+        """Return whether this signature is valid for the signed data"""
+        return self.keys.collection.public_rsaobj_for(fingerprint).verify_ssh_sig(signed, paramiko.Message(unhexlify(signature)))
+
+    def create_signature(self, for_signing, fingerprint):
+        """Return a signature given this data"""
+        message = self.keys.collection.private_rsaobj_for(fingerprint).sign_ssh_data(for_signing)
+        return hexlify(str(message))
 
     def decrypt_by_fingerprint(self, fingerprints, verifier_maker, **info):
         """Yield each different decrypted value if we find any and check against the verifier"""
@@ -210,17 +308,18 @@ class Crypto(object):
             if self.keys.have_private(fingerprint):
                 decrypted = {}
                 for key, val in values.items():
-                    info = dict(info)
-                    info["key"] = key
-                    info["key_fingerprint"] = fingerprint
-                    info["action"] = "decrypting"
-                    decrypted[key] = self.keys.decrypt(val, fingerprint, **info)
+                    if not key.startswith("_"):
+                        info = dict(info)
+                        info["key"] = key
+                        info["key_fingerprint"] = fingerprint
+                        info["action"] = "decrypting"
+                        decrypted[key] = self.keys.decrypt(val, fingerprint, **info)
 
                 new_verifier = verifier_maker(values, decrypted)
-                if not decrypted["__account_verifier__"] == new_verifier:
-                    log.error("Ignoring decrypted secrets, because verifier doesn't match: %s", " || ".join("{0}={1}".format(key, val) for key, val in info.items()))
+                if not self.is_signature_valid(new_verifier, values["__account_verifier__"], fingerprint):
+                    log.error("Ignoring decrypted secrets, because can't verify __account_verifier__")
                 else:
-                    decrypted["__account_verifier__"] = new_verifier
+                    decrypted["__account_verifier__"] = values["__account_verifier__"]
                     identity = ",".join(sorted(str((key, val) for key, val in decrypted.items() if not key.startswith("_"))))
                     if identity not in found:
                         found.add(identity)
@@ -237,7 +336,7 @@ class Crypto(object):
             raise CredoError("Fingerprinted should only be called with dictionaries", got_type=type(decrypted_vals))
 
         result = {}
-        for fingerprint in self.keys.public_keys:
+        for fingerprint in self.public_key_fingerprints:
             encrypted = {}
             for key, val in decrypted_vals.items():
                 info = dict(info)
@@ -247,7 +346,7 @@ class Crypto(object):
                 encrypted[key] = self.keys.encrypt(val, fingerprint, **info)
 
             info["key"] = "__account_verifier__"
-            encrypted["__account_verifier__"] = self.keys.encrypt(verifier_maker(encrypted, decrypted_vals), fingerprint, **info)
+            encrypted["__account_verifier__"] = self.create_signature(verifier_maker(encrypted, decrypted_vals), fingerprint)
             result[fingerprint] = encrypted
 
         return result

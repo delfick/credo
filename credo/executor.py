@@ -123,7 +123,7 @@ class CliParser(object):
 
         crypto = Crypto()
         for folder in ssh_key_folders:
-            crypto.find_private_keys_in(folder)
+            crypto.find_private_keys(folder)
         return crypto
 
     def parse_help(self, action, argv):
