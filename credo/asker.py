@@ -86,6 +86,9 @@ def ask_user_for_secrets():
     if val == "specify":
         access_key = raw_input("Access key: ")
         secret_key = raw_input("Secret key: ")
+    elif val == environment_choice:
+        access_key = os.environ["AWS_ACCESS_KEY_ID"]
+        secret_key = os.environ["AWS_SECRET_ACCESS_KEY"]
     elif val in (aws_config_file_choice, boto_config_file_choice):
         parser = ConfigParser.SafeConfigParser()
         if val == aws_config_file_choice:
