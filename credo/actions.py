@@ -1,5 +1,5 @@
+from credo.errors import CantEncrypt, CantSign
 from asker import ask_user_for_secrets
-from credo.errors import CantEncrypt
 
 import logging
 import os
@@ -29,8 +29,10 @@ def do_import(credo, **kwargs):
     log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints.keys())
     log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints.keys())
 
-    if not credo.can_encrypt:
+    if not credo.crypto.can_encrypt:
         raise CantEncrypt("No public keys to encrypt with", repo=credo.repo)
+    if not credo.crypto.can_sign:
+        raise CantSign("No private keys with matching public keys to sign with", repo=credo.repo)
 
     access_key, secret_key = ask_user_for_secrets()
     credentials.add_key(access_key, secret_key)

@@ -62,6 +62,9 @@ class BadFolder(CredoError):
 class CantEncrypt(CredoError):
     desc = "Can't do encryption"
 
+class CantSign(CredoError):
+    desc = "Can't sign data"
+
 class BadPlainText(CredoError):
     desc = "Can't encrypt value"
 

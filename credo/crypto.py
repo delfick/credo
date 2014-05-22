@@ -280,6 +280,16 @@ class Crypto(object):
         self.keys = keys
 
     @property
+    def can_encrypt(self):
+        """Say whether we have any public keys"""
+        return self.has_public_keys()
+
+    @property
+    def can_sign(self):
+        """Say whether we have private keys with corresponding public keys"""
+        return self.has_public_keys() and any(fingerprint in self.public_key_fingerprints for fingerprint in self.private_key_fingerprints)
+
+    @property
     def private_key_fingerprints(self):
         """Proxy our key collection"""
         return self.keys.collection.private_fingerprints

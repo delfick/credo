@@ -24,11 +24,6 @@ class Credo(object):
             self.set_options(repo=self._chosen.credential_info.repo, account=self._chosen.credential_info.account, user=self._chosen.credential_info.user)
         return self._chosen
 
-    @property
-    def can_encrypt(self):
-        """Say whether we have any public keys to encrypt with"""
-        return self.crypto.has_public_keys()
-
     def make_explorer(self):
         """Make us an explorer"""
         return Explorer(self.root_dir, self.crypto)
