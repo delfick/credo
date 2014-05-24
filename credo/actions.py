@@ -26,8 +26,8 @@ def do_import(credo, **kwargs):
     """Import some creds"""
     credentials = credo.make_credentials()
     credo.add_public_keys(credo.repo, credo.crypto)
-    log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints.keys())
-    log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints.keys())
+    log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints)
+    log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints)
 
     if not credo.crypto.can_encrypt:
         raise CantEncrypt("No public keys to encrypt with", repo=credo.repo)

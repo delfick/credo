@@ -292,12 +292,12 @@ class Crypto(object):
     @property
     def private_key_fingerprints(self):
         """Proxy our key collection"""
-        return self.keys.collection.private_fingerprints
+        return self.keys.collection.private_fingerprints.keys()
 
     @property
     def public_key_fingerprints(self):
         """Proxy our key collection"""
-        return self.keys.collection.public_fingerprints
+        return self.keys.collection.public_fingerprints.keys()
 
     def has_public_keys(self):
         """Return whether we have any public keys"""
