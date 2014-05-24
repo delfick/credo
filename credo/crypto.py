@@ -53,6 +53,11 @@ class KeyCollection(object):
         self.public_fingerprints[fingerprint] = rsaobj
         return fingerprint
 
+    def remove_public_key(self, fingerprint):
+        """Remove this public key"""
+        if fingerprint in self.public_fingerprints:
+            del self.public_fingerprints[fingerprint]
+
     def add_private_key(self, location):
         """
         Record this private key
@@ -230,6 +235,10 @@ class SSHKeys(object):
                 log.error("Found a bad public key\terr=%s", err)
         return fingerprints
 
+    def remove_public_key(self, fingerprint):
+        """Remove a public key from our collection"""
+        self.collection.remove_public_key(fingerprint)
+
     def private_key_to_rsa_object(self, fingerprint, **info):
         """Get us a RSA object from our private key on disk"""
         if fingerprint in self._RSA:
@@ -313,6 +322,10 @@ class Crypto(object):
     def add_public_keys(self, public_keys):
         """Add public keys"""
         return self.keys.add_public_keys(public_keys)
+
+    def remove_public_key(self, fingerprint):
+        """Remove a public key"""
+        self.keys.remove_public_key(fingerprint)
 
     def decryptable(self, fingerprints):
         """Say whether we have a private key for any of these fingerprints"""

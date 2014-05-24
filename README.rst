@@ -106,6 +106,31 @@ It also does:
 * Tries it's best to find situations it can't handle and display nice error
   messages to the screen
 * Tries to be informative about what is happening
+* Rotate keys automatically
+
+Rotation
+--------
+
+Credo will do key rotation similar to credulous.
+
+It does this by recording a "half_life" for each key, which is the number of
+seconds since the creation of the key before it "rotates".
+
+Rotation means the other key (amazon only allows you to have two keys) gets
+deleted and a new key is created.
+
+Also, if a key is older than twice it's half life, it's deleted.
+
+When credo chooses a key to use, it will always use the youngest key.
+
+Credo also handles the following situations:
+
+* Both keys are no longer working
+* There is a key in amazon credo doesn't know about
+  * Credo asks if you want to delete it or tell it the secret key
+* Both keys credo knows about are past their half life
+* Both keys credo knows about are both past twice their half life
+* The keys credo knows about don't need to be deleted or rotated
 
 Layout
 ------

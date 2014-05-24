@@ -60,7 +60,7 @@ class BadConfiguration(CredoError):
     desc = "Bad configuration"
 
 class NoCredentialsFound(CredoError):
-    desc = "Couldn't find any credentials"
+    desc = "Couldn't find any credentials, please do an import"
 
 class BadFolder(CredoError):
     desc = "Something wrong with a folder"

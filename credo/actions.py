@@ -1,6 +1,6 @@
+from credo.asker import ask_user_for_secrets, ask_user_for_half_life
 from credo.errors import CantEncrypt, CantSign
 from credo.helper import print_list_of_tuples
-from credo.asker import ask_user_for_secrets
 
 import logging
 import os
@@ -21,7 +21,7 @@ def do_exec(credo, command, **kwargs):
 def do_import(credo, source=False, **kwargs):
     """Import some creds"""
     credentials = credo.make_credentials()
-    credo.add_public_keys(credentials.credential_info.repository, credo.crypto)
+    credo.sync_public_keys(credentials.credential_info.repository, credo.crypto)
     log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints)
     log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints)
 
@@ -31,16 +31,14 @@ def do_import(credo, source=False, **kwargs):
         raise CantSign("No private keys with matching public keys to sign with", repo=credo.repo)
 
     access_key, secret_key = ask_user_for_secrets(source=source)
-    credentials.add_key(access_key, secret_key)
+    half_life = ask_user_for_half_life(access_key)
+    credentials.add_key(access_key, secret_key, half_life=half_life)
     credentials.save()
-    print "Created credentials at {0}".format(credentials.location)
 
 def do_rotate(credo, **kwargs):
     """Rotate some keys"""
-    credentials = credo.chosen
-    counts = credentials.rotate()
-    print "Created {0} credentials and deleted {1} credentials".format(counts.get("created"), counts.get("deleted"))
-    print "Created credentials at {0}".format(credentials.location)
+    log.info("Doing a rotation")
+    credo.make_chosen(rotate=True)
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""

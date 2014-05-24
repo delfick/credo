@@ -1,6 +1,6 @@
 from credo.errors import BadCredentialFile, NoAccountIdEntered
-from credo.credentials import AmazonCredentials
 from credo.asker import ask_for_choice_or_new
+from credo.credentials import Credentials
 from credo.versioning import Repository
 
 from collections import namedtuple
@@ -17,7 +17,21 @@ class CredentialInfo(namedtuple("CredentialInfo", ("location", "repo", "account"
         if not getattr(self, "_repository", None):
             repo_location = os.path.abspath(os.path.join(os.path.dirname(self.location), "..", ".."))
             self._repository = Repository(repo_location)
+
         return self._repository
+
+    @property
+    def contents(self):
+        """Return the contents from the credentials file as a dictionary"""
+        contents = {"keys": [], "type": "amazon"}
+        if os.path.exists(self.location):
+            contents = Loader.read(self.location)
+
+        if "keys" in contents:
+            if not isinstance(contents["keys"], list):
+                raise BadCredentialFile("Credentials file keys are not a list", keys=type(contents["keys"]))
+
+        return contents
 
     def get_account_id(self, crypto):
         """Return the account id for this account"""
@@ -66,23 +80,13 @@ class Loader(object):
     """Knows how to load credentials from a file"""
 
     @classmethod
-    def from_file(kls, credential_info, crypto, default_type=None):
+    def from_credential_info(kls, credential_info, crypto):
         """Return Credentials object representing this location"""
-        loader = kls()
-        contents = {"keys": [], "type": default_type or "amazon"}
-        if os.path.exists(credential_info.location):
-            contents = loader.read(credential_info.location)
+        credentials = Credentials(credential_info, crypto)
+        credentials.load()
+        return credentials
 
-        if "keys" in contents:
-            if not isinstance(contents["keys"], list):
-                raise BadCredentialFile("Credentials file keys are not a list", keys=type(contents["keys"]))
-
-        typ = contents.get("type", "amazon")
-        if typ != "amazon":
-            raise BadCredentialFile("Unknown credentials type", found=typ)
-
-        return AmazonCredentials(typ, credential_info, contents, crypto)
-
+    @classmethod
     def read(self, location):
         """Read in our location as a json file"""
         if not os.path.exists(location):

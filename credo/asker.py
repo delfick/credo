@@ -263,3 +263,24 @@ def ask_for_public_keys(remote=None):
 
     return urls, pems, locations
 
+def ask_user_for_half_life(access_key):
+    """Ask the user for a half life value"""
+    day_choice = "One day"
+    hour_choice = "One hour"
+    week_choice = "One week"
+
+    while True:
+        choice = ask_for_choice_or_new("What half life do you want for this key? ({0})".format(access_key), [hour_choice, day_choice, week_choice])
+
+        if choice == hour_choice:
+            return 3600
+        elif choice == day_choice:
+            return 3600 * 24
+        elif choice == week_choice:
+            return 3600 * 24 * 7
+        else:
+            if not choice.isdigit():
+                print >> sys.stderr, "Please enter an integer representing the number of seconds in the half life"
+            else:
+                return int(choice)
+

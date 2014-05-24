@@ -24,10 +24,25 @@ class Credo(object):
     def chosen(self):
         """Return our chosen creds"""
         if not hasattr(self, "_chosen"):
-            self._chosen = self.find_credentials()
-            self.add_public_keys(self._chosen.credential_info.repository, self.crypto)
-            self.set_options(repo=self._chosen.credential_info.repo, account=self._chosen.credential_info.account, user=self._chosen.credential_info.user)
+            self._chosen = self.make_chosen(rotate=True)
         return self._chosen
+
+    def make_chosen(self, rotate=True):
+        """Make the chosen credentials from our repository"""
+        chosen = self.find_credentials()
+        self.sync_public_keys(chosen.credential_info.repository, self.crypto)
+        self.set_options(repo=chosen.credential_info.repo, account=chosen.credential_info.account, user=chosen.credential_info.user)
+
+        if rotate:
+            if chosen.keys.needs_rotation():
+                changed = chosen.credential_info.repository.synchronize()
+                if changed:
+                    chosen.load()
+                    self.sync_public_keys(chosen.credential_info.repository, self.crypto)
+
+            chosen.rotate()
+            chosen.save()
+        return chosen
 
     def make_explorer(self):
         """Make us an explorer"""
@@ -101,7 +116,7 @@ class Credo(object):
                 chosen.append(("location", credentials_location))
                 credential_info = CredentialInfo(**dict(chosen))
 
-                credentials = Loader.from_file(credential_info, self.crypto, default_type="amazon")
+                credentials = Loader.from_credential_info(credential_info, self.crypto)
                 if credential_info.location not in directory_structure['/files/']:
                     directory_structure['/files/'].append(credential_info.location)
                 directory_structure['/credentials/'] = credentials
@@ -165,9 +180,13 @@ class Credo(object):
         options["config_file"] = None
         self.find_options(**options)
 
-    def add_public_keys(self, repository, crypto):
-        """Find public keys for this repo and add them to the crypto object"""
+    def sync_public_keys(self, repository, crypto):
+        """
+        Find public keys for this repo and add them to the crypto object
+        And remove public keys we don't know about anymore
+        """
         info = {}
+        added = []
         while not crypto.can_encrypt:
             if info == {}:
                 urls, pems, locations = repository.get_public_keys()
@@ -183,6 +202,7 @@ class Credo(object):
             for pem in info["pems"]:
                 location = info["locations"].get(pem)
                 fingerprint = crypto.add_public_keys([pem]).get(pem)
+                added.append(fingerprint)
                 if not fingerprint:
                     log.error("Failed to add public key\tpem=%s", pem)
                 else:
@@ -195,6 +215,11 @@ class Credo(object):
                 log.error("Was unable to find any public keys")
                 del info["urls"]
                 del info["pems"]
+
+        for fingerprint in crypto.public_key_fingerprints:
+            if fingerprint not in added:
+                log.info("Removing public key we aren't encrypting with anymore\tfingerprint=%s", fingerprint)
+                crypto.remove_public_key()
 
     def download_pems(self, url):
         """Get pems from some url"""

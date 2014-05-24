@@ -149,7 +149,7 @@ class Explorer(object):
             required_file = "credentials.json"
             if required_file in basenames:
                 credential_info = CredentialInfo(os.path.join(root_dir, required_file), *sofar)
-                credential = Loader.from_file(credential_info, self.crypto)
+                credential = Loader.from_credential_info(credential_info, self.crypto)
                 c = complete
                 for part in sofar[:-1]:
                     if part not in c:
