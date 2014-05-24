@@ -1,4 +1,4 @@
-from credo.errors import BadCredentialFile, NoCredentialsFound
+from credo.errors import BadCredentialFile, NoCredentialsFound, BadCredential
 
 from boto.iam.connection import IAMConnection
 import datetime
@@ -17,15 +17,15 @@ class MemoizedProperty(object):
     def __init__(self, creator):
         self.creator = creator
 
-    def __get__(self, obj=None, owner=None):
+    def __get__(self, obj, type=None):
         """Return the memoized property or create new property"""
-        if not getattr(self, "_memoized", None):
-            self._memoized = self.creator(obj)
-        return self._memoized
+        if not getattr(obj, "_memoized", None):
+            obj._memoized = self.creator(obj)
+        return obj._memoized
 
-    def __delete__(self, obj=None):
+    def __delete__(self, obj):
         """Unset our memoized value"""
-        self._memoized = None
+        obj._memoized = None
 
 class IamPair(object):
     def __init__(self, aws_access_key_id, aws_secret_access_key, account):
