@@ -12,31 +12,18 @@ import os
 
 log = logging.getLogger("credo.credentials")
 
-class MemoizedProperty(object):
-    """A property that memoizes it's result"""
-    def __init__(self, creator):
-        self.creator = creator
-
-    def __get__(self, obj, type=None):
-        """Return the memoized property or create new property"""
-        if not getattr(obj, "_memoized", None):
-            obj._memoized = self.creator(obj)
-        return obj._memoized
-
-    def __delete__(self, obj):
-        """Unset our memoized value"""
-        obj._memoized = None
-
 class IamPair(object):
     def __init__(self, aws_access_key_id, aws_secret_access_key, account):
         self.account = account
         self.aws_access_key_id = aws_access_key_id
         self.aws_secret_access_key = aws_secret_access_key
 
-    @MemoizedProperty
+    @property
     def connection(self):
         """Get a connection for these keys"""
-        return IAMConnection(self.aws_access_key_id, self.aws_secret_access_key)
+        if not getattr(self, "_connection", None):
+            self._connection = IAMConnection(self.aws_access_key_id, self.aws_secret_access_key)
+        return self._connection
 
     @property
     def works(self):
@@ -139,13 +126,16 @@ class AmazonKey(object):
         for decrypted in self.crypto.decrypt_by_fingerprint(self.fingerprints, self.verifier_maker):
             yield decrypted["aws_access_key_id"], decrypted["aws_secret_access_key"]
 
-    @MemoizedProperty
+    @property
     def iam_pair(self):
         """Find the first access_key that is working and matches our verifier"""
-        for aws_access_key_id, aws_secret_access_key in self.credentials():
-            pair = IamPair(aws_access_key_id, aws_secret_access_key, self.credential_info.account)
-            if pair.works:
-                return pair
+        if not getattr(self, "_iam_pair", None):
+            for aws_access_key_id, aws_secret_access_key in self.credentials():
+                pair = IamPair(aws_access_key_id, aws_secret_access_key, self.credential_info.account)
+                if pair.works:
+                    self._iam_pair = pair
+                    break
+        return self._iam_pair
 
     @property
     def encrypted_values(self):
