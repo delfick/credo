@@ -1,10 +1,10 @@
 Credo
 =====
 
-The python version of Credo
+The python version of Credulous
 
 Credo is a credential management program for amazon credentials written
-in golang. It can be found at https://github.com/realestate-com-au/credo
+in golang. It can be found at https://github.com/realestate-com-au/credulous
 
 Usage
 -----
