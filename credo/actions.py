@@ -21,7 +21,7 @@ def do_exec(credo, command, **kwargs):
 def do_import(credo, source=False, **kwargs):
     """Import some creds"""
     credentials = credo.make_credentials()
-    credo.add_public_keys(credo.repo, credo.crypto)
+    credo.add_public_keys(credentials.credential_info.repository, credo.crypto)
     log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints)
     log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints)
 

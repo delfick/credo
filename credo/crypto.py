@@ -51,6 +51,7 @@ class KeyCollection(object):
         rsaobj = self.rsaobj_from_pem(pem_data)
         fingerprint = self.make_fingerprint(rsaobj)
         self.public_fingerprints[fingerprint] = rsaobj
+        return fingerprint
 
     def add_private_key(self, location):
         """
@@ -64,6 +65,7 @@ class KeyCollection(object):
         self.private_fingerprints[fingerprint] = None
         self.private_key_locations[fingerprint] = location
         self.fingerprint_to_location[fingerprint] = location
+        return fingerprint
 
     def location_for_fingerprint(self, fingerprint):
         """Return the location of the fingerprint if we have one"""
@@ -220,11 +222,13 @@ class SSHKeys(object):
 
     def add_public_keys(self, public_keys):
         """Add the specified public keys"""
+        fingerprints = {}
         for pem_data in public_keys:
             try:
-                self.collection.add_public_key(pem_data)
+                fingerprints[pem_data] = self.collection.add_public_key(pem_data)
             except BadSSHKey as err:
                 log.error("Found a bad public key\terr=%s", err)
+        return fingerprints
 
     def private_key_to_rsa_object(self, fingerprint, **info):
         """Get us a RSA object from our private key on disk"""
@@ -238,7 +242,7 @@ class SSHKeys(object):
         location = self.collection.location_for_fingerprint(fingerprint)
         location_str = ""
         if location:
-            location_str = "at %s ".format(location)
+            location_str = "at {0} ".format(location)
         log.debug("Using private key %s(%s) to decrypt (%s)", location_str, fingerprint, " || ".join("{0}={1}".format(key, val) for key, val in info.items()))
 
         key = RSA.construct((key.n, key.e, key.d, key.p, key.q))
@@ -304,11 +308,11 @@ class Crypto(object):
 
     def find_private_keys(self, folder):
         """Find keys to add"""
-        self.keys.find_private_keys(folder)
+        return self.keys.find_private_keys(folder)
 
     def add_public_keys(self, public_keys):
         """Add public keys"""
-        self.keys.add_public_keys(public_keys)
+        return self.keys.add_public_keys(public_keys)
 
     def decryptable(self, fingerprints):
         """Say whether we have a private key for any of these fingerprints"""

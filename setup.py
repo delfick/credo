@@ -11,6 +11,7 @@ setup(
       , "pycrypto"
       , "paramiko"
       , "keyring"
+      , "pygit2"
       , "boto"
       ]
 

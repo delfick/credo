@@ -1,4 +1,4 @@
-from credo.errors import BadConfigFile, BadCredentialSource, CredoProgrammerError, UserQuit
+from credo.errors import BadConfigFile, BadSSHKey, BadCredentialSource, CredoProgrammerError, UserQuit
 
 import ConfigParser
 import getpass
@@ -53,7 +53,7 @@ def ask_for_choice(message, choices):
             return mapped[int(response)]
 
 def ask_for_choice_or_new(needed, choices):
-    mapped = dict(enumerate(sorted(choices)))
+    mapped = dict(zip(range(len(choices)), choices))
     while True:
         if mapped:
             maximum = max(mapped.keys())
@@ -99,7 +99,7 @@ def ask_user_for_secrets(source=None):
     val = None
     if not source:
         if choices:
-            val = ask_for_choice("Method of getting keys", choices + [secret_sources["specified"]])
+            val = ask_for_choice("Method of getting credentials", choices + [secret_sources["specified"]])
         else:
             val = secret_sources["specified"]
     else:
@@ -171,4 +171,95 @@ def ask_user_for_secrets(source=None):
         raise CredoProgrammerError("Not possible to reach this point", source=source)
 
     return access_key, secret_key
+
+def ask_for_public_keys(remote=None):
+    """
+    Get keys from the user (urls, pems, locations)
+    Where locations is a map of {<pem>: <location>} for when we know the location
+    """
+    urls = []
+    pems = []
+    locations = {}
+
+    no_choice = "No thanks"
+    choice = no_choice
+
+    if remote:
+        if "@" in remote:
+            _, path = remote.split("@", 1)
+        if ":" in path:
+            domain, path = path.split(":", 1)
+        if "/" in path:
+            username, path = path.split("/", 1)
+        else:
+            username = path
+
+        suggestion = "https://{0}/{1}.keys".format(domain, username)
+        suggestion_choice = "Use {0}".format(suggestion)
+        choice = ask_for_choice_or_new("Do you want to use a url to get public keys for this repository?", [no_choice, suggestion_choice])
+
+    while True:
+        if choice == no_choice:
+            break
+        elif choice == suggestion_choice:
+            urls.append(suggestion)
+        else:
+            urls.append(choice)
+
+        no_choice = "No more"
+        choice = ask_for_choice_or_new("Do you to use any other urls for public keys?", [no_choice])
+
+    public_key_pems = {}
+    public_key_locations = {}
+    public_key_fingerprints = {}
+
+    from credo.crypto import KeyCollection
+    collection = KeyCollection()
+    ssh_folder = os.path.expanduser("~/.ssh")
+
+    if os.path.exists(ssh_folder):
+        available = [os.path.join(ssh_folder, filename) for filename in os.listdir(ssh_folder) if filename.endswith(".pub")]
+        for location in available:
+            try:
+                with open(location) as fle:
+                    contents = fle.read()
+                fingerprint = collection.add_public_key(contents)
+                public_key_pems[location] = contents
+                public_key_locations[fingerprint] = location
+                public_key_fingerprints[location] = fingerprint
+            except OSError as err:
+                log.warning("Couldn't read %s (%s)", location, err)
+            except BadSSHKey as err:
+                log.warning("%s is not a valid public key (%s)", location)
+
+    while True:
+        question = "any"
+        no_choice = "No thanks"
+        if pems:
+            question = "any more"
+            no_choice = "No more"
+
+        choice = ask_for_choice_or_new("Do you want to add {0} public pem lines?".format(question), [no_choice] + public_key_fingerprints.keys())
+        if choice == no_choice:
+            break
+        elif choice in public_key_fingerprints:
+            pem = public_key_pems[choice]
+            locations[pem] = location
+            pems.append(public_key_pems[choice])
+            fingerprint = public_key_fingerprints[choice]
+            del public_key_pems[choice]
+            del public_key_fingerprints[choice]
+            del public_key_locations[fingerprint]
+        else:
+            try:
+                fingerprint = collection.add_public_key(choice)
+                pems.append(choice)
+                location = public_key_locations.get(fingerprint)
+                if location:
+                    del public_key_locations[fingerprint]
+                    del public_key_fingerprints[location]
+            except BadSSHKey as err:
+                log.warning("The key you entered is not a valid public key (%s)", err)
+
+    return urls, pems, locations
 

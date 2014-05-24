@@ -3,8 +3,11 @@ from credo.asker import ask_for_choice, ask_for_choice_or_new
 from credo.loader import CredentialInfo, Loader
 from credo.explorer import Explorer
 
+import logging
 import json
 import os
+
+log = logging.getLogger("credo.overview")
 
 class Unspecified(object):
     """Telling the difference between None and just not specified"""
@@ -20,7 +23,7 @@ class Credo(object):
         """Return our chosen creds"""
         if not hasattr(self, "_chosen"):
             self._chosen = self.find_credentials()
-            self.add_public_keys(self.repo, self.crypto)
+            self.add_public_keys(self._chosen.credential_info.repository, self.crypto)
             self.set_options(repo=self._chosen.credential_info.repo, account=self._chosen.credential_info.account, user=self._chosen.credential_info.user)
         return self._chosen
 
@@ -160,8 +163,34 @@ class Credo(object):
         options["config_file"] = None
         self.find_options(**options)
 
-    def add_public_keys(self, repo, crypto):
+    def add_public_keys(self, repository, crypto):
         """Find public keys for this repo and add them to the crypto object"""
-        public_key = os.path.expanduser("~/.ssh/id_rsa.pub")
-        crypto.add_public_keys([open(public_key).read()])
+        info = {}
+        while not crypto.can_encrypt:
+            if info == {}:
+                urls, pems, locations = repository.get_public_keys()
+                info["urls"] = urls
+                info["pems"] = pems
+                info["locations"] = locations
+
+            downloaded = []
+            for url in info["urls"]:
+                downloaded.extend(self.download_pems(url))
+            info["pems"].extend(downloaded)
+
+            for pem in info["pems"]:
+                location = info["locations"].get(pem)
+                fingerprint = crypto.add_public_keys([pem]).get(pem)
+                if not fingerprint:
+                    log.error("Failed to add public key\tpem=%s", pem)
+                else:
+                    if location:
+                        log.debug("Adding a public key\tlocation=%s\tfingerprint=%s", location, fingerprint)
+                    else:
+                        log.debug("Adding a public key\tfingerprint=%s", fingerprint)
+
+            if not crypto.can_encrypt:
+                log.error("Was unable to find any public keys")
+                del info["urls"]
+                del info["pems"]
 

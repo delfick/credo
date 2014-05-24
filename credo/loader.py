@@ -1,6 +1,7 @@
 from credo.errors import BadCredentialFile, NoAccountIdEntered
 from credo.credentials import AmazonCredentials
 from credo.asker import ask_for_choice_or_new
+from credo.versioning import Repository
 
 from collections import namedtuple
 import logging
@@ -10,6 +11,14 @@ import os
 log = logging.getLogger("credo.loader")
 
 class CredentialInfo(namedtuple("CredentialInfo", ("location", "repo", "account", "user"))):
+    @property
+    def repository(self):
+        """Return an object representing the repository"""
+        if not getattr(self, "_repository", None):
+            repo_location = os.path.abspath(os.path.join(os.path.dirname(self.location), "..", ".."))
+            self._repository = Repository(repo_location)
+        return self._repository
+
     def get_account_id(self, crypto):
         """Return the account id for this account"""
         if not getattr(self, "_account_id", None):
