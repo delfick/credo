@@ -86,7 +86,7 @@ class Repository(object):
 		pems = result.get("pems")
 		if urls or pems:
 			try:
-				content = json.dumps(result)
+				content = json.dumps(result, indent=4)
 			except ValueError as err:
 				raise BadConfiguration("Couldn't write out keys json", err=err)
 
