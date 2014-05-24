@@ -1,21 +1,57 @@
+from credo.errors import BadCredentialFile, NoAccountIdEntered
 from credo.credentials import AmazonCredentials
-from credo.errors import BadCredentialFile
+from credo.asker import ask_for_choice_or_new
 
 from collections import namedtuple
+import logging
 import json
 import os
 
+log = logging.getLogger("credo.loader")
+
 class CredentialInfo(namedtuple("CredentialInfo", ("location", "repo", "account", "user"))):
-    @property
-    def account_alias(self):
-        """Return the account name or find an account_alias file"""
-        if not getattr(self, "_account_alias", None):
-            alias = self.account
-            alias_location = os.path.join(os.path.dirname(self.location), "..", "account_alias")
-            if os.path.exists(alias_location) and os.access(alias_location, os.R_OK):
-                alias = open(alias_location).read().strip().split("\n")[0]
-            self._account_alias = alias
-        return self._account_alias
+    def get_account_id(self, crypto):
+        """Return the account id for this account"""
+        if not getattr(self, "_account_id", None):
+            found = False
+            incorrect = False
+            account_id = None
+            account_location = os.path.abspath(os.path.join(os.path.dirname(self.location), ".."))
+            id_location = os.path.join(account_location, "account_id")
+
+            if os.path.exists(id_location) and os.access(id_location, os.R_OK):
+                found = True
+                with open(id_location) as fle:
+                    contents = fle.read().strip().split("\n")[0]
+
+                if contents.count(',') != 2:
+                    incorrect = True
+                else:
+                    account_id, fingerprint, signature = contents.split(',')
+                    if not crypto.is_signature_valid(account_id, fingerprint, signature):
+                        incorrect = True
+
+            if incorrect:
+                log.error("Was something corrupt about the account_id file under %s", account_location)
+
+            if incorrect or not found:
+                choices = ["Quit"]
+                choose_choice = "Choose {0}".format(account_id)
+                if account_id:
+                    choices.insert(0, choose_choice)
+
+                choice = ask_for_choice_or_new("How do you want to enter the account id for {0}?".format(os.path.basename(account_location)), choices)
+                if choice == "Quit":
+                    raise NoAccountIdEntered()
+                elif choice != choose_choice:
+                    account_id = choice
+
+            fingerprint, signature = crypto.create_signature(account_id)
+            with open(id_location, "w") as fle:
+                fle.write("{0},{1},{2}".format(account_id, fingerprint, signature))
+
+            self._account_id = account_id
+        return self._account_id
 
 class Loader(object):
     """Knows how to load credentials from a file"""

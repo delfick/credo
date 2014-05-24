@@ -1,10 +1,12 @@
 from credo.errors import BadCredentialFile, NoCredentialsFound
 
 from boto.iam.connection import IAMConnection
+import datetime
 import hashlib
 import logging
 import copy
 import time
+import boto
 import json
 import os
 
@@ -36,52 +38,72 @@ class IamPair(object):
         """Get a connection for these keys"""
         return IAMConnection(self.aws_access_key_id, self.aws_secret_access_key)
 
-    def ask_amazon_for_account(self):
-        """Get the account alias for this key"""
-        return self.connection.get_account_alias()["list_account_aliases_response"]["list_account_aliases_result"]["account_aliases"][0]
-
     @property
     def works(self):
-        """Says whether this key works and is active"""
-        return self.exists and self.active
+        """Says whether this key is valid enough to get iam informations"""
+        self._get_user()
+        return self._works
+
+    def ask_amazon_for_account(self):
+        """Get the account id for this key"""
+        self._get_user(get_cached=True)
+        return self.account_id
+
+    def ask_amazon_for_username(self):
+        """Get the username for this key"""
+        self._get_user(get_cached=True)
+        return self.username
 
     @property
-    def exists(self):
-        """Says that this key hasn't been deleted"""
-        self.connection.get_account_summary()
-        return True
-
-    @property
-    def active(self):
-        """Says that this key hasn't been made inactive"""
-        self.connection.get_account_summary()
-        return True
-
-    @property
-    def create_epoch(self):
+    def ask_amazon_for_create_epoch(self):
         """Return our create_epoch"""
-        return time.time()
+        username = self.ask_amazon_for_username()
+        access_keys = self.connection.get_all_access_keys(username)["list_access_keys_response"]["list_access_keys_result"]["access_key_metadata"]
+        create_date = [key for key in access_keys if key["access_key_id"] == self.connection.aws_access_key_id][0]['create_date']
+        dt = boto.utils.parse_ts(create_date)
+        return (dt - datetime.datetime(1970, 1, 1)).total_seconds()
+
+    def _get_user(self, get_cached=False):
+        """
+        Get user details from this key and set
+        self._working
+        self.username
+        self.account_id
+        """
+        try:
+            if getattr(self, "_got_user", None) is None or not get_cached:
+                details = self.connection.get_user()["get_user_response"]["get_user_result"]["user"]
+                self._works = True
+                self._got_user = True
+                self.username = details["user_name"]
+
+                # arn is arn:aws:iam::<account_id>:<other>
+                self.account_id = details["arn"].split(":")[4]
+        except boto.exception.BotoServerError as error:
+            self._works = False
+            if error.status == 403 and error.code == "InvalidClientTokenId":
+                log.info("Found invalid access key and secret key combination")
+            raise
 
 class AmazonKey(object):
     """Represents the information and meta information required for amazon credentials"""
-    def __init__(self, key_info, account, account_alias, crypto):
+    def __init__(self, key_info, credential_info, crypto):
         self.crypto = crypto
-        self.account = account
         self.key_info = key_info
-        self.account_alias = account_alias
+        self.credential_info = credential_info
 
     @classmethod
-    def using(kls, aws_access_key_id, aws_secret_access_key, account, account_alias, crypto, create_epoch=None):
+    def using(kls, aws_access_key_id, aws_secret_access_key, credential_info, crypto, create_epoch=None):
         """Create an AmazonKey from the provided details"""
-        iam_pair = IamPair(aws_access_key_id, aws_secret_access_key, account)
+        iam_pair = IamPair(aws_access_key_id, aws_secret_access_key, credential_info.account)
         def verifier_maker(*args, **kwargs):
             kwargs["iam_pair"] = iam_pair
-            instance = type("key", (AmazonKey, ), {"account": account, "__init__": lambda s: None})()
+            instance = type("key", (AmazonKey, ), {"account": credential_info.account, "__init__": lambda s: None})()
             return kls.verifier_maker(instance, *args, **kwargs)
 
         fingerprinted = crypto.fingerprinted({"aws_access_key_id": aws_access_key_id, "aws_secret_access_key": aws_secret_access_key}, verifier_maker)
         key_info = {"fingerprints": fingerprinted, "create_epoch": create_epoch or time.time()}
-        key = AmazonKey(key_info, account, account_alias, crypto)
+        key = AmazonKey(key_info, credential_info, crypto)
         key._decrypted = [(aws_access_key_id, aws_secret_access_key)]
         return key
 
@@ -117,7 +139,7 @@ class AmazonKey(object):
     def iam_pair(self):
         """Find the first access_key that is working and matches our verifier"""
         for aws_access_key_id, aws_secret_access_key in self.credentials():
-            pair = IamPair(aws_access_key_id, aws_secret_access_key, self.account)
+            pair = IamPair(aws_access_key_id, aws_secret_access_key, self.credential_info.account)
             if pair.works:
                 return pair
 
@@ -134,7 +156,7 @@ class AmazonKey(object):
             kwargs["iam_pair"] = self.iam_pair
             return self.verifier_maker(*args, **kwargs)
 
-        create_epoch = self.iam_pair.create_epoch
+        create_epoch = self.iam_pair.ask_amazon_for_create_epoch
         fingerprints = self.crypto.fingerprinted({"aws_access_key_id": self.iam_pair.aws_access_key_id, "aws_secret_access_key": self.iam_pair.aws_secret_access_key}, verifier_maker)
         return {"fingerprints": fingerprints, "create_epoch": create_epoch}
 
@@ -142,20 +164,21 @@ class AmazonKey(object):
         """Return what our verifier should represent"""
         if iam_pair is not None:
             account = iam_pair.ask_amazon_for_account()
+            username = iam_pair.ask_amazon_for_username()
         else:
-            account = self.account_alias
+            account = self.credential_info.get_account_id(self.crypto)
+            username = self.credential_info.user
 
-        return hashlib.sha1("{0} && {1}".format(decrypted["aws_access_key_id"], account)).hexdigest()
+        value = "{0} || {1} || {2}".format(decrypted["aws_access_key_id"], account, username)
+        return hashlib.sha1(value).hexdigest()
 
 class AmazonKeys(object):
     """Collection of Amazon keys"""
-    def __init__(self, keys, account, account_alias, crypto):
+    def __init__(self, keys, credential_info, crypto):
         if not keys:
             keys = []
 
-        self.account = account
-        self.account_alias = account_alias
-        self.keys = [AmazonKey(key, account, account_alias, crypto) for key in keys]
+        self.keys = [AmazonKey(key, credential_info, crypto) for key in keys]
 
     def add(self, key):
         """Add a key"""
@@ -214,7 +237,7 @@ class AmazonCredentials(object):
         self.contents = contents
         self.credential_info = credential_info
 
-        self.keys = AmazonKeys(self.contents.get("keys"), self.credential_info.account, self.credential_info.account_alias, crypto)
+        self.keys = AmazonKeys(self.contents.get("keys"), self.credential_info, crypto)
 
     @property
     def location(self):
@@ -222,7 +245,7 @@ class AmazonCredentials(object):
 
     def add_key(self, aws_access_key_id, aws_secret_access_key):
         """Add a key"""
-        self.keys.add(AmazonKey.using(aws_access_key_id, aws_secret_access_key, self.credential_info.account, self.credential_info.account_alias, self.crypto))
+        self.keys.add(AmazonKey.using(aws_access_key_id, aws_secret_access_key, self.credential_info, self.crypto))
 
     @property
     def encrypted_values(self):
