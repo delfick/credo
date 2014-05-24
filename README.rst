@@ -15,7 +15,9 @@ Import some keys::
 
 Export those keys to your environment::
 
-    credo display
+    `credo display`
+    # Display prints out the required environment exports
+    # The backticks means your shell will run those exports
 
 Or execute a command with those keys::
 
