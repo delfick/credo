@@ -6,6 +6,18 @@ The python version of Credulous
 Credo is a credential management program for amazon credentials written
 in golang. It can be found at https://github.com/realestate-com-au/credulous
 
+Installation
+------------
+
+Use pip!::
+
+    pip install credo
+
+Or if you're developing it::
+
+    pip install -e .
+    pip install -e ".[tests]"
+
 Usage
 -----
 
@@ -39,6 +51,62 @@ you want::
 
     credo import --source environment
 
+Status
+------
+
+Currently Credo seems to work fine. However I haven't started writing tests yet.
+
+No tests means my implementation is a bit messier than I would like and it's
+likely there are hidden bugs in some of the code that handles the corner cases
+I don't see in my normal usage.
+
+So until tests are written, this should be considered alpha/beta quality.
+
+Also, credulous has more people working on it and one of the reasons they chose
+golang was the ability to distribute a single, static binary.
+
+Credo, however, does have things credulous doesn't,
+like signatures on certain values and an arguably nicer UI.
+
+Features
+--------
+
+Credo usage allows you to specify what you want to do via the cli and credo will
+ask questions for any ambiguity it comes across.
+
+credo display
+    Print out export lines for exporting the credentials
+
+credo exec
+    Run a command with credentials in the environment of that command
+
+credo import
+    Add credentials
+
+credo rotate
+    Rotate credentials
+
+credo show
+    Show what credentials credo is currently aware of
+
+It also does:
+
+* Stores your credentials so that you have repositories of users in particular
+  accounts.
+* Import from environment, ~/.boto, ~/.aws/config or values you specify
+* Knows about profiles in ~/.boto and ~/.aws/config
+* Uses signatures to ensure that only you ever write encrypted credentials
+* Uses signatures to ensure that the credentials you load is for the account
+  that you think it is for (Also records the amazon account id).
+* Copes when keys are no longer usable.
+* Lets you specify urls or just pem_data for the public keys per repository and
+  caches the values from those urls.
+* Minimises the number of times you need to enter a password for your private
+  keys
+* Tries it's best to find situations it can't handle and display nice error
+  messages to the screen
+* Tries to be informative about what is happening
+
 Layout
 ------
 
@@ -69,18 +137,6 @@ it knows about and a signature used to verify that the credentials were written
 using one of you private keys against a particular account and user.
 
 This means you may only add credentials using one of your private keys.
-
-Installation
-------------
-
-Use pip!::
-
-    pip install credo
-
-Or if you're developing it::
-
-    pip install -e .
-    pip install -e ".[tests]"
 
 Tests
 -----
