@@ -57,6 +57,10 @@ class IamPair(object):
         self.username
         self.account_id
         """
+        if getattr(self, "_works", None) is False:
+            # Already been here
+            return
+
         try:
             if getattr(self, "_got_user", None) is None or not get_cached:
                 details = self.connection.get_user()["get_user_response"]["get_user_result"]["user"]
@@ -69,13 +73,14 @@ class IamPair(object):
         except boto.exception.BotoServerError as error:
             self._works = False
             if error.status == 403 and error.code in ("InvalidClientTokenId", "SignatureDoesNotMatch"):
-                log.info("Found invalid access key and secret key combination")
+                log.info("Found invalid access key and secret key combination\taccess_key=%s", self.aws_access_key_id)
                 return
             raise
 
 class AmazonKey(object):
     """Represents the information and meta information required for amazon credentials"""
     def __init__(self, key_info, credential_info, crypto):
+        self.pairs = {}
         self.crypto = crypto
         self.key_info = key_info
         self.credential_info = credential_info
@@ -131,11 +136,17 @@ class AmazonKey(object):
         """Find the first access_key that is working and matches our verifier"""
         if not getattr(self, "_iam_pair", None):
             for aws_access_key_id, aws_secret_access_key in self.credentials():
-                pair = IamPair(aws_access_key_id, aws_secret_access_key, self.credential_info.account)
+                ident = "{0}{1}".format(aws_access_key_id, aws_secret_access_key)
+                if ident in self.pairs:
+                    pair = self.pairs[ident]
+                else:
+                    pair = IamPair(aws_access_key_id, aws_secret_access_key, self.credential_info.account)
+                    self.pairs[ident] = pair
+
                 if pair.works:
                     self._iam_pair = pair
                     break
-        return self._iam_pair
+        return getattr(self, "_iam_pair", None)
 
     @property
     def encrypted_values(self):
@@ -164,7 +175,8 @@ class AmazonKey(object):
             username = self.credential_info.user
 
         value = "{0} || {1} || {2}".format(decrypted["aws_access_key_id"], account, username)
-        return hashlib.sha1(value).hexdigest()
+        information = {"account": account, "username": username, "access_key": decrypted["aws_access_key_id"]}
+        return hashlib.sha1(value).hexdigest(), information
 
 class AmazonKeys(object):
     """Collection of Amazon keys"""
@@ -215,7 +227,13 @@ class AmazonKeys(object):
     @property
     def encrypted_values(self):
         """Return our keys as a dictionary with encrypted values"""
-        return [key.encrypted_values for key in self.keys]
+        result = []
+        for key in self.keys:
+            if key.iam_pair and key.iam_pair.works:
+                result.append(key.encrypted_values)
+            else:
+                log.info("Not saving invalid credentials\taccess_key=%s", list(key.credentials())[0][0])
+        return result
 
     @property
     def access_keys(self):

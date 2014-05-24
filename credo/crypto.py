@@ -338,9 +338,9 @@ class Crypto(object):
                         info["action"] = "decrypting"
                         decrypted[key] = self.keys.decrypt(val, fingerprint, **info)
 
-                new_verifier = verifier_maker(values, decrypted)
+                new_verifier, information = verifier_maker(values, decrypted)
                 if not self.is_signature_valid(new_verifier, *values["__account_verifier__"]):
-                    log.error("Ignoring decrypted secrets, because can't verify __account_verifier__\t%s", "\t".join("{0}={1}".format(key, val) for key, val in sorted(info.items())))
+                    log.error("Ignoring decrypted secrets, because can't verify __account_verifier__\t%s", "\t".join("{0}={1}".format(key, val) for key, val in sorted(information.items())))
                 else:
                     decrypted["__account_verifier__"] = values["__account_verifier__"]
                     identity = ",".join(sorted(str((key, val) for key, val in decrypted.items() if not key.startswith("_"))))
@@ -369,7 +369,9 @@ class Crypto(object):
                 encrypted[key] = self.keys.encrypt(val, fingerprint, **info)
 
             info["key"] = "__account_verifier__"
-            encrypted["__account_verifier__"] = self.create_signature(verifier_maker(encrypted, decrypted_vals))
+            for_signing, information = verifier_maker(encrypted, decrypted_vals)
+            encrypted["__account_verifier__"] = self.create_signature(for_signing)
+            log.info("Made signature for key\t%s", "\t".join("{0}={1}".format(key, val) for key, val in sorted(information.items())))
             result[fingerprint] = encrypted
 
         return result
