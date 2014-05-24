@@ -1,11 +1,11 @@
-class CredoError(Exception):
+class CredoException(Exception):
     """Helpful class for creating custom exceptions"""
     desc = ""
 
     def __init__(self, message="", **kwargs):
         self.kwargs = kwargs
         self.message = message
-        super(CredoError, self).__init__(message)
+        super(CredoException, self).__init__(message)
 
     def __str__(self):
         desc = self.desc
@@ -25,6 +25,12 @@ class CredoError(Exception):
                 return '"{0}"{1}'.format(message, info)
             else:
                 return "{0}".format(info)
+
+class CredoProgrammerError(CredoException):
+    desc = "Programmer made a mistake :("
+
+class CredoError(CredoException):
+    """Anything inheriting this is caught and nicely displayed by executor:main"""
 
 class NoExecCommand(CredoError):
     desc = "No exec command to execute"
@@ -85,4 +91,13 @@ class CantFindPrivateKey(CredoError):
 
 class NoAccountIdEntered(CredoError):
     desc = "Couldn't get an account id"
+
+class BadCredentialSource(CredoError):
+    desc = "Bad source of credentials"
+
+class BadCredential(CredoError):
+    desc = "Invalid Credentials"
+
+class UserQuit(CredoError):
+    desc = "User quit the program"
 

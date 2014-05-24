@@ -22,7 +22,7 @@ def do_exec(credo, command, **kwargs):
     environment.update(dict(credo.chosen.shell_exports()))
     os.execvpe(command[0], command, environment)
 
-def do_import(credo, **kwargs):
+def do_import(credo, source=False, **kwargs):
     """Import some creds"""
     credentials = credo.make_credentials()
     credo.add_public_keys(credo.repo, credo.crypto)
@@ -34,7 +34,7 @@ def do_import(credo, **kwargs):
     if not credo.crypto.can_sign:
         raise CantSign("No private keys with matching public keys to sign with", repo=credo.repo)
 
-    access_key, secret_key = ask_user_for_secrets()
+    access_key, secret_key = ask_user_for_secrets(source=source)
     credentials.add_key(access_key, secret_key)
     credentials.save()
     print "Created credentials at {0}".format(credentials.location)

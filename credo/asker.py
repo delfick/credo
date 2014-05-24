@@ -1,24 +1,50 @@
-from credo.errors import BadConfigFile
+from credo.errors import BadConfigFile, BadCredentialSource, CredoProgrammerError, UserQuit
 
 import ConfigParser
+import getpass
+import logging
 import keyring
 import boto
 import sys
 import os
+
+log = logging.getLogger("credo.asker")
+
+def get_response(*messages, **kwargs):
+    """Get us a response from the user"""
+    password = kwargs.get("password", False)
+    if password:
+        prompt = kwargs.get("prompt", ":")
+    else:
+        prompt = kwargs.get("prompt", ": ")
+
+    for message in messages:
+        if isinstance(message, dict):
+            for num, val in message.items():
+                print >> sys.stderr, "{0}) {1}".format(num, val)
+        else:
+            print >> sys.stderr, message
+
+    if prompt:
+        sys.stderr.write(str(prompt))
+        sys.stderr.flush()
+
+    try:
+        if password:
+            return getpass.getpass("")
+        else:
+            return raw_input()
+    except KeyboardInterrupt:
+        raise UserQuit()
+    except EOFError:
+        raise UserQuit()
 
 def ask_for_choice(message, choices):
     """Ask for a value from some choices"""
     mapped = dict(enumerate(sorted(choices)))
     no_value = True
     while no_value:
-        print >> sys.stderr, message
-        print >> sys.stderr, "Please choose a value from the following"
-        for num, val in mapped.items():
-            print >> sys.stderr, "{0}) {1}".format(num, val)
-
-        sys.stderr.write(": ")
-        sys.stderr.flush()
-        response = raw_input()
+        response = get_response(message, "Please choose a value from the following", mapped)
 
         if response is None or not response.isdigit() or int(response) not in mapped:
             print >> sys.stderr, "Please choose a valid response ({0} is not valid)".format(response)
@@ -28,73 +54,87 @@ def ask_for_choice(message, choices):
 
 def ask_for_choice_or_new(needed, choices):
     mapped = dict(enumerate(sorted(choices)))
-    no_value = True
-    while no_value:
-        print >> sys.stderr, "Choose a {0}".format(needed)
+    while True:
         if mapped:
             maximum = max(mapped.keys())
-            print >> sys.stderr, "Please choose a value from the following"
-            num = -1
-            for num, val in mapped.items():
-                print >> sys.stderr, "{0}) {1}".format(num, val)
-            print >> sys.stderr, "{0}) {1}".format(num+1, "Make your own value")
-
-            sys.stderr.write(": ")
-            sys.stderr.flush()
-            response = raw_input()
+            response = get_response(
+                  "Choose a {0}".format(needed), "Please choose a value from the following"
+                , mapped, {maximum+1: "Make your own value"}
+                )
 
             if response is None or not response.isdigit() or int(response) < 0 or int(response) > maximum + 1:
                 print >> sys.stderr, "Please choose a valid response ({0} is not valid)".format(response)
+                continue
             else:
-                no_value = False
                 response = int(response)
                 if response in mapped:
                     return mapped[response]
-        else:
-            no_value = False
 
-        if not no_value:
-            sys.stderr.write("Enter your custom value: ")
-            sys.stderr.flush()
-            return raw_input()
+        return get_response(prompt="Enter your custom value: ")
 
-def ask_user_for_secrets():
+secret_sources = {
+      "specified": "Specify your own value"
+    , "aws_config": "Your awscli config file"
+    , "boto_config": "Your boto config file"
+    , "environment": "Your current environment"
+    }
+
+def ask_user_for_secrets(source=None):
     """Ask the user for access_key and secret_key"""
     choices = []
     access_key_name = "AWS_ACCESS_KEY_ID"
     secret_key_name = "AWS_SECRET_ACCESS_KEY"
 
     environment = os.environ
-    environment_choice = "From your current environment"
-    aws_config_file_choice = "From awscli config file"
-    boto_config_file_choice = "From your boto config file"
 
     if access_key_name in environment and secret_key_name in environment:
-        choices.append(environment_choice)
+        choices.append(secret_sources["environment"])
 
     if os.path.exists(os.path.expanduser("~/.aws/config")):
-        choices.append(aws_config_file_choice)
+        choices.append(secret_sources["aws_config"])
 
     if os.path.exists(os.path.expanduser("~/.boto")):
-        choices.append(boto_config_file_choice)
+        choices.append(secret_sources["boto_config"])
 
-    if choices:
-        val = ask_for_choice("Method of getting keys", choices + ["specify"])
+    val = None
+    if not source:
+        if choices:
+            val = ask_for_choice("Method of getting keys", choices + [secret_sources["specified"]])
+        else:
+            val = secret_sources["specified"]
     else:
-        val = "specify"
+        if source not in secret_sources.keys() and source not in secret_sources.values():
+            raise BadCredentialSource("Unknown credential source", source=source)
 
-    if val == "specify":
-        access_key = raw_input("Access key: ")
-        secret_key = raw_input("Secret key: ")
-    elif val == environment_choice:
-        access_key = os.environ["AWS_ACCESS_KEY_ID"]
-        secret_key = os.environ["AWS_SECRET_ACCESS_KEY"]
-    elif val in (aws_config_file_choice, boto_config_file_choice):
+        if source in secret_sources:
+            source = secret_sources[source]
+
+        log.info("Getting credentials from %s", source)
+
+    if secret_sources["specified"] in (val, source):
+        access_key = get_response(prompt="Access key: ")
+        secret_key = get_response(prompt="Secret key: ")
+
+    elif secret_sources["environment"] in (val, source):
+        if access_key_name not in environment or secret_key_name not in environment:
+            raise BadCredentialSource("Couldn't find environment variables for {0} and {1}".format(access_key_name, secret_key_name))
+        access_key = environment[access_key_name]
+        secret_key = environment[secret_key_name]
+
+    elif secret_sources["boto_config"] in (val, source) or secret_sources["aws_config"] in (val, source):
         parser = ConfigParser.SafeConfigParser()
-        if val == aws_config_file_choice:
-            location = os.path.expanduser("~/.aws/config")
-        elif val == boto_config_file_choice:
-            location = os.path.expanduser("~/.boto")
+        aws_location = os.path.expanduser("~/.aws/config")
+        boto_location = os.path.expanduser("~/.boto")
+
+        if source == secret_sources["aws_config"] and not os.path.exists(aws_location):
+            raise BadCredentialSource("Couldn't find the aws config", location=aws_location)
+        if source == secret_sources["boto_config"] and not os.path.exists(boto_location):
+            raise BadCredentialSource("Couldn't find the boto config", location=boto_location)
+
+        if secret_sources["boto_location"] in (val, source):
+            location = boto_location
+        else:
+            location = aws_location
 
         # Read it in
         parser.read(location)
@@ -127,6 +167,8 @@ def ask_user_for_secrets():
         else:
             keyring_name = parser.get(section, 'keyring')
             secret_key = keyring.get_password(keyring_name, access_key)
+    else:
+        raise CredoProgrammerError("Not possible to reach this point", source=source)
 
     return access_key, secret_key
 

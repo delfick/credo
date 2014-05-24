@@ -1,5 +1,6 @@
 from credo.actions import do_display, do_exec, do_showavailable, do_import, do_rotate
 from credo.errors import CredoError, NoExecCommand
+from credo.asker import secret_sources
 from credo.overview import Credo
 from credo.crypto import Crypto
 
@@ -159,6 +160,10 @@ class CliParser(object):
     def parse_import(self, action, argv):
         """Import doesn't have any arguments yet"""
         parser = argparse.ArgumentParser(description="Import amazon secrets")
+        parser.add_argument("--source"
+            , help = "Choose a particular source to get credentials from"
+            , choices = secret_sources.keys()
+            )
         args = self.args_from_subparser(action, parser, argv)
         return args, do_import
 

@@ -3,7 +3,7 @@ from credo.errors import (
     , BadPlainText, PasswordRequired, BadPrivateKey, BadPublicKey
     , NoSuchFingerPrint, CantFindPrivateKey
     )
-from credo.asker import ask_for_choice
+from credo.asker import ask_for_choice, get_response
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
@@ -11,7 +11,6 @@ from Crypto.PublicKey import RSA
 from binascii import hexlify, unhexlify
 from base64 import b64decode
 from paramiko import Message
-from getpass import getpass
 import tempfile
 import paramiko
 import logging
@@ -152,7 +151,7 @@ class KeyCollection(object):
                 if only_need_public:
                     log.info("Couldn't find a public key for password protected private key at %s", location)
 
-                password = getpass("Password for your private key ({0})\n:".format(location))
+                password = get_response("Password for your private key ({0})".format(location), password=True)
 
                 try:
                     rsaobj = self.make_rsakey(location, password=password, private=True)
