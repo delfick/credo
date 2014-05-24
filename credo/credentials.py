@@ -292,8 +292,8 @@ class AmazonCredentials(object):
             raise BadCredentialFile("Can't create credentials as json", err=err, location=self.location)
 
         try:
+            log.info("Saving credentials for %s|%s|%s with access_keys %s", self.credential_info.repo, self.credential_info.account, self.credential_info.user, list(self.keys.access_keys))
             with open(self.location, "w") as fle:
-                log.info("Saving credentials for %s|%s|%s with access_keys %s", self.credential_info.repo, self.credential_info.account, self.credential_info.user, list(self.keys.access_keys))
                 fle.write(contents)
         except OSError as err:
             raise BadCredentialFile("Can't write to the credentials file", err=err, location=self.location)
