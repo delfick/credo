@@ -1,15 +1,11 @@
 from credo.errors import CantEncrypt, CantSign
-from asker import ask_user_for_secrets
+from credo.helper import print_list_of_tuples
+from credo.asker import ask_user_for_secrets
 
 import logging
 import os
 
 log = logging.getLogger("credo.actions")
-
-def _print_list_of_tuples(lst, prefix):
-    """Helper for printing out a list of tuples"""
-    if any(val for _, val in lst):
-        print "{0}: {1}".format(prefix, " | ".join("{0}={1}".format(key, val) for key, val in lst if val))
 
 def do_display(credo, **kwargs):
     """Just print out the chosen creds"""
@@ -54,7 +50,7 @@ def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs
     else:
         completed, fltr = explorer.filtered(repo=credo.repo, account=credo.account, user=credo.user)
 
-    _print_list_of_tuples(fltr, "Using the filters")
+    print_list_of_tuples(fltr, "Using the filters")
 
     headings = ["Repositories", "Accounts", "Users"]
 
@@ -139,7 +135,7 @@ def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs
             chain.append(r.keys()[0])
             r = r[r.keys()[0]]
             if not isinstance(r, list) and not isinstance(r, tuple) and not isinstance(r, dict):
-                _print_list_of_tuples(zip(["repo", "account", "user"], chain), "Only found one set of credentials")
+                print_list_of_tuples(zip(["repo", "account", "user"], chain), "Only found one set of credentials")
                 display_creds(r)
                 return
 

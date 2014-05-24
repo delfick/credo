@@ -15,3 +15,8 @@ def copy_dict_structure(structure):
 	record_non_dicts(structure, memo)
 	return copy.deepcopy(structure, memo=memo)
 
+def print_list_of_tuples(lst, prefix):
+    """Helper for printing out a list of tuples"""
+    if any(val for _, val in lst):
+        print "{0}: {1}".format(prefix, " | ".join("{0}={1}".format(key, val) for key, val in lst if val))
+
