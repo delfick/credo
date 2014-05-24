@@ -186,6 +186,10 @@ class AmazonKeys(object):
 
         self.keys = [AmazonKey(key, credential_info, crypto) for key in keys]
 
+    def __len__(self):
+        """Return how many keys we have"""
+        return len(self.keys)
+
     def add(self, key):
         """Add a key"""
         if not key.iam_pair or not key.iam_pair.works:
@@ -282,6 +286,7 @@ class AmazonCredentials(object):
             raise BadCredentialFile("Don't have write permissions to parent directory", location=self.location)
 
         try:
+            log.info("Making encrypted values for %s keys using %s public keys", len(self.keys), len(self.crypto.public_key_fingerprints))
             vals = self.encrypted_values
         except UnicodeDecodeError as err:
             raise BadCredentialFile("Can't get encrypted values for the credentials file!", err=err, location=self.location)

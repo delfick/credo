@@ -3,8 +3,10 @@ from credo.asker import ask_for_choice, ask_for_choice_or_new
 from credo.loader import CredentialInfo, Loader
 from credo.explorer import Explorer
 
+import requests
 import logging
 import json
+import time
 import os
 
 log = logging.getLogger("credo.overview")
@@ -193,4 +195,69 @@ class Credo(object):
                 log.error("Was unable to find any public keys")
                 del info["urls"]
                 del info["pems"]
+
+    def download_pems(self, url):
+        """Get pems from some url"""
+        cache = {}
+        cache_location = os.path.join(self.root_dir, "cache")
+        if os.path.exists(cache_location):
+            try:
+                with open(cache_location) as fle:
+                    cache = json.load(fle)
+            except ValueError as err:
+                log.warning("Failed to load the pem url cache\tlocation=%s\terr=%s", cache_location, err)
+        else:
+            log.debug("No cache to load urls from\tlocation=%s", cache_location)
+
+        last_downloaded = None
+        if url in cache.get("cached", {}):
+            if "times" in cache and url in cache["times"]:
+                last_downloaded = cache["times"][url]
+                if not isinstance(last_downloaded, float) and not isinstance(last_downloaded, int):
+                    last_downloaded = None
+
+                else:
+                    diff = time.time() - last_downloaded
+                    if diff < 0 or diff > 3600:
+                        log.info("Cache for %s is older than an hour, re-getting the keys", url)
+                        last_downloaded = None
+
+        cached = []
+        if last_downloaded is not None and url in cache.get("cached", {}):
+            cached = cache["cached"][url]
+            if isinstance(cached, list) and all(isinstance(pem, basestring) for pem in cached):
+                log.info("Using %s cached pem keys from %s", len(cached), url)
+                return cached
+
+        if "times" not in cache:
+            cache["times"] = {}
+        cache["times"][url] = time.time()
+
+        if "cached" not in cache:
+            cache["cached"] = {}
+
+        try:
+            lines = requests.get(url).content.split('\n')
+        except requests.exceptions.RequestException as err:
+            lines = None
+            log.error("Failed to get pem keys from url\turl=%s\terr=%s\treason=%s", url, err.__class__.__name__, err)
+            if cached:
+                log.info("Using %s keys from cache of %s", len(cached), url)
+
+        if lines:
+            cached = []
+            for line in lines:
+                if line.startswith("ssh-rsa"):
+                    cached.append(line)
+
+            cache["cached"][url] = cached
+            log.info("Got %s keys from %s", len(cached), url)
+
+            try:
+                with open(cache_location, "w") as fle:
+                    json.dump(cache, fle)
+            except ValueError as err:
+                log.error("Couldn't write cache\tlocation=%s\terr=e%s", cache_location, err)
+
+        return cached
 
