@@ -224,8 +224,8 @@ class SSHKeys(object):
         for pem_data in public_keys:
             try:
                 self.collection.add_public_key(pem_data)
-            except BadSSHKey:
-                pass
+            except BadSSHKey as err:
+                log.error("Found a bad public key\terr=%s", err)
 
     def private_key_to_rsa_object(self, fingerprint, **info):
         """Get us a RSA object from our private key on disk"""
@@ -341,7 +341,7 @@ class Crypto(object):
 
                 new_verifier = verifier_maker(values, decrypted)
                 if not self.is_signature_valid(new_verifier, *values["__account_verifier__"]):
-                    log.error("Ignoring decrypted secrets, because can't verify __account_verifier__")
+                    log.error("Ignoring decrypted secrets, because can't verify __account_verifier__\t%s", "\t".join("{0}={1}".format(key, val) for key, val in sorted(info.items())))
                 else:
                     decrypted["__account_verifier__"] = values["__account_verifier__"]
                     identity = ",".join(sorted(str((key, val) for key, val in decrypted.items() if not key.startswith("_"))))
