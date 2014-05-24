@@ -23,6 +23,7 @@ def setup_logging(verbose=False):
     log.setLevel([logging.INFO, logging.DEBUG][verbose])
 
     logging.getLogger("boto").setLevel([logging.CRITICAL, logging.ERROR][verbose])
+    logging.getLogger("requests").setLevel([logging.CRITICAL, logging.ERROR][verbose])
 
 class CliParser(object):
     def split_argv(self, argv=None):

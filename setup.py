@@ -10,6 +10,7 @@ setup(
       [ "rainbow_logging_handler"
       , "pycrypto"
       , "paramiko"
+      , "requests"
       , "keyring"
       , "pygit2"
       , "boto"
