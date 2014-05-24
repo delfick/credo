@@ -40,6 +40,7 @@ def do_rotate(credo, **kwargs):
     credentials = credo.chosen
     counts = credentials.rotate()
     print "Created {0} credentials and deleted {1} credentials".format(counts.get("created"), counts.get("deleted"))
+    print "Created credentials at {0}".format(credentials.location)
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
