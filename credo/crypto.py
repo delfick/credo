@@ -374,8 +374,9 @@ class Crypto(object):
 
             info["key"] = "__account_verifier__"
             for_signing, information = verifier_maker(encrypted, decrypted_vals)
+            information["fingerprint"] = fingerprint
             encrypted["__account_verifier__"] = self.create_signature(for_signing)
-            log.info("Made signature for key\t%s", "\t".join("{0}={1}".format(key, val) for key, val in sorted(information.items())))
+            log.debug("Made signature for key\t%s", "\t".join("{0}={1}".format(key, val) for key, val in sorted(information.items())))
             result[fingerprint] = encrypted
 
         return result
