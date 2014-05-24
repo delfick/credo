@@ -43,7 +43,7 @@ def ask_for_choice_or_new(needed, choices):
             sys.stderr.flush()
             response = raw_input()
 
-            if response is None or not response.isdigit() or int(response) < 0 or int(response) > maximum:
+            if response is None or not response.isdigit() or int(response) < 0 or int(response) > maximum + 1:
                 print >> sys.stderr, "Please choose a valid response ({0} is not valid)".format(response)
             else:
                 no_value = False
