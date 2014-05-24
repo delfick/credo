@@ -282,8 +282,9 @@ class AmazonCredentials(object):
 
     def rotate(self):
         """Rotate the credentials"""
+        counts = {"added": 0, "deleted": 0}
         self.save()
-        return {}
+        return counts
 
     def shell_exports(self):
         """Return list of (key, val) exports we want to have in the shell"""
