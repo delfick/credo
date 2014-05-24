@@ -81,8 +81,9 @@ class IamPair(object):
                 self.account_id = details["arn"].split(":")[4]
         except boto.exception.BotoServerError as error:
             self._works = False
-            if error.status == 403 and error.code == "InvalidClientTokenId":
+            if error.status == 403 and error.code in ("InvalidClientTokenId", "SignatureDoesNotMatch"):
                 log.info("Found invalid access key and secret key combination")
+                return
             raise
 
 class AmazonKey(object):
@@ -96,6 +97,9 @@ class AmazonKey(object):
     def using(kls, aws_access_key_id, aws_secret_access_key, credential_info, crypto, create_epoch=None):
         """Create an AmazonKey from the provided details"""
         iam_pair = IamPair(aws_access_key_id, aws_secret_access_key, credential_info.account)
+        if not iam_pair or not iam_pair.works:
+            raise BadCredential()
+
         def verifier_maker(*args, **kwargs):
             kwargs["iam_pair"] = iam_pair
             instance = type("key", (AmazonKey, ), {"account": credential_info.account, "__init__": lambda s: None})()
@@ -182,6 +186,9 @@ class AmazonKeys(object):
 
     def add(self, key):
         """Add a key"""
+        if not key.iam_pair or not key.iam_pair.works:
+            raise BadCredential()
+
         if key.iam_pair.aws_access_key_id not in self.access_keys:
             self.keys.append(key)
 
