@@ -21,6 +21,8 @@ def setup_logging(verbose=False):
     log.addHandler(handler)
     log.setLevel([logging.INFO, logging.DEBUG][verbose])
 
+    logging.getLogger("boto").setLevel([logging.CRITICAL, logging.ERROR][verbose])
+
 class CliParser(object):
     def split_argv(self, argv=None):
         """Split the args into (cred_opts, action, action_opts)"""
