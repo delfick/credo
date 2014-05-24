@@ -1,6 +1,6 @@
 from credo.loader import Loader, CredentialInfo
+from credo.helper import copy_dict_structure
 
-import copy
 import os
 
 class Explorer(object):
@@ -30,7 +30,7 @@ class Explorer(object):
         return self.find_repo_structure(self.root_dir)
 
     def filtered(self, repo=None, account=None, user=None):
-        result = copy.deepcopy(self.completed)
+        result = copy_dict_structure(self.completed)
         fltr = [(key, val) for key, val in ("repo", repo), ("account", account), ("user", user), if val]
 
         if fltr:
