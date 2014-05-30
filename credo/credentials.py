@@ -144,7 +144,7 @@ class IamPair(object):
         except boto.exception.BotoServerError as error:
             self._works = False
             if error.status == 403 and error.code in ("InvalidClientTokenId", "SignatureDoesNotMatch"):
-                log.info("Found invalid access key and secret key combination\taccess_key=%s", self.aws_access_key_id)
+                log.info("Found invalid access key and secret key combination\taccess_key=%s\terror_code=%s\terror=%s", self.aws_access_key_id, error.code, error.message)
                 return
             raise
 
