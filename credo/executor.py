@@ -3,6 +3,7 @@ from credo.errors import CredoError, NoExecCommand
 from credo.asker import secret_sources
 from credo.overview import Credo
 from credo.crypto import Crypto
+from credo import VERSION
 
 from rainbow_logging_handler import RainbowLoggingHandler
 import argparse

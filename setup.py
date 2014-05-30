@@ -1,8 +1,9 @@
 from setuptools import setup, find_packages
+from credo import VERSION
 
 setup(
       name = "credo"
-    , version = "0.1"
+    , version = VERSION
     , packages = ['credo'] + ['credo.%s' % pkg for pkg in find_packages('credo')]
     , include_package_data = True
 
