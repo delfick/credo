@@ -12,7 +12,7 @@ import os
 
 log = logging.getLogger("executor")
 
-def setup_logging(verbose=False):
+def setup_logging(verbose=False, boto_debug=False):
     log = logging.getLogger("")
     handler = RainbowLoggingHandler(sys.stderr)
     handler._column_color['%(asctime)s'] = ('cyan', None, False)
@@ -22,7 +22,11 @@ def setup_logging(verbose=False):
     log.addHandler(handler)
     log.setLevel([logging.INFO, logging.DEBUG][verbose])
 
-    logging.getLogger("boto").setLevel([logging.CRITICAL, logging.ERROR][verbose])
+    if boto_debug:
+        logging.getLogger("boto").setLevel(logging.DEBUG)
+    else:
+        logging.getLogger("boto").setLevel([logging.CRITICAL, logging.ERROR][verbose])
+
     logging.getLogger("requests").setLevel([logging.CRITICAL, logging.ERROR][verbose])
 
 class CliParser(object):
@@ -96,6 +100,11 @@ class CliParser(object):
             , action = "store_true"
             )
 
+        parser.add_argument("--boto-debug"
+            , help = "Show debug log messages for boto"
+            , action = "store_true"
+            )
+
         return parser
 
     def args_from_subparser(self, action, parser, argv):
@@ -110,7 +119,7 @@ class CliParser(object):
         """Make a Credo object that knows things"""
         cred_parser = self.cred_parser()
         cred_args = cred_parser.parse_args(cred_args)
-        setup_logging(verbose=cred_args.verbose)
+        setup_logging(verbose=cred_args.verbose, boto_debug=cred_args.boto_debug)
 
         if cred_args.action != expected_action:
             raise CredoError("Well this is weird, I thought the action was different than it turned out to be", expected=expected_action, parsed=cred_args.action)
