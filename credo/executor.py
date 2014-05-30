@@ -204,6 +204,10 @@ class CliParser(object):
             return {"command": argv}, do_exec
 
 def main(argv=None):
+    __import__("boto")
+    useragent = sys.modules["boto.connection"].UserAgent
+    sys.modules["boto.connection"].UserAgent = "{0} Credo/{1}".format(useragent, VERSION)
+
     try:
         credo, kwargs, function = CliParser().parse_args(argv)
         function(credo, **kwargs)
