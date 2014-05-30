@@ -10,7 +10,7 @@ setup(
     , install_requires =
       [ "rainbow_logging_handler"
       , "pycrypto"
-      , "paramiko"
+      , "paramiko>=1.14.0"
       , "requests"
       , "keyring"
       , "pygit2"
