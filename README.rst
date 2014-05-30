@@ -90,6 +90,10 @@ credo rotate
 credo show
     Show what credentials credo is currently aware of
 
+credo current
+    Display the username, account alias and account id of the amazon credentials
+    you currently have in your environment.
+
 It also does:
 
 * Stores your credentials so that you have repositories of users in particular

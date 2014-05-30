@@ -24,6 +24,13 @@ class IamPair(object):
         self.changed = False
         self.deleted = False
 
+    @classmethod
+    def from_environment(kls, create_epoch=None, half_life=None):
+        """Get an IAMPair from our environment variables"""
+        pair = kls(os.environ["AWS_ACCESS_KEY_ID"], os.environ["AWS_SECRET_ACCESS_KEY"], create_epoch, half_life)
+        pair._connection = IAMConnection()
+        return pair
+
     @property
     def connection(self):
         """Get a connection for these keys"""
@@ -46,6 +53,11 @@ class IamPair(object):
         """Get the account id for this key"""
         self._get_user(get_cached=True)
         return self.account_id
+
+    def ask_amazon_for_account_aliases(self):
+        """Get the account aliases for this key"""
+        self._get_user(get_cached=True)
+        return self.account_aliases
 
     def ask_amazon_for_username(self):
         """Get the username for this key"""
@@ -135,12 +147,14 @@ class IamPair(object):
         try:
             if getattr(self, "_got_user", None) is None or not get_cached:
                 details = self.connection.get_user()["get_user_response"]["get_user_result"]["user"]
+                aliases = self.connection.get_account_alias()["list_account_aliases_response"]["list_account_aliases_result"]["account_aliases"]
                 self._works = True
                 self._got_user = True
                 self.username = details["user_name"]
 
                 # arn is arn:aws:iam::<account_id>:<other>
                 self.account_id = details["arn"].split(":")[4]
+                self.account_aliases = aliases
         except boto.exception.BotoServerError as error:
             self._works = False
             if error.status == 403 and error.code in ("InvalidClientTokenId", "SignatureDoesNotMatch"):

@@ -1,4 +1,4 @@
-from credo.actions import do_display, do_exec, do_showavailable, do_import, do_rotate
+from credo.actions import do_display, do_exec, do_showavailable, do_import, do_rotate, do_current
 from credo.errors import CredoError, NoExecCommand
 from credo.asker import secret_sources
 from credo.overview import Credo
@@ -63,6 +63,7 @@ class CliParser(object):
             , "import": self.parse_import
             , "rotate": self.parse_rotate
             , "display": self.parse_display
+            , "current": self.parse_current
             }
 
     def cred_parser(self):
@@ -173,6 +174,12 @@ class CliParser(object):
         parser = argparse.ArgumentParser(description="Rotate amazon secrets")
         args = self.args_from_subparser(action, parser, argv)
         return args, do_rotate
+
+    def parse_current(self, action, argv):
+        """Current doesn't have any arguments yet"""
+        parser = argparse.ArgumentParser(description="Show what user is currently in your environment")
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_current
 
     def parse_exec(self, action, argv):
         """Exec passes on everything else also doesn't have arguments yet"""

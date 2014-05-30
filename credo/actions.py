@@ -1,11 +1,29 @@
 from credo.asker import ask_user_for_secrets, ask_user_for_half_life
 from credo.errors import CantEncrypt, CantSign
 from credo.helper import print_list_of_tuples
+from credo.credentials import IamPair
 
 import logging
 import os
 
 log = logging.getLogger("credo.actions")
+
+def do_current(credo, **kwargs):
+    """Print out what user is currently in our environment"""
+    if "AWS_ACCESS_KEY_ID" not in os.environ or "AWS_SECRET_ACCESS_KEY" not in os.environ:
+        print "There are currently no credentials in your environment!"
+    else:
+        iam_pair = IamPair.from_environment()
+        print "Asking amazon for details"
+        if not iam_pair.works:
+            print "Your current credentials are not valid...."
+        else:
+            aliases = iam_pair.ask_amazon_for_account_aliases()
+            if not aliases:
+                aliases = ["<no_account_alias>"]
+            print "You are currently \"{0}\" from \"{1}\" (account {2})".format(
+                iam_pair.ask_amazon_for_username(), aliases[0], iam_pair.ask_amazon_for_account()
+                )
 
 def do_display(credo, **kwargs):
     """Just print out the chosen creds"""
