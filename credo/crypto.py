@@ -7,6 +7,7 @@ from credo.asker import ask_for_choice, get_response
 
 from Crypto.Cipher import PKCS1_OAEP
 from Crypto.PublicKey import RSA
+from Crypto import Random
 
 from binascii import hexlify, unhexlify
 from base64 import b64decode
@@ -338,7 +339,7 @@ class Crypto(object):
     def create_signature(self, for_signing):
         """Return a signature given this data"""
         fingerprint = self.keys.collection.get_any_private_fingerprint(need_private_key_for="signing")
-        message = self.keys.collection.private_rsaobj_for(fingerprint).sign_ssh_data(for_signing)
+        message = self.keys.collection.private_rsaobj_for(fingerprint).sign_ssh_data(Random.new(), for_signing)
         return fingerprint, hexlify(str(message))
 
     def decrypt_by_fingerprint(self, fingerprints, verifier_maker, **info):
