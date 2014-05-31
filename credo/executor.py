@@ -67,6 +67,7 @@ class CliParser(object):
             , "show": self.parse_show
             , "import": self.parse_import
             , "rotate": self.parse_rotate
+            , "inject": self.parse_display
             , "display": self.parse_display
             , "current": self.parse_current
             }

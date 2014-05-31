@@ -52,6 +52,25 @@ you want::
 
     credo import --source environment
 
+Advanced Usage
+--------------
+
+If you put something like this in your ~/.bashrc or ~/.zshrc::
+
+    credo() {
+        action=$(python -c "from credo.executor import CliParser; print CliParser().split_argv(\"$@\".split(' '))[1]" 2> /dev/null)
+        if [[ "$action" == "inject" ]]; then
+            output=$(command credo $@)
+            source <(echo $output)
+        else
+            command credo $@
+        fi
+    }
+
+Then when you run ``credo inject`` it will source the exports into your
+environment and you don't need to do anything other than just use credo at the
+command line.
+
 Status
 ------
 
@@ -77,6 +96,9 @@ ask questions for any ambiguity it comes across.
 
 credo display
     Print out export lines for exporting the credentials
+
+credo inject
+    An alias for credo display
 
 credo exec
     Run a command with credentials in the environment of that command
