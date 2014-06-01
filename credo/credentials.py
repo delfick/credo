@@ -44,10 +44,17 @@ class IamPair(object):
         if self.deleted:
             return True
         self._get_user()
-
-        if not self._works:
-            self._connection = None
         return self._works
+
+    def wait_till_works(self):
+        """Wait till this iam pair works"""
+        # Give amazon time to think about this
+        start = time.time()
+        while time.time() - start < 20:
+            self._get_user(quiet=True)
+            if self._works:
+                break
+            time.sleep(2)
 
     def ask_amazon_for_account(self):
         """Get the account id for this key"""
@@ -94,15 +101,9 @@ class IamPair(object):
         """Create a new iam pair to use"""
         log.info("Creating a new key")
         response = self.connection.create_access_key(self.ask_amazon_for_username())["create_access_key_response"]["create_access_key_result"]["access_key"]
+        log.info("Created %s", response["access_key_id"])
         iam_pair = IamPair(str(response["access_key_id"]), str(response["secret_access_key"]), create_epoch=self.amazon_date_to_epoch(response["create_date"]))
-
-        # Give amazon time to think about this
-        start = time.time()
-        while time.time() - start < 5:
-            if iam_pair.works:
-                break
-            time.sleep(1)
-
+        iam_pair.wait_till_works()
         return iam_pair
 
     def delete(self):
@@ -133,17 +134,13 @@ class IamPair(object):
         dt = boto.utils.parse_ts(create_date)
         return (dt - datetime.datetime(1970, 1, 1)).total_seconds()
 
-    def _get_user(self, get_cached=False):
+    def _get_user(self, get_cached=False, quiet=False):
         """
         Get user details from this key and set
         self._working
         self.username
         self.account_id
         """
-        if getattr(self, "_works", None) is False:
-            # Already been here
-            return
-
         try:
             if getattr(self, "_got_user", None) is None or not get_cached:
                 details = self.connection.get_user()["get_user_response"]["get_user_result"]["user"]
@@ -157,8 +154,11 @@ class IamPair(object):
                 self.account_aliases = aliases
         except boto.exception.BotoServerError as error:
             self._works = False
+            self._got_uesr = False
+            self._connection = None
             if error.status == 403 and error.code in ("InvalidClientTokenId", "SignatureDoesNotMatch"):
-                log.info("Found invalid access key and secret key combination\taccess_key=%s\terror_code=%s\terror=%s", self.aws_access_key_id, error.code, error.message)
+                if not quiet:
+                    log.info("Found invalid access key and secret key combination\taccess_key=%s\terror_code=%s\terror=%s", self.aws_access_key_id, error.code, error.message)
                 return
             raise
 
