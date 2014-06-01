@@ -58,7 +58,7 @@ Advanced Usage
 If you put something like this in your ~/.bashrc or ~/.zshrc::
 
     credo() {
-        action=$(python -c "from credo.executor import CliParser; print CliParser().split_argv(\"$@\".split(' '))[1]" 2> /dev/null)
+        action=$(python -c "from credo.executor import CliParser; print CliParser().split_argv([\"$0\"] + \"$@\".split(' '))[1]" 2> /dev/null)
         if [[ "$action" == "inject" ]]; then
             output=$(command credo $@)
             source <(echo $output)
