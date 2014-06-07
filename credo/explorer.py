@@ -1,172 +1,218 @@
-from credo.loader import Loader, CredentialInfo
 from credo.helper import copy_dict_structure
 
 import os
 
-class Explorer(object):
-    """Knows how to read a credo repo structure"""
-    def __init__(self, root_dir, crypto):
-        self.crypto = crypto
-        self.root_dir = root_dir
+def filtered(original, looking_for=None, required_files=None):
+    """
+    Filter out unwanted entries from a nested dictionary structure
 
-    @property
-    def directory_structure(self):
-        return self.explored[0]
+    Where looking_for is a list of strings specifying value at that level.
 
-    @property
-    def completed(self):
-        return self.explored[1]
+    So if looking_for is ["repo", None, "user1"] then we will return only those
+    that have "repo" at level0 and "user1" at level2 and those required_files at that level
+    """
+    result = copy_dict_structure(original)
+    if not looking_for or (not required_files and not any(looking_for)):
+        return result
 
-    @property
-    def explored(self):
-        if not hasattr(self, "_explored"):
-            self._explored = self.explore()
-        return self._explored
-
-    def explore(self):
-        """Explore our root directory"""
-        if not os.path.exists(self.root_dir):
-            return {"/location/": self.root_dir, "/files/": []}, {}
-        return self.find_repo_structure(self.root_dir)
-
-    def filtered(self, repo=None, account=None, user=None):
-        result = copy_dict_structure(self.completed)
-        fltr = [(key, val) for key, val in ("repo", repo), ("account", account), ("user", user), if val]
-
-        if fltr:
-            if user:
-                for the_repo, accounts in result.items():
-                    for the_account, users in accounts.items():
-                        for the_user in users.keys():
-                            if the_user != user:
-                                del users[the_user]
-
-            for the_repo, accounts in result.items():
-                for the_account, users in accounts.items():
-                    if account and the_account != account:
-                        del accounts[the_account]
-                    if not users and the_account in accounts:
-                        del accounts[the_account]
-
-            for the_repo, accounts in result.items():
-                if repo and the_repo != repo:
-                    del result[the_repo]
-                if not accounts and the_repo in result:
-                    del result[the_repo]
-
-        return result, fltr
-
-    def find_repo_structure(self, root_dir, chain=None, collection=None, sofar=None, complete=None):
+    def delete_not(original, last_level, wanted, only_if=None):
         """
-        Recursively explore a directory structure and put it in a dictionary
+        Delete from the bottom if the last level is not our wanted level
 
-        So say we had a directory of
+        if only_if is specified then delete if only_if returns False
 
-            <root>/
+        Delete up if what we delete has no siblings
+        """
+        thing = original
+        if isinstance(thing, dict):
+            if last_level > 0:
+                for key, val in thing.items():
+                    delete_not(thing[key], last_level-1, wanted, only_if=only_if)
+                    if not val or (last_level-1 > 0 and not isinstance(val, dict)):
+                        del thing[key]
+            else:
+                for key, val in thing.items():
+                    if wanted and key != wanted:
+                        del thing[key]
+                    elif only_if and not only_if(val):
+                        del thing[key]
 
-                github.com:blah/
-                    prod/
-                        user1/
-                            credentials.json
+    def has_required_files(val):
+        """
+        Say if the required files are here.
+        True if we have no required Files
+        False if the value isn't a list
+        False if all the required files aren't in the value
+        True if the val is a list and all the required files are in it
+        """
+        if not required_files:
+            return True
+        if not isinstance(val, list):
+            return False
+        return all(required_file in val for required_file in required_files)
 
-                bitbucket.com:blah
-                    dev/
-                        user1/
+    last_level = len(looking_for) - 1
+    wanted = looking_for[last_level]
+    if wanted or required_files:
+        delete_not(result, last_level, wanted, only_if=has_required_files)
 
-        And we did
+    while last_level > -1:
+        if last_level > -1:
+            wanted = looking_for[last_level]
+            if wanted:
+                delete_not(result, last_level, wanted)
+            last_level -= 1
 
-            collection, complete = find_repo_structure(<root>)
+    return result
 
-        collection would become
+def find_repo_structure(root_dir, collection=None, sofar=None, shortened=None, levels=3):
+    """
+    Recursively explore a directory structure and put it in a dictionary to the number of levels specified
 
-            { "repos":
-              { "github.com:blah" :
-                { "accounts":
-                  { "prod":
-                    { "users":
-                      { "user1": { "/files/": ["credentials.json"], "/credentials/": <Credentials object over crdentials.json>, "/location/": <location> }
-                      , "/files/": []
-                      , "/location/": "#{<root>}/repos/github.com:blah/prod/user1"
-                      }
-                    , "/files/": []
-                    , "/location/": "#{<root>}/repos/github.com:blah/prod"
-                    }
-                  }
-                , "/files/": []
-                , "/location/": "#{<root>}/repos/github.com:blah/prod"
-                }
-              , "bitbucket.com:blah":
-                { "accounts":
-                  { "dev":
-                    { "users":
-                      { "user1": {"/files/": [], "/location/": <location> }
-                      , "/files/" []
-                      , "/location/": "#{<root>}/repos/bitbucket.com:blah/dev/user1"
-                      }
-                    , "/files/": []
-                    , "/location/": "#{<root>}/repos/bitbucket.com:blah/dev"
-                    }
-                  }
-                , "/files/": []
-                , "/location/": "#{<root>}/repos/bitbucket.com:blah"
-                }
-              }
+    So say we had a directory of
+
+        <root>/
+
+            github.com:blah/
+                prod/
+                    .git/
+                        HEAD
+                        index/
+                    user1/
+                        credentials.json
+
+            bitbucket.com:blah
+                dev/
+                    user1/
+                        ignored/
+                            ignored2/
+
+    And we did
+
+        collection, shortened = find_repo_structure(<root>)
+
+    collection would become
+
+        { "github.com:blah" :
+            { "prod":
+            { "user1": { "/files/": ["credentials.json"], "/dirs/": [], "/location/": <location> }
+                , "/dirs/": []
             , "/files/": []
-            , "/location/": "#{<root>}"
+            , "/location/": "#{<root>}/github.com:blah/prod/"
+            }
+            , "/dirs/": [".git"]
+            , "/files/": []
+            , "/location/": "#{<root>}/github.com:blah/"
             }
 
-        and complete would become
+        , "bitbucket.com:blah":
+            { "dev":
+                { "user1": {"/files/": [], "/dirs/": ["ignored"], "/location/": <location> }
+                , "/dirs/": []
+                , "/files/" []
+                , "/location/": "#{<root>}/bitbucket.com:blah/dev/"
+                }
+            , "/dirs/": []
+            , "/files/": []
+            , "/location/": "#{<root>}/bitbucket.com:blah/"
+            }
+        , "/files/": []
+        , "/location/": "#{<root>}"
+        }
 
-            {"github.com:blah": {"prod": {}}}
-        """
-        if chain is None:
-            chain = ["repos", "accounts", "users"]
+    and shortened would become
 
-        if sofar is None:
-            sofar = []
+        {"github.com:blah": {"prod": {"user1": ["credentials.json"]}}}
+    """
+    dirs = []
+    basenames = []
+    extra_dirs = []
 
-        if complete is None:
-            complete = {}
+    sofar = [] if sofar is None else sofar
+    shortened = {} if shortened is None else shortened
+    collection = {} if collection is None else collection
 
-        if collection is None:
-            collection = {}
-
-        dirs = []
-        files = []
-        basenames = []
-        for filename in os.listdir(root_dir):
-            location = os.path.join(root_dir, filename)
-            if os.path.isfile(location):
-                files.append(location)
-                basenames.append(filename)
+    for filename in os.listdir(root_dir):
+        location = os.path.join(root_dir, filename)
+        if os.path.isfile(location):
+            basenames.append(filename)
+        else:
+            if filename.startswith("."):
+                extra_dirs.append(filename)
             else:
                 dirs.append((filename, location))
 
-        collection["/files/"] = files
-        collection["/location/"] = root_dir
+    collection["/dirs/"] = extra_dirs
+    collection["/files/"] = basenames
+    collection["/location/"] = root_dir
+    if not collection["/location/"].endswith('/'):
+        collection["/location/"] = "{0}/".format(collection["/location/"])
 
-        if not chain:
-            required_file = "credentials.json"
-            if required_file in basenames:
-                credential_info = CredentialInfo(os.path.join(root_dir, required_file), *sofar)
-                credential = Loader.from_credential_info(credential_info, self.crypto)
-                c = complete
-                for part in sofar[:-1]:
-                    if part not in c:
-                        c[part] = {}
-                    c = c[part]
-                c[sofar[-1]] = credential
-                collection["/credentials/"] = credential
-            return
-
-        # Pop the chain!
-        category = chain.pop(0)
-        collection[category] = {}
-
+    if levels == 0:
+        s = shortened
+        collection["/dirs/"] = extra_dirs + [dr for dr, _ in dirs]
+        for part in sofar[:-1]:
+            if part not in s:
+                s[part] = {}
+            s = s[part]
+        s[sofar[-1]] = basenames
+    else:
         for filename, location in dirs:
             nxt_collection = {}
-            collection[category][filename] = nxt_collection
-            self.find_repo_structure(location, list(chain), collection=nxt_collection, sofar=list(sofar) + [filename], complete=complete)
+            collection[filename] = nxt_collection
+            find_repo_structure(location, collection=nxt_collection, sofar=list(sofar) + [filename], shortened=shortened, levels=levels-1)
 
-        return collection, complete
+    return collection, shortened
+
+def flatten(directory_structure, mask):
+    """
+    Given a collection and shortened like what find_repo_structure gives,
+    return a list of lists of [final_location, <val>, <val>, ...]
+
+    So given a directory_structure of:
+
+        { "/location/": <root>
+        , "/files/": <root_files>
+        , "/dirs/": <root_extra_dirs>
+        , "repo1":
+            { "/location/" and "/files/" and "/dirs/"
+            , "account1":
+              { "/location/" and "/files/" and "/dirs/"
+              , "user1":
+                { <you get the idea>
+                }
+              , <other users>
+              }
+            , <other accounts>
+            }
+        , <other_repos>
+        }
+
+    And a mask of {"repo1": {"account1": {"user1": [], <other_user>: []}}}
+
+    Return
+
+        [ [<user1_root>, "repo1", "account1", "user1"]
+        , [<other_user_root>, "repo1", "account1", <other_user>]
+        ]
+
+    """
+    def fill_out(structure, mask, collected=None):
+        """Recursively fill out the collected from structure"""
+        new_collected = []
+
+        for nxt, remaining_mask in mask.items():
+            if nxt in structure:
+                if collected is None:
+                    collected = [[structure["/location/"]]]
+                extended = [collection + [nxt] for collection in collected]
+                if isinstance(remaining_mask, dict):
+                    new_collected.extend(fill_out(structure[nxt], remaining_mask, extended))
+                else:
+                    new_collected.extend(extended)
+
+        return new_collected
+
+    collected = fill_out(directory_structure, mask)
+    return [[os.path.join(*chain)] + chain[1:] for chain in collected]
 
