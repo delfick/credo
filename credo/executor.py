@@ -2,14 +2,12 @@ from credo.actions import do_display, do_exec, do_showavailable, do_import, do_r
 from credo.errors import CredoError, NoExecCommand
 from credo.asker import secret_sources
 from credo.overview import Credo
-from credo.crypto import Crypto
 from credo import VERSION
 
 from rainbow_logging_handler import RainbowLoggingHandler
 import argparse
 import logging
 import sys
-import os
 
 log = logging.getLogger("executor")
 
@@ -126,21 +124,9 @@ class CliParser(object):
         if cred_args.action != expected_action:
             raise CredoError("Well this is weird, I thought the action was different than it turned out to be", expected=expected_action, parsed=cred_args.action)
 
-        credo = Credo(self.make_crypto())
-        credo.find_options(**vars(cred_args))
+        credo = Credo()
+        credo.setup(**vars(cred_args))
         return credo
-
-    def make_crypto(self, ssh_key_folders=None):
-        """Make the crypto object"""
-        if not ssh_key_folders:
-            home_ssh = os.path.expanduser("~/.ssh")
-            if os.path.exists(home_ssh) and os.access(home_ssh, os.R_OK):
-                ssh_key_folders = [home_ssh]
-
-        crypto = Crypto()
-        for folder in ssh_key_folders:
-            crypto.find_private_keys(folder)
-        return crypto
 
     def parse_help(self, action, argv):
         """Just prints help and quits"""

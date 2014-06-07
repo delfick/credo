@@ -1,4 +1,4 @@
-from credo.asker import ask_user_for_secrets, ask_user_for_half_life
+from credo.asker import ask_user_for_secrets, ask_user_for_half_life, ask_for_choice_or_new
 from credo.errors import CantEncrypt, CantSign
 from credo.helper import print_list_of_tuples
 from credo.credentials import IamPair
@@ -38,7 +38,11 @@ def do_exec(credo, command, **kwargs):
 
 def do_import(credo, source=False, **kwargs):
     """Import some creds"""
-    credentials = credo.make_credentials()
+    chains = credo.find_credentials(asker=ask_for_choice_or_new, want_new=True)
+    credentials = list(credo.credentials_from(chains))[0]
+    credinfo = credentials.credential_info
+    log.info("Making credentials for\trepo=%s\taccount=%s\tuser=%s", credinfo.repo, credinfo.account, credinfo.user)
+
     credo.sync_public_keys(credentials.credential_info.repository, credo.crypto)
     log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints)
     log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints)
@@ -60,16 +64,27 @@ def do_rotate(credo, **kwargs):
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
-    explorer = credo.make_explorer()
+    credentials = credo.find_credentials(no_mask=force_show_all)
 
-    if force_show_all:
-        completed, fltr = explorer.completed, []
-    else:
-        completed, fltr = explorer.filtered(repo=credo.repo, account=credo.account, user=credo.user)
-
-    print_list_of_tuples(fltr, "Using the filters")
+    fltrs = ()
+    if not force_show_all:
+        fltrs = [(key, val) for key, val in [("repo", credo.repo), ("account", credo.account), ("user", credo.user)] if val]
+    print_list_of_tuples(fltrs, "Using the filters")
 
     headings = ["Repositories", "Accounts", "Users"]
+
+    def chains_to_dict(chains):
+        """Turn the list of chains into a dictionary"""
+        dct = {}
+        for chain in chains:
+            location, rest, last = chain[0], chain[1:-1], chain[-1]
+            d = dct
+            for part in rest:
+                if part not in d:
+                    d[part] = {}
+                d = d[part]
+            d[last] = lambda: list(credo.credentials_from([chain], complain_if_missing=True))[0]
+        return dct
 
     def get_displayable(root, headings, indent="", underline_chain=None, sofar=None):
         """
@@ -116,6 +131,8 @@ def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs
 
     def display_creds(cred, indent=""):
         """Display info about the creds"""
+        if callable(cred):
+            cred = cred()
         as_string = cred.as_string()
         for line in as_string.split('\n'):
             print "{0}{1}".format(indent * 3, line)
@@ -134,29 +151,20 @@ def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs
                 display_creds(values, "    ")
 
     # Complain if no found credentials
-    if not completed:
+    if not credentials:
         print "Didn't find any credential files"
         return
 
     # Special case if we only found one
-    if collapse_if_one:
-        r = completed
-        chain = []
-        while True:
-            if not r:
-                break
-
-            if len(r) > 1:
-                break
-
-            chain.append(r.keys()[0])
-            r = r[r.keys()[0]]
-            if not isinstance(r, list) and not isinstance(r, tuple) and not isinstance(r, dict):
-                print_list_of_tuples(zip(["repo", "account", "user"], chain), "Only found one set of credentials")
-                display_creds(r)
-                return
+    if collapse_if_one and len(credentials) is 1:
+        cred = list(credo.credentials_from(credentials, complain_if_missing=True))[0]
+        fltr = [("repo", cred.credential_info.repo), ("account", cred.credential_info.account), ("user", cred.credential_info.user)]
+        print_list_of_tuples(fltr, "Only found one set of credentials")
+        display_creds(cred)
+        return
 
     # Or just do them all if found more than one
-    result = get_displayable(completed, headings)
+    root = chains_to_dict(credentials)
+    result = get_displayable(root, headings)
     display_result(result)
 

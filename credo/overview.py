@@ -1,7 +1,8 @@
-from credo.errors import NoConfigFile, BadConfigFile, CredoError, BadConfiguration
-from credo.asker import ask_for_choice, ask_for_choice_or_new
-from credo.loader import CredentialInfo, Loader
-from credo.explorer import Explorer
+from credo.errors import NoConfigFile, BadConfigFile, BadConfiguration, CredoProgrammerError, CredoError
+from credo.structure import Credentials, CredentialInfo
+from credo.asker import ask_for_choice
+from credo.crypto import Crypto
+from credo import explorer
 
 import requests
 import logging
@@ -14,11 +15,25 @@ log = logging.getLogger("credo.overview")
 class Unspecified(object):
     """Telling the difference between None and just not specified"""
 
+class ConfigFileProperty(object):
+    """A property that complains if it hasn't been set yet because setup must be called on Credo"""
+    def __init__(self, name):
+        self.name = "_{0}".format(name)
+
+    def __get__(self, obj, type=None):
+        if not hasattr(obj, self.name):
+            raise CredoProgrammerError("Credo object needs to have setup() called before being used")
+        return getattr(obj, self.name)
+
+    def __set__(self, obj, val):
+        setattr(obj, self.name, val)
+
 class Credo(object):
     """Incredible credo knows all"""
 
-    def __init__(self, crypto):
-        self.crypto = crypto
+    ########################
+    ###   USAGE
+    ########################
 
     @property
     def chosen(self):
@@ -27,9 +42,91 @@ class Credo(object):
             self._chosen = self.make_chosen(rotate=True)
         return self._chosen
 
+    def setup(self, config_file=Unspecified, root_dir=Unspecified, ssh_key_folders=Unspecified, **kwargs):
+        """Setup the credo!"""
+        if config_file is Unspecified:
+            config_file = self.find_config_file(config_file)
+
+        if config_file:
+            if not os.path.exists(config_file):
+                raise NoConfigFile("Specified location is empty", location=config_file)
+            if not os.access(config_file, os.R_OK):
+                raise BadConfigFile("Config file isn't readable", location=config_file)
+
+            self.read_from_config(config_file)
+
+        # Override the root dir and ssh_key_folders if supplied
+        for key, val in (("root_dir", root_dir), ("ssh_key_folders", ssh_key_folders)):
+            if val is not Unspecified:
+                setattr(self, key, val)
+            elif not hasattr(self, key):
+                setattr(self, key, None)
+
+        try:
+            if self.root_dir and not os.path.exists(self.root_dir):
+                os.makedirs(self.root_dir)
+        except OSError as error:
+            raise BadConfiguration("root_dir didn't exist and couldn't be made", root_dir=root_dir, error=error)
+
+        self.set_options(**kwargs)
+        self.validate_options()
+
+    ########################
+    ###   ATTRIBUTES SET BY OPTIONS
+    ########################
+
+    root_dir = ConfigFileProperty("root_dir")
+    ssh_key_folders = ConfigFileProperty("ssh_key_folders")
+    options_from_config = ["root_dir", "ssh_key_folders"]
+
+    def validate_options(self):
+        """Make sure our options make sense"""
+        errors = []
+        if not self.root_dir:
+            errors.append(BadConfiguration("Couldn't work out the root directory for your credentials..."))
+
+        if self.ssh_key_folders:
+            if not isinstance(self.ssh_key_folders, list):
+                errors.append(BadConfiguration("ssh_key_folders is not a list", value_type=type(self.ssh_key_folders)))
+            else:
+                for folder in self.ssh_key_folders:
+                    if not os.path.exists(folder):
+                        errors.append(BadConfiguration("Given an ssh_key_folder that doesn't exist", folder=folder))
+
+        if errors:
+            raise BadConfiguration(errors=errors)
+
+    ########################
+    ###   CRYPTO
+    ########################
+
+    @property
+    def crypto(self):
+        """Memoize a crypto object"""
+        if not getattr(self, "_crypto", None):
+            self._crypto = self.make_crypto(self.ssh_key_folders)
+        return self._crypto
+
+    def make_crypto(self, ssh_key_folders=None):
+        """Make the crypto object"""
+        if not ssh_key_folders:
+            home_ssh = os.path.expanduser("~/.ssh")
+            if os.path.exists(home_ssh) and os.access(home_ssh, os.R_OK):
+                ssh_key_folders = [home_ssh]
+
+        crypto = Crypto()
+        for folder in ssh_key_folders:
+            crypto.find_private_keys(folder)
+        return crypto
+
+    ########################
+    ###   CHOSEN CREDENTIALS
+    ########################
+
     def make_chosen(self, rotate=True):
         """Make the chosen credentials from our repository"""
-        chosen = self.find_credentials()
+        chains = self.find_credentials(asker=ask_for_choice)
+        chosen = list(self.credentials_from(chains, complain_if_missing=True))[0]
         self.sync_public_keys(chosen.credential_info.repository, self.crypto)
         self.set_options(repo=chosen.credential_info.repo, account=chosen.credential_info.account, user=chosen.credential_info.user)
 
@@ -44,104 +141,69 @@ class Credo(object):
             chosen.save()
         return chosen
 
-    def make_explorer(self):
-        """Make us an explorer"""
-        return Explorer(self.root_dir, self.crypto)
-
-    def find_credentials(self, completed=None, chain=None, chosen=None):
+    def find_credentials(self, asker=None, missing_is_bad=False, want_new=False, no_mask=False):
         """
         Traverse our directory structure, asking as necessary
 
         and return the credentials object we find
         """
-        if completed is None:
-            completed, _ = self.make_explorer().filtered(repo=self.repo, account=self.account, user=self.user)
-
-        if chain is None:
-            chain = [("repo", "Repository"), ("account", "Account"), ("user", "User")]
-
-        if chosen is None:
-            chosen = []
-
-        nxt, category = chain.pop(0)
-        if len(completed) is 1:
-            val = completed.keys()[0]
+        directory_structure, shortened = explorer.find_repo_structure(self.root_dir, levels=3)
+        if no_mask:
+            mask = shortened
         else:
-            if not completed:
-                raise CredoError("Told to find a key that doesn't exist", repo=self.repo, account=self.account, user=self.user)
-            val = ask_for_choice(category, sorted(completed.keys()))
+            mask = explorer.filtered(shortened, [self.repo, self.account, self.user], required_files=["credentials.json"])
 
-        chosen.append((nxt, val))
-        if not chain:
-            return completed[val]
-        else:
-            return self.find_credentials(completed[val], list(chain), list(chosen))
+        def narrow(structure, chain, wanted):
+            """Narrow down our mask to a single credential"""
+            if not chain:
+                return
+            else:
+                nxt = chain.pop(0)
+                chosen = None
+                if wanted:
+                    chosen = wanted.pop(0)
 
-    def make_credentials(self, directory_structure=None, chain=None, chosen=None):
-        """
-        Traverse our directory structure, asking as necessary
+                if not chosen:
+                    if len(structure.keys()) > 1 or want_new:
+                        chosen = asker(nxt, sorted(structure.keys()))
+                    else:
+                        chosen = structure.keys()[0]
 
-        and create new parts of the structure as necessary
-        """
-        if directory_structure is None:
-            directory_structure = self.make_explorer().directory_structure
+                for key in structure.keys():
+                    if key != chosen:
+                        del structure[key]
 
-        if chain is None:
-            chain = [("repos", "repo", "Repository"), ("accounts", "account", "Account"), ("users", "user", "User")]
+                if not structure and want_new:
+                    structure[chosen] = {} if chain else []
 
-        if chosen is None:
-            chosen = []
+                if structure:
+                    narrow(structure.values()[0], chain, wanted=wanted)
 
-        container, nxt, category = chain.pop(0)
-        if container not in directory_structure:
-            directory_structure[container] = {}
+        forced = []
+        if want_new:
+            forced = [self.repo, self.account, self.user]
 
-        if getattr(self, nxt, None):
-            val = getattr(self, nxt)
-        else:
-            val = ask_for_choice_or_new(category, sorted(key for key in directory_structure[container].keys() if not key.startswith('/')))
+        if asker:
+            narrow(mask, ["Repository", "Account", "User"], forced)
 
-        location = os.path.join(directory_structure['/location/'], val)
-        if val not in directory_structure[container]:
-            directory_structure[container][val] = {'/files/': [], '/location/': location}
+        return explorer.flatten(directory_structure, mask, want_new=want_new)
 
-        chosen.append((nxt, val))
-        if not chain:
-            credentials = None
-            if container in directory_structure and val in directory_structure[container]:
-                credentials = directory_structure[container][val].get('/credentials/')
+    def credentials_from(self, chains, complain_if_missing=False):
+        """Yield the credentials from the [location, <repo>, <account>, <user>] chains that are provided"""
+        for chain in chains:
+            credentials_location = os.path.join(chain[0], "credentials.json")
+            credinfo = CredentialInfo(credentials_location, *chain[1:])
 
-            credentials_location = os.path.join(location, "credentials.json")
-            if not credentials or os.path.abspath(credentials_location) != os.path.abspath(credentials.location):
-                chosen.append(("location", credentials_location))
-                credential_info = CredentialInfo(**dict(chosen))
+            if not os.path.exists(credentials_location) and complain_if_missing:
+                raise CredoError("Trying to find credentials that don't exist!", repo=credinfo.repo, account=credinfo.account, user=credinfo.user)
 
-                credentials = Loader.from_credential_info(credential_info, self.crypto)
-                if credential_info.location not in directory_structure['/files/']:
-                    directory_structure['/files/'].append(credential_info.location)
-                directory_structure['/credentials/'] = credentials
-            return credentials
-        else:
-            return self.make_credentials(directory_structure[container][val], list(chain), list(chosen))
+            credentials = Credentials(credinfo, self.crypto)
+            credentials.load()
+            yield credentials
 
-    def find_options(self, config_file=Unspecified, root_dir=Unspecified, **kwargs):
-        """Setup the credo!"""
-        if config_file is Unspecified:
-            config_file = self.find_config_file(config_file)
-
-        if config_file:
-            if not os.path.exists(config_file):
-                raise NoConfigFile("Specified location is empty", location=config_file)
-            if not os.access(config_file, os.R_OK):
-                raise BadConfigFile("Config file isn't readable", location=config_file)
-
-            self.read_from_config(config_file)
-
-        # Override the root dir if supplied
-        if root_dir is not Unspecified:
-            self.root_dir = root_dir
-
-        self.set_options(**kwargs)
+    ########################
+    ###   CONFIGURATION
+    ########################
 
     def set_options(self, **kwargs):
         """Set specific options"""
@@ -175,10 +237,14 @@ class Credo(object):
 
     def read_from_config(self, config_file):
         """Call find_options using options from the config file"""
-        # What's an error handling?
         options = json.load(open(config_file))
-        options["config_file"] = None
-        self.find_options(**options)
+        for option in self.options_from_config:
+            if option in options:
+                setattr(self, option, options[option])
+
+    ########################
+    ###   SSH KEYS
+    ########################
 
     def sync_public_keys(self, repository, crypto):
         """

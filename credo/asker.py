@@ -70,7 +70,9 @@ def ask_for_choice_or_new(needed, choices):
                 if response in mapped:
                     return mapped[response]
 
-        return get_response(prompt="Enter your custom value: ")
+            return get_response(prompt="Enter your custom value: ")
+        else:
+            return get_response("Choose a {0}".format(needed), prompt="Enter your custom value: ")
 
 secret_sources = {
       "specified": "Specify your own value"
