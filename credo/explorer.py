@@ -164,7 +164,7 @@ def find_repo_structure(root_dir, collection=None, sofar=None, shortened=None, l
 
     return collection, shortened
 
-def flatten(directory_structure, mask):
+def flatten(directory_structure, mask, want_new=False):
     """
     Given a collection and shortened like what find_repo_structure gives,
     return a list of lists of [final_location, <val>, <val>, ...]
@@ -202,6 +202,10 @@ def flatten(directory_structure, mask):
         new_collected = []
 
         for nxt, remaining_mask in mask.items():
+            if nxt not in structure and want_new:
+                location = os.path.join(structure['/location/'], nxt)
+                structure[nxt] = {'/location/': location, '/files/': [], '/dirs/': []}
+
             if nxt in structure:
                 if collected is None:
                     collected = [[structure["/location/"]]]

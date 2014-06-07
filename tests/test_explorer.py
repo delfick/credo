@@ -335,3 +335,35 @@ describe CredoCase, "flattening":
                 ]
             self.assertSortedEqual(flattend, expected_flatten)
 
+    it "creates things that aren't in the directory_structure if want_new":
+        with self.a_temp_dir() as directory:
+            self.touch_files(directory
+                , [ "repo1/account1/user1/credentials.json"
+                  , "repo1/account1/user1/other.json"
+                  , "repo1/account1/user1/ignored/blah"
+                  , "repo2/account4/user2/things"
+                  ]
+                )
+
+            directory_structure, _ = find_repo_structure(directory, levels=3)
+            mask = {
+                  "repo1": {"account1": {"user1": ["credentials.json", "other.json"]}, "account2": {"user1b": ["credentials.json"]}}
+                , "repo2": {"account4": {"user2": ["things"]}}
+                , "repo6": {"one": {"two": []}}
+                }
+
+            flattend = flatten(directory_structure, mask, want_new=True)
+            expected_flatten = [
+                  [os.path.join(directory, "repo1", "account1", "user1"), "repo1", "account1", "user1"]
+                , [os.path.join(directory, "repo1", "account2", "user1b"), "repo1", "account2", "user1b"]
+                , [os.path.join(directory, "repo2", "account4", "user2"), "repo2", "account4", "user2"]
+                , [os.path.join(directory, "repo6", "one", "two"), "repo6", "one", "two"]
+                ]
+            self.assertSortedEqual(flattend, expected_flatten)
+
+            location = os.path.join(directory, 'repo6', 'one', 'two')
+            self.assertEqual(directory_structure["repo6"]["one"]["two"], {"/location/":location, '/files/':[], '/dirs/':[]})
+
+            location = os.path.join(directory, 'repo1', 'account2', 'user1b')
+            self.assertEqual(directory_structure["repo1"]["account2"]["user1b"], {"/location/":location, '/files/':[], '/dirs/':[]})
+
