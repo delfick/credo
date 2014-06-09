@@ -47,7 +47,7 @@ def do_remote(credo, remote=None, version_with=None, **kwargs):
     repo_name, location = credo.find_one_repository()
     repository.configure(repo_name, location, new_remote=remote, version_with=version_with)
 
-def do_import(credo, source=False, **kwargs):
+def do_import(credo, source=False, half_life=None, **kwargs):
     """Import some creds"""
     structure, chains = credo.find_credentials(asker=ask_for_choice_or_new, want_new=True)
     creds = list(credo.credentials_from(structure, chains))[0]
@@ -64,7 +64,17 @@ def do_import(credo, source=False, **kwargs):
         raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
 
     access_key, secret_key = ask_user_for_secrets(source=source)
-    half_life = ask_user_for_half_life(access_key)
+    if half_life is None:
+        half_life = ask_user_for_half_life(access_key)
+    if not half_life.isdigit():
+        if half_life == "hour":
+            half_life = 60 * 60
+        elif half_life == "day":
+            half_life = 60 * 60 * 24
+        elif half_life == "week":
+            half_life = 60 * 60 * 24 * 7
+        else:
+            raise CredoError("Unknown half life value", half_life=half_life)
     iam_pair = IamPair(access_key, secret_key, half_life=half_life)
 
     # Make sure the iam pair is for the right place

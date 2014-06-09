@@ -169,6 +169,10 @@ class CliParser(object):
             , help = "Choose a particular source to get credentials from"
             , choices = secret_sources.keys()
             )
+        parser.add_argument("--half-life"
+            , help = "Choose a half life for your new key"
+            , choices = ["hour", "day", "week"]
+            )
         args = self.args_from_subparser(action, parser, argv)
         return args, do_import
 
