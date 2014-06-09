@@ -32,7 +32,7 @@ class Base(object):
         """Add a change locally that gives specified message or changes in the specified files"""
         raise NotImplementedError()
 
-    def synchronize(self):
+    def synchronize(self, override=False):
         """Make sure we are in sync with our external location"""
         raise NotImplementedError()
 
@@ -53,7 +53,7 @@ class NoVersioningDriver(Base):
     def deleteme(self): pass
     def initialise(self, new_remote=None): pass
     def add_change(self, message, change_files): pass
-    def synchronize(self): pass
+    def synchronize(self, override=False): pass
     def is_versioned(self): return False
     def change_remote(self): pass
     def determine_remote(self): return None

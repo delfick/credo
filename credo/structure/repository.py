@@ -69,9 +69,9 @@ class Repository(object):
 
         self.driver = determine_driver(location)
 
-    def synchronize(self):
+    def synchronize(self, override=False):
         """Ask the driver to synchronize the folder"""
-        self.driver.synchronize()
+        self.driver.synchronize(override=override)
 
     @property
     def versioned(self):

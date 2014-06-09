@@ -133,7 +133,7 @@ class Credo(object):
 
         if rotate:
             if chosen.keys.needs_rotation():
-                changed = chosen.credential_path.repository.synchronize()
+                changed = chosen.credential_path.repository.synchronize(override=True)
                 if changed:
                     chosen.load()
                     self.sync_public_keys(chosen.credential_path)

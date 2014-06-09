@@ -23,7 +23,7 @@ class GitDriver(Base):
             self._repo = pygit2.Repository(self.location)
         return self._repo
 
-    def synchronize(self):
+    def synchronize(self, override=False):
         """Pull in changes from our remote"""
         if not self.remote:
             return
