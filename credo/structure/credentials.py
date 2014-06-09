@@ -88,7 +88,7 @@ class Credentials(object):
 
             cred_path = self.credential_path
             self.credential_path.add_change("Saving new keys", [self.location]
-                , repo=cred_path.repo.name, account=cred_path.account.name, user=cred_path.user.name
+                , repo=cred_path.repository.name, account=cred_path.account.name, user=cred_path.user.name
                 )
 
     @property
