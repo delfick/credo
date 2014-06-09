@@ -8,6 +8,12 @@ import os
 
 log = logging.getLogger("credo.versioning")
 
+def synchronize(repo_name, location):
+    """Synchronise this repository"""
+    repository = Repository(repo_name, location)
+    if repository.versioned:
+        repository.synchronize()
+
 def configure(repo_name, location, new_remote=None, version_with=None):
     """Configure a repository"""
     repository = Repository(repo_name, location)

@@ -31,6 +31,11 @@ def do_display(credo, **kwargs):
     for key, val in credo.chosen.shell_exports():
         print "export {0}={1}".format(key, val)
 
+def do_synchronize(credo, **kwargs):
+    """Just synchronize some repo"""
+    repo_name, location = credo.find_one_repository(want_new=False)
+    repository.synchronize(repo_name, location)
+
 def do_exec(credo, command, **kwargs):
     """Exec some command with aws credentials in the environment"""
     environment = dict(os.environ)

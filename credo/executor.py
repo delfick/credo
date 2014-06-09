@@ -1,4 +1,4 @@
-from credo.actions import do_display, do_exec, do_showavailable, do_import, do_rotate, do_current, do_remote
+from credo.actions import do_display, do_exec, do_showavailable, do_import, do_rotate, do_current, do_remote, do_synchronize
 from credo.errors import CredoError, NoExecCommand
 from credo.asker import secret_sources
 from credo.overview import Credo
@@ -69,6 +69,7 @@ class CliParser(object):
             , "inject": self.parser_for_no_args("Print out export statements for your aws creds", do_display)
             , "display": self.parser_for_no_args("Print out export statements for your aws creds", do_display)
             , "current": self.parser_for_no_args("Show what user is currently in your environment", do_current)
+            , "synchronize": self.parser_for_no_args("Synchronise with the remote for some repository", do_synchronize)
             }
 
     def cred_parser(self):

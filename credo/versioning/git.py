@@ -24,13 +24,41 @@ class GitDriver(Base):
         return self._repo
 
     def synchronize(self):
-        """Stash any changes, fetch, reset, push, unstash"""
+        """Pull in changes from our remote"""
+        if not self.remote:
+            return
+
+        while True:
+            if not self.repo.status():
+                break
+
+            quit_choice = "Quit"
+            fixed_choice = "I fixed it, please continue"
+            choice = ask_for_choice("Seems there is already changes\tlocation={0}".format(self.location), choices=[quit_choice, fixed_choice])
+            if choice == quit_choice:
+                raise UserQuit()
+            elif self.repo.status():
+                log.error("Ummm, there's still changes already in the repository...\tlocation=%s", self.location)
+
+        origin = self.origin
+        res = origin.fetch()
+        if any(res.values()):
+            log.info("Pulled in changes from %s", origin.url)
+            oid = self.repo.lookup_reference("refs/remotes/origin/master").target
+
+            log.info("Resetting %s to origin/master (%s)", self.location, oid)
+            self.repo.reset(oid, pygit2.GIT_RESET_HARD)
 
     def determine_remote(self):
         """Get us back the url of the origin remote"""
+        if self.origin:
+            return self.origin.url
+
+    @property
+    def origin(self):
         for remote in self.repo.remotes:
             if remote.name == "origin":
-                return remote.url
+                return remote
 
     def set_origin(self, new_remote):
         """Set our origin remote to be the new remote"""
@@ -118,7 +146,7 @@ class GitDriver(Base):
             else:
                 log.info("Remote for this repository is already %s", new_remote)
         elif new_remote:
-            log.info("Adding remote to %s", new_remote)
+            log.info("Adding remote\tlocation=%s\tnew origin=%s", self.location, new_remote)
 
         if new_remote is None:
             if self.remote:
