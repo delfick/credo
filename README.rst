@@ -117,6 +117,23 @@ credo current
     Display the username, account alias and account id of the amazon credentials
     you currently have in your environment.
 
+credo remote
+    Allows you to edit the remote for some repository. All commands will add
+    changes as they are made and will try to synchronise with any remote that is
+    set.
+
+    Note that this functionality is very rudimentary atm.
+
+    Versioning without a remote
+        Makes it a git repository without adding any remote
+
+    No versioning at all
+        Removes any .git folder in that repository
+
+    Versioning with some remote
+        If not already versioned, makes it a git folder, and makes sure we have
+        the remote set as specified.
+
 It also does:
 
 * Stores your credentials so that you have repositories of users in particular
