@@ -50,6 +50,8 @@ class IamPair(object):
         """Says whether this key is valid enough to get iam informations"""
         if self.deleted:
             return True
+        if getattr(self, "_works", None) is False:
+            return self._works
         self._get_user()
         return self._works
 
