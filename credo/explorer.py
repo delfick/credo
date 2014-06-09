@@ -164,6 +164,32 @@ def find_repo_structure(root_dir, collection=None, sofar=None, shortened=None, l
 
     return collection, shortened
 
+def narrow(structure, chain, asker, want_new=None, forced_vals=None):
+    """Narrow down our mask to a single result"""
+    if not chain:
+        return
+    else:
+        nxt = chain.pop(0)
+        chosen = None
+        if forced_vals:
+            chosen = forced_vals.pop(0)
+
+        if not chosen:
+            if len(structure.keys()) > 1 or want_new:
+                chosen = asker(nxt, sorted(structure.keys()))
+            elif structure:
+                chosen = structure.keys()[0]
+
+        for key in structure.keys():
+            if key != chosen:
+                del structure[key]
+
+        if not structure and want_new:
+            structure[chosen] = {} if chain else []
+
+        if structure:
+            narrow(structure.values()[0], chain, asker, want_new=want_new, forced_vals=forced_vals)
+
 def flatten(directory_structure, mask, want_new=False):
     """
     Given a collection and shortened like what find_repo_structure gives,

@@ -153,38 +153,12 @@ class Credo(object):
         else:
             mask = explorer.filtered(shortened, [self.repo, self.account, self.user], required_files=["credentials.json"])
 
-        def narrow(structure, chain, wanted):
-            """Narrow down our mask to a single credential"""
-            if not chain:
-                return
-            else:
-                nxt = chain.pop(0)
-                chosen = None
-                if wanted:
-                    chosen = wanted.pop(0)
-
-                if not chosen:
-                    if len(structure.keys()) > 1 or want_new:
-                        chosen = asker(nxt, sorted(structure.keys()))
-                    elif structure:
-                        chosen = structure.keys()[0]
-
-                for key in structure.keys():
-                    if key != chosen:
-                        del structure[key]
-
-                if not structure and want_new:
-                    structure[chosen] = {} if chain else []
-
-                if structure:
-                    narrow(structure.values()[0], chain, wanted=wanted)
-
-        forced = []
+        forced_vals = []
         if want_new:
-            forced = [self.repo, self.account, self.user]
+            forced_vals = [self.repo, self.account, self.user]
 
         if asker:
-            narrow(mask, ["Repository", "Account", "User"], forced)
+            explorer.narrow(mask, ["Repository", "Account", "User"], asker, want_new=want_new, forced_vals=forced_vals)
 
         return directory_structure, explorer.flatten(directory_structure, mask, want_new=want_new)
 
