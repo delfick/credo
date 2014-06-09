@@ -132,7 +132,15 @@ class Repository(object):
         message_suffix = ", ".join("{0}={1}".format(key, val) for key, val in info.items())
         if message_suffix:
             message = "{0} ({1})".format(message, message_suffix)
-        self.driver.add_change(message, changed_files)
+
+        changes = []
+        for filename in changed_files:
+            if filename.startswith("/"):
+                changes.append(os.path.relpath(filename, start=self.location))
+            else:
+                changes.append(filename)
+
+        self.driver.add_change(message, changes)
 
     def get_public_keys(self, ask_anyway=False):
         """
