@@ -19,8 +19,17 @@ class IamPair(object):
 
         self._half_life = half_life
         self._create_epoch = create_epoch
-        self.changed = False
+        self._changed = False
         self.deleted = False
+
+    @property
+    def changed(self):
+        """Get us value of _changed"""
+        return self._changed
+
+    def unchanged(self):
+        """Set _changed to False"""
+        self._changed = False
 
     @classmethod
     def from_environment(kls, create_epoch=None, half_life=None):
@@ -57,17 +66,17 @@ class IamPair(object):
     def ask_amazon_for_account(self):
         """Get the account id for this key"""
         self._get_user(get_cached=True)
-        return self.account_id
+        return getattr(self, "account_id", None)
 
     def ask_amazon_for_account_aliases(self):
         """Get the account aliases for this key"""
         self._get_user(get_cached=True)
-        return self.account_aliases
+        return getattr(self, "account_aliases", None)
 
     def ask_amazon_for_username(self):
         """Get the username for this key"""
         self._get_user(get_cached=True)
-        return self.username
+        return getattr(self, "username", None)
 
     @property
     def create_epoch(self):
@@ -76,7 +85,7 @@ class IamPair(object):
             return self._create_epoch
         elif self.works:
             self._create_epoch = self.ask_amazon_for_create_epoch()
-            self.changed = True
+            self._changed = True
             return self._create_epoch
         else:
             return 0
@@ -86,14 +95,14 @@ class IamPair(object):
         """Use our half_life or ask user for one"""
         if not self._half_life:
             self._half_life = ask_user_for_half_life(self.aws_access_key_id)
-            self.changed = True
+            self._changed = True
         return self._half_life
 
     def set_half_life(self, half_life):
         """Record a new half_life"""
         if half_life != self._half_life:
             self._half_life = half_life
-            self.changed = True
+            self._changed = True
 
     def create_new(self):
         """Create a new iam pair to use"""
@@ -112,7 +121,7 @@ class IamPair(object):
         log.info("Deleting a key\taccess_key_id=%s", access_key)
         if access_key == self.aws_access_key_id:
             self.deleted = True
-            self.changed = True
+            self._changed = True
         return self.connection.delete_access_key(access_key)
 
     def find_other_access_keys(self):
@@ -143,6 +152,7 @@ class IamPair(object):
             if getattr(self, "_got_user", None) is None or not get_cached:
                 details = self.connection.get_user()["get_user_response"]["get_user_result"]["user"]
                 aliases = self.connection.get_account_alias()["list_account_aliases_response"]["list_account_aliases_result"]["account_aliases"]
+                self._invalid = False
                 self._works = True
                 self._got_user = True
                 self.username = details["user_name"]
@@ -152,9 +162,10 @@ class IamPair(object):
                 self.account_aliases = aliases
         except boto.exception.BotoServerError as error:
             self._works = False
-            self._got_uesr = False
+            self._got_user = False
             self._connection = None
             if error.status == 403 and error.code in ("InvalidClientTokenId", "SignatureDoesNotMatch"):
+                self._invalid = True
                 if not quiet:
                     log.info("Found invalid access key and secret key combination\taccess_key=%s\terror_code=%s\terror=%s", self.aws_access_key_id, error.code, error.message)
                 return
@@ -175,10 +186,14 @@ class IamPair(object):
 
 class AmazonKey(object):
     """Represents the information and meta information required for amazon credentials"""
-    def __init__(self, key_info, credential_info, crypto):
-        self.crypto = crypto
+    def __init__(self, key_info, credential_path):
         self.key_info = key_info
-        self.credential_info = credential_info
+        self.credential_path = credential_path
+
+    @property
+    def crypto(self):
+        """Proxy credential_path"""
+        return self.credential_path.crypto
 
     @property
     def changed(self):
@@ -192,22 +207,22 @@ class AmazonKey(object):
         """Set the key as unchanged"""
         self._changed = False
         if self.iam_pair:
-            self.iam_pair.changed = False
+            self.iam_pair.unchanged()
 
     @classmethod
-    def using(kls, iam_pair, credential_info, crypto):
+    def using(kls, iam_pair, credential_path):
         """Create an AmazonKey from the provided details"""
         if not iam_pair.works:
             raise BadCredential()
 
         def verifier_maker(*args, **kwargs):
             kwargs["iam_pair"] = iam_pair
-            instance = type("key", (AmazonKey, ), {"account": credential_info.account, "__init__": lambda s: None})()
+            instance = type("key", (AmazonKey, ), {"credential_path": credential_path, "__init__": lambda s: None})()
             return kls.verifier_maker(instance, *args, **kwargs)
 
-        fingerprinted = crypto.fingerprinted({"aws_access_key_id": iam_pair.aws_access_key_id, "aws_secret_access_key": iam_pair.aws_secret_access_key}, verifier_maker)
+        fingerprinted = credential_path.crypto.fingerprinted({"aws_access_key_id": iam_pair.aws_access_key_id, "aws_secret_access_key": iam_pair.aws_secret_access_key}, verifier_maker)
         key_info = {"fingerprints": fingerprinted, "create_epoch": iam_pair.create_epoch, "half_life": iam_pair.half_life}
-        key = AmazonKey(key_info, credential_info, crypto)
+        key = AmazonKey(key_info, credential_path)
         key._decrypted = [(iam_pair.aws_access_key_id, iam_pair.aws_secret_access_key)]
         return key
 
@@ -270,23 +285,30 @@ class AmazonKey(object):
             account = iam_pair.ask_amazon_for_account()
             username = iam_pair.ask_amazon_for_username()
         else:
-            account = self.credential_info.get_account_id(self.crypto)
-            username = self.credential_info.user
+            iam_pair = IamPair(aws_access_key_id=decrypted.get("aws_access_key_id"), aws_secret_access_key=decrypted.get("aws_secret_access_key"))
+            account = self.credential_path.account.account_id(iam_pair=iam_pair)
+            username = self.credential_path.user.name
 
         value = "{0} || {1} || {2}".format(decrypted["aws_access_key_id"], account, username)
         information = {"account": account, "username": username, "access_key": decrypted["aws_access_key_id"]}
-        return hashlib.sha1(value).hexdigest(), information
+        return hashlib.sha1(value).hexdigest(), iam_pair, information
 
 class AmazonKeys(object):
     """Collection of Amazon keys"""
-    def __init__(self, keys, credential_info, crypto):
+    type = "amazon"
+
+    def __init__(self, keys, credential_path):
         if not keys:
             keys = []
 
-        self.crypto = crypto
-        self.credential_info = credential_info
-        self.keys = [AmazonKey(key, credential_info, crypto) for key in keys]
+        self.credential_path = credential_path
+        self.keys = [AmazonKey(key, credential_path) for key in keys]
         self._changed = False
+
+    @property
+    def crypto(self):
+        """Proxy credential_path"""
+        return self.credential_path.crypto
 
     def __iter__(self):
         """Iterate through the keys"""
@@ -296,13 +318,15 @@ class AmazonKeys(object):
         """Return how many keys we have"""
         return len(self.keys)
 
-    def add(self, key):
+    def add(self, iam_pair):
         """Add a key"""
+        key = AmazonKey.using(iam_pair, self.credential_path)
         if not key.iam_pair or not key.iam_pair.works:
             raise BadCredential()
 
         if key.iam_pair.aws_access_key_id not in self.access_keys:
             self.keys.append(key)
+            self._changed = True
 
     @property
     def changed(self):
@@ -337,11 +361,14 @@ class AmazonKeys(object):
     def encrypted_values(self):
         """Return our keys as a dictionary with encrypted values"""
         result = []
+        log.info("Making encrypted values for some keys")
         for key in self.keys:
-            if key.iam_pair and key.iam_pair.works:
+            if key.iam_pair and key.iam_pair.works and not key.iam_pair.deleted:
                 result.append(key.encrypted_values)
             else:
                 log.info("Not saving invalid credentials\taccess_key=%s", list(key.credentials())[0][0])
+
+        log.info("Made encrypted values for %s keys using %s public keys", len(result), len(self.crypto.public_key_fingerprints))
         return result
 
     @property
@@ -365,7 +392,7 @@ class AmazonKeys(object):
 
     def add_key(self, iam_pair):
         """Create a new key and add to our collection"""
-        key = AmazonKey.using(iam_pair, self.credential_info, self.crypto)
+        key = AmazonKey.using(iam_pair, self.credential_path)
         self.keys.append(key)
         self._changed = True
         return key
@@ -397,8 +424,16 @@ class AmazonKeys(object):
                     print >> sys.stderr, "The secret key you entered was not valid"
 
     def needs_rotation(self):
-        """Say whether the current keys need any rotation"""
-        return any(not key.iam_pair or key.iam_pair.past_half_life() or key.iam_pair.expired() for key in self.keys)
+        """Say whether the current keys that we know about need any rotation"""
+        working_key = None
+        for key in self.keys:
+            if not working_key and key.iam_pair and key.iam_pair.works:
+                working_key = key
+
+            if not key.iam_pair or not key.iam_pair._works or key.iam_pair.past_half_life() or key.iam_pair.expired():
+                return True
+
+        return False
 
     def rotate(self):
         """Rotate the keys and return whether any of them changed"""
@@ -428,6 +463,9 @@ class AmazonKeys(object):
                     else:
                         to_remain.append(key)
 
+            if not to_remain:
+                counts["created"] += 1
+
             extras = []
             if any(usable):
                 others = usable[0].find_other_access_keys()
@@ -443,6 +481,8 @@ class AmazonKeys(object):
 
         if not any(counts.values()):
             return False
+        else:
+            self._changed = True
 
         log.info("Rotation resulted in creating %s keys, deleting %s keys, removing %s stale keys and resolving %s unknown keys"
             , counts["created"], counts["deleted"], counts["removed"], counts["resolved"]

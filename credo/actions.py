@@ -1,7 +1,7 @@
 from credo.asker import ask_user_for_secrets, ask_user_for_half_life, ask_for_choice_or_new
-from credo.errors import CantEncrypt, CantSign
+from credo.errors import CantEncrypt, CantSign, BadCredential
 from credo.helper import print_list_of_tuples
-from credo.credentials import IamPair
+from credo.amazon import IamPair
 
 import logging
 import os
@@ -38,24 +38,41 @@ def do_exec(credo, command, **kwargs):
 
 def do_import(credo, source=False, **kwargs):
     """Import some creds"""
-    chains = credo.find_credentials(asker=ask_for_choice_or_new, want_new=True)
-    credentials = list(credo.credentials_from(chains))[0]
-    credinfo = credentials.credential_info
-    log.info("Making credentials for\trepo=%s\taccount=%s\tuser=%s", credinfo.repo, credinfo.account, credinfo.user)
+    structure, chains = credo.find_credentials(asker=ask_for_choice_or_new, want_new=True)
+    creds = list(credo.credentials_from(structure, chains))[0]
+    cred_path = creds.credential_path
+    log.info("Making credentials for\trepo=%s\taccount=%s\tuser=%s", cred_path.repository.name, cred_path.account.name, cred_path.user.name)
 
-    credo.sync_public_keys(credentials.credential_info.repository, credo.crypto)
+    credo.sync_public_keys(cred_path)
     log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints)
     log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints)
 
     if not credo.crypto.can_encrypt:
-        raise CantEncrypt("No public keys to encrypt with", repo=credo.repo)
+        raise CantEncrypt("No public keys to encrypt with", repo=cred_path.repository.name)
     if not credo.crypto.can_sign:
-        raise CantSign("No private keys with matching public keys to sign with", repo=credo.repo)
+        raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
 
     access_key, secret_key = ask_user_for_secrets(source=source)
     half_life = ask_user_for_half_life(access_key)
-    credentials.add_key(access_key, secret_key, half_life=half_life)
-    credentials.save()
+    iam_pair = IamPair(access_key, secret_key, half_life=half_life)
+
+    # Make sure the iam pair is for the right place
+    if not iam_pair.works:
+        raise BadCredential("The credentials you just provided don't work....")
+
+    account_id = cred_path.account.account_id(suggestion=iam_pair.ask_amazon_for_account())
+    if iam_pair.ask_amazon_for_account() != account_id:
+        raise BadCredential("The credentials you are importing are for a different account"
+            , credentials_account_id=iam_pair.ask_amazon_for_account(), importing_into_account_name=credo.account, importing_into_account_id=account_id
+            )
+
+    if iam_pair.ask_amazon_for_username() != credo.user:
+        raise BadCredential("The credentials you are importing are for a different user"
+            , credentials_user=iam_pair.ask_amazon_for_username(), importing_into_user=credo.user
+            )
+
+    creds.keys.add(iam_pair)
+    creds.save()
 
 def do_rotate(credo, **kwargs):
     """Rotate some keys"""
@@ -64,7 +81,7 @@ def do_rotate(credo, **kwargs):
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
-    credentials = credo.find_credentials(no_mask=force_show_all)
+    structure, chains = credo.find_credentials(no_mask=force_show_all)
 
     fltrs = ()
     if not force_show_all:
@@ -73,7 +90,7 @@ def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs
 
     headings = ["Repositories", "Accounts", "Users"]
 
-    def chains_to_dict(chains):
+    def chains_to_dict(structure, chains):
         """Turn the list of chains into a dictionary"""
         dct = {}
         for chain in chains:
@@ -83,7 +100,7 @@ def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs
                 if part not in d:
                     d[part] = {}
                 d = d[part]
-            d[last] = lambda: list(credo.credentials_from([chain], complain_if_missing=True))[0]
+            d[last] = lambda: list(credo.credentials_from(structure, [chain], complain_if_missing=True))[0]
         return dct
 
     def get_displayable(root, headings, indent="", underline_chain=None, sofar=None):
@@ -150,21 +167,22 @@ def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs
             elif values:
                 display_creds(values, "    ")
 
-    # Complain if no found credentials
-    if not credentials:
+    # Complain if no found chains
+    if not chains:
         print "Didn't find any credential files"
         return
 
     # Special case if we only found one
-    if collapse_if_one and len(credentials) is 1:
-        cred = list(credo.credentials_from(credentials, complain_if_missing=True))[0]
-        fltr = [("repo", cred.credential_info.repo), ("account", cred.credential_info.account), ("user", cred.credential_info.user)]
+    if collapse_if_one and len(chains) is 1:
+        creds = list(credo.credentials_from(structure, chains, complain_if_missing=True))[0]
+        cred_path = creds.credential_path
+        fltr = [("repo", cred_path.repository.name), ("account", cred_path.account.name), ("user", cred_path.user.name)]
         print_list_of_tuples(fltr, "Only found one set of credentials")
-        display_creds(cred)
+        display_creds(creds)
         return
 
     # Or just do them all if found more than one
-    root = chains_to_dict(credentials)
+    root = chains_to_dict(structure, chains)
     result = get_displayable(root, headings)
     display_result(result)
 

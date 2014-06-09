@@ -1,5 +1,5 @@
 from credo.errors import NoConfigFile, BadConfigFile, BadConfiguration, CredoProgrammerError, CredoError
-from credo.structure import Credentials, CredentialInfo
+from credo.structure.credential_path import CredentialPath
 from credo.asker import ask_for_choice
 from credo.crypto import Crypto
 from credo import explorer
@@ -125,19 +125,19 @@ class Credo(object):
 
     def make_chosen(self, rotate=True):
         """Make the chosen credentials from our repository"""
-        chains = self.find_credentials(asker=ask_for_choice)
-        chosen = list(self.credentials_from(chains, complain_if_missing=True))[0]
-        self.sync_public_keys(chosen.credential_info.repository, self.crypto)
-        self.set_options(repo=chosen.credential_info.repo, account=chosen.credential_info.account, user=chosen.credential_info.user)
+        structure, chains = self.find_credentials(asker=ask_for_choice)
+        chosen = list(self.credentials_from(structure, chains, complain_if_missing=True))[0]
+
+        self.sync_public_keys(chosen.credential_path)
+        self.set_options(repo=chosen.credential_path.repository.name, account=chosen.credential_path.account.name, user=chosen.credential_path.user.name)
 
         if rotate:
             if chosen.keys.needs_rotation():
-                changed = chosen.credential_info.repository.synchronize()
+                changed = chosen.credential_path.repository.synchronize()
                 if changed:
                     chosen.load()
-                    self.sync_public_keys(chosen.credential_info.repository, self.crypto)
+                    self.sync_public_keys(chosen.credential_path)
 
-            chosen.rotate()
             chosen.save()
         return chosen
 
@@ -166,7 +166,7 @@ class Credo(object):
                 if not chosen:
                     if len(structure.keys()) > 1 or want_new:
                         chosen = asker(nxt, sorted(structure.keys()))
-                    else:
+                    elif structure:
                         chosen = structure.keys()[0]
 
                 for key in structure.keys():
@@ -186,18 +186,23 @@ class Credo(object):
         if asker:
             narrow(mask, ["Repository", "Account", "User"], forced)
 
-        return explorer.flatten(directory_structure, mask, want_new=want_new)
+        return directory_structure, explorer.flatten(directory_structure, mask, want_new=want_new)
 
-    def credentials_from(self, chains, complain_if_missing=False):
+    def credentials_from(self, directory_structure, chains, complain_if_missing=False):
         """Yield the credentials from the [location, <repo>, <account>, <user>] chains that are provided"""
+        if not chains and complain_if_missing:
+            raise CredoError("Didn't find any credentials!")
+
         for chain in chains:
-            credentials_location = os.path.join(chain[0], "credentials.json")
-            credinfo = CredentialInfo(credentials_location, *chain[1:])
+            location, repo, account, user = chain
+            credentials_location = os.path.join(location, "credentials.json")
 
             if not os.path.exists(credentials_location) and complain_if_missing:
-                raise CredoError("Trying to find credentials that don't exist!", repo=credinfo.repo, account=credinfo.account, user=credinfo.user)
+                raise CredoError("Trying to find credentials that don't exist!", repo=repo, account=account, user=user)
 
-            credentials = Credentials(credinfo, self.crypto)
+            credential_path = CredentialPath(self.crypto)
+            credential_path.fill_out(directory_structure, repo, account, user)
+            credentials = credential_path.credentials
             credentials.load()
             yield credentials
 
@@ -246,16 +251,17 @@ class Credo(object):
     ###   SSH KEYS
     ########################
 
-    def sync_public_keys(self, repository, crypto):
+    def sync_public_keys(self, credential_path):
         """
-        Find public keys for this repo and add them to the crypto object
+        Find public keys for this credential_path and add them to the crypto object
         And remove public keys we don't know about anymore
         """
         info = {}
         added = []
+        crypto = credential_path.crypto
         while not crypto.can_encrypt:
             if info == {}:
-                urls, pems, locations = repository.get_public_keys()
+                urls, pems, locations = credential_path.repository.get_public_keys()
                 info["urls"] = urls
                 info["pems"] = pems
                 info["locations"] = locations

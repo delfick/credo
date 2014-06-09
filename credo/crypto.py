@@ -355,9 +355,15 @@ class Crypto(object):
                         info["action"] = "decrypting"
                         decrypted[key] = self.keys.decrypt(val, fingerprint, **info)
 
-                new_verifier, information = verifier_maker(values, decrypted)
+                new_verifier, iam_pair, information = verifier_maker(values, decrypted)
                 if not self.is_signature_valid(new_verifier, *values["__account_verifier__"]):
                     log.error("Ignoring decrypted secrets, because can't verify __account_verifier__\t%s", "\t".join("{0}={1}".format(key, val) for key, val in sorted(information.items())))
+                    try:
+                        user = iam_pair.ask_amazon_for_username()
+                        account_id = iam_pair.ask_amazon_for_account()
+                        log.error("Found key is for\taccess_key=%s\taccount=%s\tusername=%s", iam_pair.aws_access_key_id, account_id, user)
+                    except:
+                        pass
                 else:
                     decrypted["__account_verifier__"] = values["__account_verifier__"]
                     identity = ",".join(sorted(str((key, val) for key, val in decrypted.items() if not key.startswith("_"))))
@@ -386,7 +392,7 @@ class Crypto(object):
                 encrypted[key] = self.keys.encrypt(val, fingerprint, **info)
 
             info["key"] = "__account_verifier__"
-            for_signing, information = verifier_maker(encrypted, decrypted_vals)
+            for_signing, _, information = verifier_maker(encrypted, decrypted_vals)
             information["fingerprint"] = fingerprint
             encrypted["__account_verifier__"] = self.create_signature(for_signing)
             log.debug("Made signature for key\t%s", "\t".join("{0}={1}".format(key, val) for key, val in sorted(information.items())))

@@ -1,5 +1,6 @@
 from credo.asker import ask_for_choice, ask_for_public_keys
 from credo.errors import UserQuit, BadConfiguration
+from credo.structure.account import Account
 
 from pygit2 import Repository as GitRepository
 import logging
@@ -36,9 +37,11 @@ class GitDriver(object):
 
 class Repository(object):
 	"""Understands how to version a directory"""
-	def __init__(self, location):
-		self.driver = self.determine_driver(location)
+	def __init__(self, name, location, credential_path):
+		self.name = name
 		self.location = location
+
+		self.driver = self.determine_driver(location)
 
 	def determine_driver(self, location):
 		"""Get us the driver for our repository"""
