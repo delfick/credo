@@ -48,6 +48,11 @@ class GitDriver(Base):
 
             log.info("Resetting %s to origin/master (%s)", self.location, oid)
             self.repo.reset(oid, pygit2.GIT_RESET_HARD)
+        else:
+            try:
+                origin.push("refs/heads/master")
+            except ValueError as error:
+                log.error("Failed to push to remote repository\tremote=%s\terror=%s", origin.url, error)
 
     def determine_remote(self):
         """Get us back the url of the origin remote"""
