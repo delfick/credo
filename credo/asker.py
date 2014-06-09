@@ -22,6 +22,9 @@ def get_response(*messages, **kwargs):
         if isinstance(message, dict):
             for num, val in message.items():
                 print >> sys.stderr, "{0}) {1}".format(num, val)
+        elif isinstance(message, list):
+            for msg in message:
+                print >> sys.stderr, msg
         else:
             print >> sys.stderr, message
 
