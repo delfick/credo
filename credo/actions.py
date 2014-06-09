@@ -36,6 +36,11 @@ def do_exec(credo, command, **kwargs):
     environment.update(dict(credo.chosen.shell_exports()))
     os.execvpe(command[0], command, environment)
 
+def do_rotate(credo, **kwargs):
+    """Rotate some keys"""
+    log.info("Doing a rotation")
+    credo.make_chosen(rotate=True)
+
 def do_import(credo, source=False, **kwargs):
     """Import some creds"""
     structure, chains = credo.find_credentials(asker=ask_for_choice_or_new, want_new=True)
@@ -73,11 +78,6 @@ def do_import(credo, source=False, **kwargs):
 
     creds.keys.add(iam_pair)
     creds.save()
-
-def do_rotate(credo, **kwargs):
-    """Rotate some keys"""
-    log.info("Doing a rotation")
-    credo.make_chosen(rotate=True)
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
