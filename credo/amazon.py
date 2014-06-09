@@ -363,15 +363,17 @@ class AmazonKeys(object):
     def encrypted_values(self):
         """Return our keys as a dictionary with encrypted values"""
         result = []
+        access_keys = []
         log.info("Making encrypted values for some keys")
         for key in self.keys:
             if key.iam_pair and key.iam_pair.works and not key.iam_pair.deleted:
                 result.append(key.encrypted_values)
+                access_keys.append(key.iam_pair.aws_access_key_id)
             else:
                 log.info("Not saving invalid credentials\taccess_key=%s", list(key.credentials())[0][0])
 
         log.info("Made encrypted values for %s keys using %s public keys", len(result), len(self.crypto.public_key_fingerprints))
-        return result
+        return result, access_keys
 
     @property
     def access_keys(self):

@@ -50,7 +50,7 @@ class KeysFile(object):
             raise BadCredentialFile("Don't have write permissions to parent directory", location=self.location)
 
         try:
-            key_vals = keys.encrypted_values
+            key_vals, access_keys = keys.encrypted_values
         except UnicodeDecodeError as err:
             raise BadCredentialFile("Can't get encrypted values for the keys file!", err=err, location=self.location)
 
@@ -62,7 +62,7 @@ class KeysFile(object):
 
         try:
             with open(location, "w") as fle:
-                log.info("Saving keys to %s with access_keys %s", location, list(keys.access_keys))
+                log.info("Saving keys to %s with access_keys %s", location, list(access_keys))
                 fle.write(contents)
         except OSError as err:
             raise BadCredentialFile("Can't write to the credentials file", err=err, location=self.location)
