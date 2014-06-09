@@ -22,7 +22,7 @@ def configure(repo_name, location, new_remote=None, version_with=None):
 
         if version_with == "nothing":
             choice = remove_choice
-        elif version_with is None:
+        elif new_remote is None and version_with is None:
             choice = ask_for_choice(
                 [ "This repo is already versioned\tremote={0}\tlocation={1}".format(remote, repository.location)
                 , "What do you want to do?"
