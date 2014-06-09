@@ -65,10 +65,10 @@ class CliParser(object):
             , "show": self.parse_show
             , "remote": self.parse_remote
             , "import": self.parse_import
-            , "rotate": self.parse_rotate
-            , "inject": self.parse_display
-            , "display": self.parse_display
-            , "current": self.parse_current
+            , "rotate": self.parser_for_no_args("Rotate amazon secrets", do_rotate)
+            , "inject": self.parser_for_no_args("Print out export statements for your aws creds", do_display)
+            , "display": self.parser_for_no_args("Print out export statements for your aws creds", do_display)
+            , "current": self.parser_for_no_args("Show what user is currently in your environment", do_current)
             }
 
     def cred_parser(self):
@@ -129,17 +129,22 @@ class CliParser(object):
         credo.setup(**vars(cred_args))
         return credo
 
+    def parser_for_no_args(self, description, func):
+        """Return a function that parses no arguments"""
+
+        def parse_noargs(action, argv):
+            """No args to parse"""
+            parser = argparse.ArgumentParser(description=description)
+            args = self.args_from_subparser(action, parser, argv)
+            return args, func
+
+        return parse_noargs
+
     def parse_help(self, action, argv):
         """Just prints help and quits"""
         # It's late, I'm tired....
         print "Help is not here"
         sys.exit(1)
-
-    def parse_display(self, action, argv):
-        """Display doesn't have arguments yet"""
-        parser = argparse.ArgumentParser(description="Print out export statements for your aws creds")
-        args = self.args_from_subparser(action, parser, argv)
-        return args, do_display
 
     def parse_show(self, action, argv):
         """Parser for showing available credentials"""
@@ -166,18 +171,6 @@ class CliParser(object):
             )
         args = self.args_from_subparser(action, parser, argv)
         return args, do_import
-
-    def parse_rotate(self, action, argv):
-        """Rotate doesn't have any arguments yet"""
-        parser = argparse.ArgumentParser(description="Rotate amazon secrets")
-        args = self.args_from_subparser(action, parser, argv)
-        return args, do_rotate
-
-    def parse_current(self, action, argv):
-        """Current doesn't have any arguments yet"""
-        parser = argparse.ArgumentParser(description="Show what user is currently in your environment")
-        args = self.args_from_subparser(action, parser, argv)
-        return args, do_current
 
     def parse_remote(self, action, argv):
         """Options for setting an external remote for syncing with"""
