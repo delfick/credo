@@ -43,9 +43,7 @@ class Account(object):
 
                 with open(info_location, "w") as fle:
                     fle.write("{0},{1},{2}".format(account_id, fingerprint, signature))
-
-                commit_message = "Writing account id {0} for repo {1}, account {2}".format(account_id, self.repo_name, self.name)
-                self.credential_path.add_change(commit_message, [info_location])
+                self.credential_path.add_change("Writing account id {0}".format(account_id), [info_location], repo=self.repo_name, account=self.name)
 
                 self._account_id = account_id
         return self._account_id

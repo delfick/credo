@@ -1,39 +1,12 @@
 from credo.asker import ask_for_choice, ask_for_public_keys
 from credo.errors import UserQuit, BadConfiguration
-from credo.structure.account import Account
+from credo.versioning import determine_driver
 
-from pygit2 import Repository as GitRepository
 import logging
 import json
 import os
 
 log = logging.getLogger("credo.versioning")
-
-class NoVersioningDriver(object):
-	"""Driver when there is no versioning"""
-	def __init__(self, location):
-		self.location = location
-
-	def synchronize(self):
-		"""No op"""
-
-	@property
-	def remote(self):
-		"""There is no remote!"""
-		return None
-
-class GitDriver(object):
-	"""Knows how to use git"""
-	def __init__(self, location):
-		self.location = location
-		self.repo = GitRepository(self.location)
-
-	def synchronize(self):
-		"""Stash any changes, fetch, reset, push, unstash"""
-
-	@property
-	def remote(self):
-		"""Get us back the url of the origin remote"""
 
 class Repository(object):
 	"""Understands how to version a directory"""
@@ -41,22 +14,18 @@ class Repository(object):
 		self.name = name
 		self.location = location
 
-		self.driver = self.determine_driver(location)
-
-	def determine_driver(self, location):
-		"""Get us the driver for our repository"""
-		git_folder = os.path.join(location, ".git")
-		if os.path.exists(git_folder):
-			return GitDriver(location)
-		else:
-			return NoVersioningDriver(location)
+		self.driver = determine_driver(location)
 
 	def synchronize(self):
 		"""Ask the driver to synchronize the folder"""
 		self.driver.synchronize()
 
-	def add_change(self, message, changed_files):
+	def add_change(self, message, changed_files, **info):
 		"""Ask the driver to add the changed files and commit with the provided message"""
+		message_suffix = ", ".join("{0}={1}".format(key, val) for key, val in info.items())
+		if message_suffix:
+			message = "{0} ({1})".format(message, message_suffix)
+		self.driver.add_change(message, changed_files)
 
 	def get_public_keys(self, ask_anyway=False):
 		"""
@@ -96,6 +65,7 @@ class Repository(object):
 			log.debug("Writing out public keys\tlocation=%s", keys_location)
 			with open(keys_location, 'w') as fle:
 				fle.write(content)
+			self.add_change("Adjusting known public keys", [keys_location], repo=self.name)
 
 		return result.get("urls", []), result.get("pems", []), locations
 

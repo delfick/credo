@@ -86,6 +86,11 @@ class Credentials(object):
             self.contents.save(self.location, self.keys)
             self.keys.unchanged()
 
+            cred_path = self.credential_path
+            self.credential_path.add_change("Saving new keys", [self.location]
+                , repo=cred_path.repo.name, account=cred_path.account.name, user=cred_path.user.name
+                )
+
     @property
     def contents(self):
         """Get us the contents"""

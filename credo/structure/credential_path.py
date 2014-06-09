@@ -24,7 +24,7 @@ class CredentialPath(object):
 		credential_location = os.path.join(self.user.location, "credentials.json")
 		self.credentials = Credentials(credential_location, self)
 
-	def add_change(self, location, message):
+	def add_change(self, location, message, **info):
 		"""Register a change that was made"""
-		self.repository.add_change(location, message)
+		self.repository.add_change(location, message, **info)
 
