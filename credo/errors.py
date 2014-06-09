@@ -101,3 +101,9 @@ class BadCredential(CredoError):
 class UserQuit(CredoError):
     desc = "User quit the program"
 
+class RepoError(CredoError):
+    desc = "Something wrong with a repository"
+
+class GitError(RepoError):
+    desc = "Problem with git"
+

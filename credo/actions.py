@@ -1,7 +1,9 @@
-from credo.asker import ask_user_for_secrets, ask_user_for_half_life, ask_for_choice_or_new
-from credo.errors import CantEncrypt, CantSign, BadCredential
+from credo.asker import ask_user_for_secrets, ask_user_for_half_life, ask_for_choice_or_new, ask_for_choice
+from credo.errors import CantEncrypt, CantSign, BadCredential, RepoError
 from credo.helper import print_list_of_tuples
+from credo.structure import repository
 from credo.amazon import IamPair
+from credo import explorer
 
 import logging
 import os
@@ -40,6 +42,18 @@ def do_rotate(credo, **kwargs):
     """Rotate some keys"""
     log.info("Doing a rotation")
     credo.make_chosen(rotate=True)
+
+def do_remote(credo, remote=None, version_with=None, **kwargs):
+    """Setup remotes for some repository"""
+    _, shortened = explorer.find_repo_structure(credo.root_dir, levels=1)
+    mask = explorer.filtered(shortened, [credo.repo])
+    explorer.narrow(mask, ["Repository"], ask_for_choice_or_new, want_new=True, forced_vals=[credo.repo])
+    if not mask:
+        raise RepoError("Couldn't find a repository to work with.... try importing some keys....")
+
+    repo_name = mask.keys()[0]
+    location = os.path.join(credo.root_dir, repo_name)
+    repository.configure(repo_name, location, new_remote=remote, version_with=version_with)
 
 def do_import(credo, source=False, **kwargs):
     """Import some creds"""

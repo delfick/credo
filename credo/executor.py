@@ -1,4 +1,4 @@
-from credo.actions import do_display, do_exec, do_showavailable, do_import, do_rotate, do_current
+from credo.actions import do_display, do_exec, do_showavailable, do_import, do_rotate, do_current, do_remote
 from credo.errors import CredoError, NoExecCommand
 from credo.asker import secret_sources
 from credo.overview import Credo
@@ -63,6 +63,7 @@ class CliParser(object):
               "help": self.parse_help
             , "exec": self.parse_exec
             , "show": self.parse_show
+            , "remote": self.parse_remote
             , "import": self.parse_import
             , "rotate": self.parse_rotate
             , "inject": self.parse_display
@@ -177,6 +178,29 @@ class CliParser(object):
         parser = argparse.ArgumentParser(description="Show what user is currently in your environment")
         args = self.args_from_subparser(action, parser, argv)
         return args, do_current
+
+    def parse_remote(self, action, argv):
+        """Options for setting an external remote for syncing with"""
+        parser = argparse.ArgumentParser(description="Set up a remote for a repository")
+
+        parser.add_argument("--version-with"
+            , help = "Use this to make this repository versioned"
+            , choices = ["nothing", "git"]
+            )
+
+        remote = parser.add_mutually_exclusive_group()
+        remote.add_argument("--no-new-remote"
+            , help = "Don't set a remote"
+            , dest = "remote"
+            , const = False
+            , action = "store_const"
+            )
+        remote.add_argument("--remote"
+            , help = "Set a particular remote"
+            )
+
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_remote
 
     def parse_exec(self, action, argv):
         """Exec passes on everything else also doesn't have arguments yet"""
