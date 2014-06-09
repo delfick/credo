@@ -30,6 +30,7 @@ def do_display(credo, **kwargs):
     """Just print out the chosen creds"""
     for key, val in credo.chosen.shell_exports():
         print "export {0}={1}".format(key, val)
+    credo.chosen.credential_path.repository.synchronize()
 
 def do_synchronize(credo, **kwargs):
     """Just synchronize some repo"""
@@ -41,11 +42,12 @@ def do_exec(credo, command, **kwargs):
     environment = dict(os.environ)
     environment.update(dict(credo.chosen.shell_exports()))
     os.execvpe(command[0], command, environment)
+    credo.chosen.credential_path.repository.synchronize()
 
 def do_rotate(credo, **kwargs):
     """Rotate some keys"""
     log.info("Doing a rotation")
-    credo.make_chosen(rotate=True)
+    credo.make_chosen(rotate=True).credential_path.repository.synchronize()
 
 def do_remote(credo, remote=None, version_with=None, **kwargs):
     """Setup remotes for some repository"""
@@ -99,6 +101,7 @@ def do_import(credo, source=False, half_life=None, **kwargs):
 
     creds.keys.add(iam_pair)
     creds.save()
+    cred_path.repository.synchronize()
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
