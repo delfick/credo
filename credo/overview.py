@@ -1,6 +1,6 @@
-from credo.errors import NoConfigFile, BadConfigFile, BadConfiguration, CredoProgrammerError, CredoError
+from credo.errors import NoConfigFile, BadConfigFile, BadConfiguration, CredoProgrammerError, CredoError, RepoError
+from credo.asker import ask_for_choice, ask_for_choice_or_new
 from credo.structure.credential_path import CredentialPath
-from credo.asker import ask_for_choice
 from credo.crypto import Crypto
 from credo import explorer
 
@@ -179,6 +179,18 @@ class Credo(object):
             credentials = credential_path.credentials
             credentials.load()
             yield credentials
+
+    def find_one_repository(self, want_new=True):
+        """Find one repository and return it's name and location"""
+        _, shortened = explorer.find_repo_structure(self.root_dir, levels=1)
+        mask = explorer.filtered(shortened, [self.repo])
+        explorer.narrow(mask, ["Repository"], ask_for_choice_or_new, want_new=want_new, forced_vals=[self.repo])
+        if not mask:
+            raise RepoError("Couldn't find a repository to work with.... try importing some keys....")
+
+        repo_name = mask.keys()[0]
+        location = os.path.join(self.root_dir, repo_name)
+        return repo_name, location
 
     ########################
     ###   CONFIGURATION
