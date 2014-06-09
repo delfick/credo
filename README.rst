@@ -58,8 +58,8 @@ Advanced Usage
 If you put something like this in your ~/.bashrc or ~/.zshrc::
 
     credo() {
-        arg_spec="[\"$0\"] + \"$@\".split(' ')"
-        action=$(python -c "from credo.executor import CliParser; print CliParser().split_argv($arg_spec)[1]" 2> /dev/null)
+        shebang=$(head $(type -p credo | head -n1 | awk '{ print $3 }') -n1)
+        action=$(${shebang:2} -c "from credo.executor import CliParser; print CliParser().split_argv([\"$0\"] + \"$@\".split(' '))[1]" 2> /dev/null)
         if [[ "$action" == "inject" ]]; then
             output=$(command credo $@)
             source <(echo $output)
