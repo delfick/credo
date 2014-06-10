@@ -109,9 +109,10 @@ class GitDriver(Base):
                 self.repo.index.add(filename)
 
         self.repo.index.write()
-        oid = self.repo.index.write_tree()
-        author = committer = self.get_git_user()
-        self.repo.create_commit('HEAD', author, committer, message, oid, self.current_commit())
+        if any(status in (pygit2.GIT_STATUS_INDEX_DELETED, pygit2.GIT_STATUS_INDEX_MODIFIED, pygit2.GIT_STATUS_INDEX_NEW) for status in self.repo.status().values()):
+            oid = self.repo.index.write_tree()
+            author = committer = self.get_git_user()
+            self.repo.create_commit('HEAD', author, committer, message, oid, self.current_commit())
 
     def is_versioned(self):
         """Yes we are versioned"""
