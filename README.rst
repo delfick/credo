@@ -117,6 +117,9 @@ credo current
     Display the username, account alias and account id of the amazon credentials
     you currently have in your environment.
 
+credo synchronize
+    Make a repository synced with it's remote
+
 credo remote
     Allows you to edit the remote for some repository. All commands will add
     changes as they are made and will try to synchronise with any remote that is
