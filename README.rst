@@ -52,6 +52,23 @@ you want::
 
     credo import --source environment
 
+The <credo_options> filter can be:
+
+-u/--user <user>
+
+    Where user is either the name of the user or ``user@account`` or
+    ``user@account@repo``. Account and repo specified here will override the
+    other filters
+
+-a/--account <account>
+
+    Where account is either the name of the account or ``account@repo``. Repo
+    specified here will override anything in the --repo filter.
+
+-r/--repo <repo>
+
+    Where repo is the name of the repository.
+
 Advanced Usage
 --------------
 
