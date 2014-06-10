@@ -82,19 +82,15 @@ class CliParser(object):
             )
 
         parser.add_argument("-a", "--account"
-            , help = "The account to use"
+            , help = "The account to use (optionally use account@repo syntax)"
             )
 
         parser.add_argument("-u", "--user"
-            , help = "The user to use"
+            , help = "The user to use (optionally use user@account@repo syntax, where account and repo are optional)"
             )
 
         parser.add_argument("-r", "--repo"
             , help = "The repo to use"
-            )
-
-        parser.add_argument("-c", "--creds"
-            , help = "Set user and account with user@account syntax"
             )
 
         parser.add_argument("-v", "--verbose"

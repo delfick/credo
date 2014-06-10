@@ -198,18 +198,28 @@ class Credo(object):
 
     def set_options(self, **kwargs):
         """Set specific options"""
-        if not getattr(self, "user", None) and not getattr(self, "account", None) and kwargs.get("creds"):
-            creds = kwargs["creds"]
-            if '@' not in creds:
-                raise BadConfiguration("Creds option needs to be user@account", got=creds)
+        repo = kwargs.get("repo")
+        user = kwargs.get("user")
+        account = kwargs.get("account")
 
-            user, account = creds.split("@")
-            self.user = user.strip()
-            self.account = account.strip()
+        if account and "@" in account:
+            if account.count("@") > 1:
+                raise BadConfiguration("Account may only have one @ in it", account=account)
+            account, repo = account.split("@")
 
-        for attribute in ("user", "account", "repo"):
-            if not getattr(self, attribute, None) and attribute in kwargs:
-                setattr(self, attribute, kwargs[attribute])
+        if user and "@" in user:
+            if user.count("@") > 2:
+                raise BadConfiguration("User may only have a max of two @ in it", user=user)
+            elif user.count("@") == 2:
+                user, account, repo = user.split("@")
+            else:
+                user, account = user.split("@")
+
+        for attribute, val in (("user", user), ("account", account), ("repo", repo)):
+            if getattr(self, attribute, None) is None:
+                if val:
+                    val = val.strip()
+                setattr(self, attribute, val)
 
     def find_config_file(self, config_file=Unspecified):
         """Find a config file, use the one given if specified"""
