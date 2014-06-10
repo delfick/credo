@@ -218,9 +218,9 @@ has amazon credential for that user and account.
 
 The ``account_id`` is a file with one line containing
 "<account_id>,<fingerprint>,<signature>" where the fingerprint and signature is
-used to verify that one of your private keys recorded this account_id. This is
-to ensure that the credentials found in credentials.json do actually belong to
-this account.
+used to verify that one of your private keys recorded this account_id under this
+account and repository. This is to ensure that the credentials found in
+credentials.json do actually belong to this account and repo.
 
 The ``credentials.json`` contains the credentials encrypted with each public key
 it knows about and a signature used to verify that the credentials were written
