@@ -5,7 +5,7 @@ The python implementation of Credulous (https://github.com/realestate-com-au/cre
 
 Essentially, it's a credential management program written with amazon
 credentials in mind. It uses your ssh key pairs to keep your credentials
-encrypted on disk untill you need to use them.
+encrypted on disk until you need to use them.
 
 Installation
 ------------
@@ -92,7 +92,10 @@ command line.
 Status
 ------
 
-Currently Credo seems to work fine. However I haven't started writing tests yet.
+Currently Credo seems to work fine.
+
+Though, I haven't written tests for the majority of it, so I'll make no
+guarantees at the moment.
 
 No tests means my implementation is a bit messier than I would like and it's
 likely there are hidden bugs in some of the code that handles the corner cases
@@ -104,7 +107,8 @@ Also, credulous has more people working on it and one of the reasons they chose
 golang was the ability to distribute a single, static binary.
 
 Credo, however, does have things credulous doesn't,
-like signatures on certain values and an arguably nicer UI.
+like signatures on certain values, an arguably nicer UI and the ability to choose
+which keys are used for encryption.
 
 Features
 --------
