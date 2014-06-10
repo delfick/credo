@@ -1,4 +1,4 @@
-from credo.errors import UserQuit, GitError
+from credo.errors import UserQuit, GitError, CredoProgrammerError
 from credo.asker import ask_for_choice
 from credo.versioning.base import Base
 
@@ -28,17 +28,9 @@ class GitDriver(Base):
         if not self.remote:
             return
 
-        while True:
-            if not self.repo.status():
-                break
-
-            quit_choice = "Quit"
-            fixed_choice = "I fixed it, please continue"
-            choice = ask_for_choice("Seems there is already changes\tlocation={0}".format(self.location), choices=[quit_choice, fixed_choice])
-            if choice == quit_choice:
-                raise UserQuit()
-            elif self.repo.status():
-                log.error("Ummm, there's still changes already in the repository...\tlocation=%s", self.location)
+        self.resolve_dirty_repo()
+        if self.repo.status():
+            raise CredoProgrammerError("Somehow there are still changes in the repo....")
 
         origin = self.origin
         res = origin.fetch()
@@ -53,6 +45,20 @@ class GitDriver(Base):
                 origin.push("refs/heads/master")
             except ValueError as error:
                 log.error("Failed to push to remote repository\tremote=%s\terror=%s", origin.url, error)
+
+    def resolve_dirty_repo(self):
+        """Wait for the user to resolve any changes already in the repo"""
+        while True:
+            if not self.repo.status():
+                break
+
+            quit_choice = "Quit"
+            fixed_choice = "I fixed it, please continue"
+            choice = ask_for_choice("Seems there is already changes\tlocation={0}".format(self.location), choices=[quit_choice, fixed_choice])
+            if choice == quit_choice:
+                raise UserQuit()
+            elif self.repo.status():
+                log.error("Ummm, there's still changes already in the repository...\tlocation=%s", self.location)
 
     def determine_remote(self):
         """Get us back the url of the origin remote"""
