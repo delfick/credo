@@ -184,7 +184,10 @@ class Credo(object):
         """Find one repository and return it's name and location"""
         _, shortened = explorer.find_repo_structure(self.root_dir, levels=1)
         mask = explorer.filtered(shortened, [self.repo])
-        explorer.narrow(mask, ["Repository"], ask_for_choice_or_new, want_new=want_new, forced_vals=[self.repo])
+        asker = ask_for_choice_or_new
+        if not want_new:
+            asker = ask_for_choice
+        explorer.narrow(mask, ["Repository"], asker, want_new=want_new, forced_vals=[self.repo])
         if not mask:
             raise RepoError("Couldn't find a repository to work with.... try importing some keys....")
 
