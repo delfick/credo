@@ -192,9 +192,19 @@ class IamPair(object):
 
 class AmazonKey(object):
     """Represents the information and meta information required for amazon credentials"""
-    def __init__(self, key_info, credential_path):
+    def __init__(self, key_info, credential_path, iam_pair=None, iam_pairs=None):
         self.key_info = key_info
         self.credential_path = credential_path
+
+        self.iam_pairs = iam_pairs
+        if self.iam_pairs is None:
+            self.iam_pairs = {}
+
+        if iam_pair is not None:
+            pair = (iam_pair.aws_access_key_id, iam_pair.aws_secret_access_key)
+            if pair not in self.iam_pairs:
+                self.iam_pairs[pair] = iam_pair
+            self._decrypted = [pair]
 
     @property
     def crypto(self):
@@ -216,14 +226,13 @@ class AmazonKey(object):
             self.iam_pair.unchanged()
 
     @classmethod
-    def using(kls, iam_pair, credential_path):
+    def using(kls, iam_pair, credential_path, iam_pairs):
         """Create an AmazonKey from the provided details"""
         if not iam_pair.works:
             raise BadCredential()
 
         key_info = {"fingerprints": None, "create_epoch": iam_pair.create_epoch, "half_life": iam_pair.half_life}
-        key = AmazonKey(key_info, credential_path)
-        key._decrypted = [(iam_pair.aws_access_key_id, iam_pair.aws_secret_access_key)]
+        key = AmazonKey(key_info, credential_path, iam_pair, iam_pairs=iam_pairs)
         if not key.verifier(data=None, iam_pair=iam_pair):
             raise BadCredential()
         return key
@@ -262,9 +271,18 @@ class AmazonKey(object):
         """Find the first verified iam pair"""
         if not getattr(self, "_iam_pair", None):
             for aws_access_key_id, aws_secret_access_key in self.credentials():
-                self._iam_pair = IamPair(aws_access_key_id, aws_secret_access_key, self.key_info.get("create_epoch"), self.key_info.get("half_life"))
+                self._iam_pair = self.make_iam_pair(aws_access_key_id, aws_secret_access_key)
                 break
         return getattr(self, "_iam_pair", None)
+
+    def make_iam_pair(self, access_key, secret_key, half_life=None):
+        """Make an iam pair, or get cached pair"""
+        if (access_key, secret_key) not in self.iam_pairs:
+            if half_life is None:
+                half_life = self.key_info.get("half_life")
+            iam_pair = IamPair(access_key, secret_key, self.key_info.get("create_epoch"), half_life)
+            self.iam_pairs[(access_key, secret_key)] = iam_pair
+        return self.iam_pairs[(access_key, secret_key)]
 
     @property
     def encrypted_values(self):
@@ -278,9 +296,11 @@ class AmazonKey(object):
         fingerprints = self.crypto.fingerprinted({"aws_access_key_id": self.iam_pair.aws_access_key_id, "aws_secret_access_key": self.iam_pair.aws_secret_access_key})
         return {"fingerprints": fingerprints, "create_epoch": self.iam_pair.create_epoch, "half_life": self.iam_pair.half_life}
 
-    def verifier(self, data, iam_pair=None):
+    def verifier(self, data=None, iam_pair=None):
         """Say that these values is an amazon key for this account and user"""
-        iam_pair = IamPair(aws_access_key_id=data.get("aws_access_key_id"), aws_secret_access_key=data.get("aws_secret_access_key"))
+        if data is not None:
+            iam_pair = self.make_iam_pair(data.get("aws_access_key_id"), data.get("aws_secret_access_key"))
+
         if not iam_pair.works:
             return False
 
@@ -308,7 +328,8 @@ class AmazonKeys(object):
             keys = []
 
         self.credential_path = credential_path
-        self.keys = [AmazonKey(key, credential_path) for key in keys]
+        self.iam_pairs = {}
+        self.keys = [AmazonKey(key, credential_path, iam_pairs=self.iam_pairs) for key in keys]
         self._changed = False
 
     @property
@@ -326,7 +347,7 @@ class AmazonKeys(object):
 
     def add(self, iam_pair):
         """Add a key"""
-        key = AmazonKey.using(iam_pair, self.credential_path)
+        key = AmazonKey.using(iam_pair, self.credential_path, iam_pairs=self.iam_pairs)
         if not key.iam_pair or not key.iam_pair.works:
             raise BadCredential()
 
@@ -403,7 +424,7 @@ class AmazonKeys(object):
 
     def add_key(self, iam_pair):
         """Create a new key and add to our collection"""
-        key = AmazonKey.using(iam_pair, self.credential_path)
+        key = AmazonKey.using(iam_pair, self.credential_path, self.iam_pairs)
         self.keys.append(key)
         self._changed = True
         return key
