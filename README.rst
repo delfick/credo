@@ -240,6 +240,12 @@ using one of you private keys against a particular account and user.
 
 This means you may only add credentials using one of your private keys.
 
+The format of ``credentials.json`` includes the half_life of the key, the epoch
+signifying when that credential was created and for each key we use to decrypt
+the data, a secret that is encrypted with your ssh key, a signature saying your
+private key created that secret, and the credentials themselves encrypted with
+AES using that secret.
+
 Tests
 -----
 
