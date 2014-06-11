@@ -47,25 +47,25 @@ class KeysFile(object):
                 raise BadCredentialFile("Can't create parent directory", err=err)
 
         if not os.access(dirname, os.W_OK):
-            raise BadCredentialFile("Don't have write permissions to parent directory", location=self.location)
+            raise BadCredentialFile("Don't have write permissions to parent directory", location=location)
 
         try:
             key_vals, access_keys = keys.encrypted_values
         except UnicodeDecodeError as err:
-            raise BadCredentialFile("Can't get encrypted values for the keys file!", err=err, location=self.location)
+            raise BadCredentialFile("Can't get encrypted values for the keys file!", err=err, location=location)
 
         try:
             vals = {"type": keys.type, "keys": key_vals}
             contents = json.dumps(vals, indent=4)
         except ValueError as err:
-            raise BadCredentialFile("Can't create keys as json", err=err, location=self.location)
+            raise BadCredentialFile("Can't create keys as json", err=err, location=location)
 
         try:
             with open(location, "w") as fle:
                 log.info("Saving keys to %s with access_keys %s", location, list(access_keys))
                 fle.write(contents)
         except OSError as err:
-            raise BadCredentialFile("Can't write to the credentials file", err=err, location=self.location)
+            raise BadCredentialFile("Can't write to the credentials file", err=err, location=location)
 
 class Credentials(object):
     """Knows about credential files"""
