@@ -89,8 +89,8 @@ class NoSuchFingerPrint(CredoError):
 class CantFindPrivateKey(CredoError):
     desc = "Can't find any private key"
 
-class NoAccountIdEntered(CredoError):
-    desc = "Couldn't get an account id"
+class NoValueEntered(CredoError):
+    desc = "Couldn't get a value from the user"
 
 class BadCredentialSource(CredoError):
     desc = "Bad source of credentials"

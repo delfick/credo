@@ -278,7 +278,7 @@ class AmazonKey(object):
             return False
 
         account = self.credential_path.account.account_id(iam_pair=iam_pair)
-        username = self.credential_path.user.name
+        username = self.credential_path.user.username(iam_pair=iam_pair)
         return account == iam_pair.ask_amazon_for_account() and username == iam_pair.ask_amazon_for_username()
 
 class AmazonKeys(object):
