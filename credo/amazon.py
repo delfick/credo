@@ -51,7 +51,11 @@ class IamPair(object):
             return True
         if getattr(self, "_works", None) is False:
             return self._works
-        self._get_user()
+
+        get_cached = hasattr(self, "_last_asked") and (time.time() - self._last_asked) < 2
+        self._last_asked = time.time()
+        self._get_user(get_cached=get_cached)
+
         return self._works
 
     def wait_till_works(self):
