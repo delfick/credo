@@ -103,7 +103,7 @@ No tests means my implementation is a bit messier than I would like and it's
 likely there are hidden bugs in some of the code that handles the corner cases
 I don't see in my normal usage.
 
-So until tests are written, this should be considered alpha/beta quality.
+So until tests are written, this should be **considered alpha quality**.
 
 Also, credulous has more people working on it and one of the reasons they chose
 golang was the ability to distribute a single, static binary.
