@@ -224,6 +224,8 @@ class AmazonKey(object):
         key_info = {"fingerprints": None, "create_epoch": iam_pair.create_epoch, "half_life": iam_pair.half_life}
         key = AmazonKey(key_info, credential_path)
         key._decrypted = [(iam_pair.aws_access_key_id, iam_pair.aws_secret_access_key)]
+        if not key.verifier(data=None, iam_pair=iam_pair):
+            raise BadCredential()
         return key
 
     def basic_validation(self):
