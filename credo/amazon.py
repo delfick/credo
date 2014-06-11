@@ -151,6 +151,7 @@ class IamPair(object):
         """
         try:
             if getattr(self, "_got_user", None) is None or not get_cached:
+                log.info("Asking amazon for account id and username\taccess_key=%s", self.aws_access_key_id)
                 details = self.connection.get_user()["get_user_response"]["get_user_result"]["user"]
                 aliases = self.connection.get_account_alias()["list_account_aliases_response"]["list_account_aliases_result"]["account_aliases"]
                 self._invalid = False
@@ -277,7 +278,6 @@ class AmazonKey(object):
         if not iam_pair.works:
             return False
 
-        log.info("Asking amazon for the account and username\taccess_key=%s", iam_pair.aws_access_key_id)
         amazon_account = iam_pair.ask_amazon_for_account()
         amazon_username = iam_pair.ask_amazon_for_username()
 

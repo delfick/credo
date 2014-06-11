@@ -46,7 +46,6 @@ class User(object):
                     result.append(suggestion)
                 if iam_pair:
                     try:
-                        log.info("Asking amazon for username of current credentials")
                         result.append(iam_pair.ask_amazon_for_username())
                     except:
                         pass

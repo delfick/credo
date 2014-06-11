@@ -41,7 +41,6 @@ class Account(object):
                     result.append(suggestion)
                 if iam_pair:
                     try:
-                        log.info("Asking amazon for account id of current credentials")
                         result.append(iam_pair.ask_amazon_for_account())
                     except:
                         pass
