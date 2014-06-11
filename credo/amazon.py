@@ -277,9 +277,21 @@ class AmazonKey(object):
         if not iam_pair.works:
             return False
 
+        log.info("Asking amazon for the account and username\taccess_key=%s", iam_pair.aws_access_key_id)
+        amazon_account = iam_pair.ask_amazon_for_account()
+        amazon_username = iam_pair.ask_amazon_for_username()
+
+        # Get the account and username they should be
         account = self.credential_path.account.account_id(iam_pair=iam_pair)
         username = self.credential_path.user.username(iam_pair=iam_pair)
-        return account == iam_pair.ask_amazon_for_account() and username == iam_pair.ask_amazon_for_username()
+
+        if account != amazon_account or username != amazon_username:
+            log.error("Expected key with different account and username\tgot_account=%s\texpected_account=%s\tgot_username=%s\texpected_username=%s"
+                , amazon_account, account, amazon_username, username
+                )
+            return False
+        else:
+            return True
 
 class AmazonKeys(object):
     """Collection of Amazon keys"""

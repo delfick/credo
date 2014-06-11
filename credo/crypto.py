@@ -349,12 +349,12 @@ class Crypto(object):
         """Return the first valid decrypted value"""
         for fingerprint, values in fingerprints.items():
             if self.keys.have_private(fingerprint) and set(["secret", "data", "verifier"]) - set(values.keys()) == set():
-                verifier = values['verifier']
-                if not isinstance(verifier, list) or len(verifier) != 2:
+                verifier_val = values['verifier']
+                if not isinstance(verifier_val, list) or len(verifier_val) != 2:
                     log.error("Ignoring value with invalid verifier (Verifier is not a list of [fingerprint, signature])")
                     continue
 
-                fingerprint, signature = verifier
+                fingerprint, signature = verifier_val
                 encrypted_data = values['data']
                 encrypted_secret = values['secret']
 
@@ -371,7 +371,10 @@ class Crypto(object):
                     if not self.is_signature_valid(secret, fingerprint, signature):
                         log.error("Ignoring decrypted secrets, because can't verify signature\tfingerprint=%s", fingerprint)
                     else:
-                        return decrypted
+                        if not verifier(decrypted):
+                            log.error("Ignoring invalid data")
+                        else:
+                            return decrypted
 
     def fingerprinted(self, decrypted_vals, **info):
         """
