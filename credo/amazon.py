@@ -370,7 +370,10 @@ class AmazonKeys(object):
                 result.append(key.encrypted_values)
                 access_keys.append(key.iam_pair.aws_access_key_id)
             else:
-                log.info("Not saving invalid credentials\taccess_key=%s", list(key.credentials())[0][0])
+                access_key=""
+                if key.iam_pair:
+                    access_key="\taccess_key={0}".format(list(key.credentials())[0][0])
+                log.info("Not saving invalid credentials%s", access_key)
 
         log.info("Made encrypted values for %s keys using %s public keys", len(result), len(self.crypto.public_key_fingerprints))
         return result, access_keys
