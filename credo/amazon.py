@@ -3,7 +3,6 @@ from credo.asker import ask_user_for_half_life, ask_for_choice_or_new
 
 from boto.iam.connection import IAMConnection
 import datetime
-import hashlib
 import logging
 import time
 import boto
@@ -217,13 +216,7 @@ class AmazonKey(object):
         if not iam_pair.works:
             raise BadCredential()
 
-        def verifier_maker(*args, **kwargs):
-            kwargs["iam_pair"] = iam_pair
-            instance = type("key", (AmazonKey, ), {"credential_path": credential_path, "__init__": lambda s: None})()
-            return kls.verifier_maker(instance, *args, **kwargs)
-
-        fingerprinted = credential_path.crypto.fingerprinted({"aws_access_key_id": iam_pair.aws_access_key_id, "aws_secret_access_key": iam_pair.aws_secret_access_key}, verifier_maker)
-        key_info = {"fingerprints": fingerprinted, "create_epoch": iam_pair.create_epoch, "half_life": iam_pair.half_life}
+        key_info = {"fingerprints": None, "create_epoch": iam_pair.create_epoch, "half_life": iam_pair.half_life}
         key = AmazonKey(key_info, credential_path)
         key._decrypted = [(iam_pair.aws_access_key_id, iam_pair.aws_secret_access_key)]
         return key
@@ -236,8 +229,8 @@ class AmazonKey(object):
             return "Fingerprints for this key are not a dictionary"
         if not self.crypto.decryptable(self.fingerprints):
             return "No private key can decrypt secrets"
-        if any(not all(attr in value for attr in ("aws_access_key_id", "aws_secret_access_key", "__account_verifier__")) for value in self.fingerprints.values()):
-            return "One or more of the fingeprints doesn't contain aws_access_key_id, aws_secret_access_key and __account_verifier__ values"
+        if any(not all(attr in value for attr in ("secret", "data", "verifier")) for value in self.fingerprints.values()):
+            return "One or more of the fingeprints doesn't contain secret, data and verifier"
 
     @property
     def fingerprints(self):
@@ -253,7 +246,8 @@ class AmazonKey(object):
                 yield key
             return
 
-        for decrypted in self.crypto.decrypt_by_fingerprint(self.fingerprints, self.verifier_maker):
+        decrypted = self.crypto.decrypt_by_fingerprint(self.fingerprints, self.verifier)
+        if decrypted:
             yield decrypted["aws_access_key_id"], decrypted["aws_secret_access_key"]
 
     @property
@@ -274,26 +268,18 @@ class AmazonKey(object):
 
         and <other_options> includes {"create_epoch"}
         """
-        def verifier_maker(*args, **kwargs):
-            kwargs["iam_pair"] = self.iam_pair
-            return self.verifier_maker(*args, **kwargs)
-
-        fingerprints = self.crypto.fingerprinted({"aws_access_key_id": self.iam_pair.aws_access_key_id, "aws_secret_access_key": self.iam_pair.aws_secret_access_key}, verifier_maker)
+        fingerprints = self.crypto.fingerprinted({"aws_access_key_id": self.iam_pair.aws_access_key_id, "aws_secret_access_key": self.iam_pair.aws_secret_access_key})
         return {"fingerprints": fingerprints, "create_epoch": self.iam_pair.create_epoch, "half_life": self.iam_pair.half_life}
 
-    def verifier_maker(self, encrypted, decrypted, iam_pair=None):
-        """Return what our verifier should represent"""
-        if iam_pair is not None:
-            account = iam_pair.ask_amazon_for_account()
-            username = iam_pair.ask_amazon_for_username()
-        else:
-            iam_pair = IamPair(aws_access_key_id=decrypted.get("aws_access_key_id"), aws_secret_access_key=decrypted.get("aws_secret_access_key"))
-            account = self.credential_path.account.account_id(iam_pair=iam_pair)
-            username = self.credential_path.user.name
+    def verifier(self, data, iam_pair=None):
+        """Say that these values is an amazon key for this account and user"""
+        iam_pair = IamPair(aws_access_key_id=data.get("aws_access_key_id"), aws_secret_access_key=data.get("aws_secret_access_key"))
+        if not iam_pair.works:
+            return False
 
-        value = "{0} || {1} || {2}".format(decrypted["aws_access_key_id"], account, username)
-        information = {"account": account, "username": username, "access_key": decrypted["aws_access_key_id"]}
-        return hashlib.sha1(value).hexdigest(), iam_pair, information
+        account = self.credential_path.account.account_id(iam_pair=iam_pair)
+        username = self.credential_path.user.name
+        return account == iam_pair.ask_amazon_for_account() and username == iam_pair.ask_amazon_for_username()
 
 class AmazonKeys(object):
     """Collection of Amazon keys"""

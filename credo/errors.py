@@ -107,3 +107,6 @@ class RepoError(CredoError):
 class GitError(RepoError):
     desc = "Problem with git"
 
+class InvalidData(CredoError):
+    desc = "Invalid data"
+

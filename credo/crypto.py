@@ -1,19 +1,23 @@
 from credo.errors import (
       BadSSHKey, BadCypherText, BadFolder, CredoError
     , BadPlainText, PasswordRequired, BadPrivateKey, BadPublicKey
-    , NoSuchFingerPrint, CantFindPrivateKey
+    , NoSuchFingerPrint, CantFindPrivateKey, InvalidData
     )
 from credo.asker import ask_for_choice, get_response
 
-from Crypto.Cipher import PKCS1_OAEP
+from Crypto.Cipher import PKCS1_OAEP, AES
 from Crypto.PublicKey import RSA
+from Crypto import Random
 
 from binascii import hexlify, unhexlify
-from base64 import b64decode
+from base64 import b64decode, b64encode
 from paramiko import Message
 import tempfile
 import paramiko
 import logging
+import random
+import string
+import json
 import os
 import re
 
@@ -341,62 +345,83 @@ class Crypto(object):
         message = self.keys.collection.private_rsaobj_for(fingerprint).sign_ssh_data(for_signing)
         return fingerprint, hexlify(str(message))
 
-    def decrypt_by_fingerprint(self, fingerprints, verifier_maker, **info):
-        """Yield each different decrypted value if we find any and check against the verifier"""
-        found = set()
+    def decrypt_by_fingerprint(self, fingerprints, verifier, **info):
+        """Return the first valid decrypted value"""
         for fingerprint, values in fingerprints.items():
-            if self.keys.have_private(fingerprint):
-                decrypted = {}
-                for key, val in values.items():
-                    if not key.startswith("_"):
-                        info = dict(info)
-                        info["key"] = key
-                        info["key_fingerprint"] = fingerprint
-                        info["action"] = "decrypting"
-                        decrypted[key] = self.keys.decrypt(val, fingerprint, **info)
+            if self.keys.have_private(fingerprint) and set(["secret", "data", "verifier"]) - set(values.keys()) == set():
+                verifier = values['verifier']
+                if not isinstance(verifier, list) or len(verifier) != 2:
+                    log.error("Ignoring value with invalid verifier (Verifier is not a list of [fingerprint, signature])")
+                    continue
 
-                new_verifier, iam_pair, information = verifier_maker(values, decrypted)
-                if not self.is_signature_valid(new_verifier, *values["__account_verifier__"]):
-                    log.error("Ignoring decrypted secrets, because can't verify __account_verifier__\t%s", "\t".join("{0}={1}".format(key, val) for key, val in sorted(information.items())))
-                    try:
-                        user = iam_pair.ask_amazon_for_username()
-                        account_id = iam_pair.ask_amazon_for_account()
-                        log.error("Found key is for\taccess_key=%s\taccount=%s\tusername=%s", iam_pair.aws_access_key_id, account_id, user)
-                    except:
-                        pass
-                else:
-                    decrypted["__account_verifier__"] = values["__account_verifier__"]
-                    identity = ",".join(sorted(str((key, val) for key, val in decrypted.items() if not key.startswith("_"))))
-                    if identity not in found:
-                        found.add(identity)
-                        yield decrypted
+                fingerprint, signature = verifier
+                encrypted_data = values['data']
+                encrypted_secret = values['secret']
 
-    def fingerprinted(self, decrypted_vals, verifier_maker, **info):
+                secret = self.keys.decrypt(encrypted_secret, fingerprint, key_fingerprint=fingerprint, action="decrypting", value="Secret for decrypting with")
+                decrypted_data = self.decrypt_with_secret(encrypted_data, secret)
+
+                decrypted = None
+                try:
+                    decrypted = json.loads(decrypted_data)
+                except (ValueError, TypeError) as error:
+                    log.error("Couldn't load decrypted data as a json dictionary\terror_type=%s\terror=%s\tfingerprint=%s", error.__class__.__name__, error, fingerprint)
+
+                if decrypted:
+                    if not self.is_signature_valid(secret, fingerprint, signature):
+                        log.error("Ignoring decrypted secrets, because can't verify signature\tfingerprint=%s", fingerprint)
+                    else:
+                        return decrypted
+
+    def fingerprinted(self, decrypted_vals, **info):
         """
-        Return dictionary of {<fingerprint>: <info>}
+        Return dictionary of {<fingerprint>: {secret: <secret>, data:<data>, verifier:<verifier>}
 
-        Where <info> is unencrypted keys to encrypted values
-        With a __account_verifier__ key
+        Where <secret> is a randomly generated secret
+        <data> is the original data encrypted with AES using that secret
+        and <verifier> is a signature that says the secret was created using this private key
+
+        Decrypted_vals is assumed to be a json dictionary
         """
         if not isinstance(decrypted_vals, dict):
             raise CredoError("Fingerprinted should only be called with dictionaries", got_type=type(decrypted_vals))
 
+        try:
+            data_str = json.dumps(decrypted_vals, sort_keys=True)
+        except (ValueError, TypeError) as error:
+            raise InvalidData("Couldn't dump values for encryption", error_type=error.__class__.__name__, error=error, **info)
+
         result = {}
         for fingerprint in self.public_key_fingerprints:
-            encrypted = {}
-            for key, val in decrypted_vals.items():
-                info = dict(info)
-                info["key_fingerprint"] = fingerprint
-                info["action"] = "encrypting"
-                info["key"] = key
-                encrypted[key] = self.keys.encrypt(val, fingerprint, **info)
-
-            info["key"] = "__account_verifier__"
-            for_signing, _, information = verifier_maker(encrypted, decrypted_vals)
-            information["fingerprint"] = fingerprint
-            encrypted["__account_verifier__"] = self.create_signature(for_signing)
-            log.debug("Made signature for key\t%s", "\t".join("{0}={1}".format(key, val) for key, val in sorted(information.items())))
-            result[fingerprint] = encrypted
+            secret = self.generate_secret()
+            verifier = self.create_signature(secret)
+            encrypted_data = self.encrypt_with_secret(data_str, secret)
+            log.info("Encrypting credentials using AES\tfingerprint=%s", fingerprint)
+            encrypted_secret = self.keys.encrypt(secret, fingerprint, key_fingerprint=fingerprint, action="encrypting", value="Secret for encrypting with")
+            result[fingerprint] = dict(secret=encrypted_secret, verifier=verifier, data=encrypted_data)
 
         return result
+
+    def generate_secret(self, key_size=256):
+        """Generate a secret that may be used for encrypting values"""
+        return Random.OSRNG.posix.new().read(key_size // 8)
+
+    def encrypt_with_secret(self, data, secret):
+        """Return the data as an encrypted value, using AES with the provided secret"""
+        def pad(s):
+            x = AES.block_size - len(s) % AES.block_size
+            return s + ''.join([random.choice(string.ascii_letters + string.digits) for n in range(x)])
+
+        padded_message = pad(data)
+        iv = Random.OSRNG.posix.new().read(AES.block_size)
+        cipher = AES.new(secret, AES.MODE_CBC, iv)
+        return b64encode(iv + cipher.encrypt(padded_message))
+
+    def decrypt_with_secret(self, ciphertext, secret):
+        """Return the decrypted value of the ciphtertext using AES with the provided secret"""
+        unpad = lambda s: s[:s.rfind("}")+1]
+        decoded = b64decode(ciphertext)
+        iv = decoded[:AES.block_size]
+        cipher = AES.new(secret, AES.MODE_CBC, iv)
+        return unpad(cipher.decrypt(decoded)[AES.block_size:])
 
