@@ -429,15 +429,15 @@ class AmazonKeys(object):
 
     def needs_rotation(self):
         """Say whether the current keys that we know about need any rotation"""
-        working_key = None
+        working = []
         for key in self.keys:
-            if not working_key and key.iam_pair and key.iam_pair.works:
-                working_key = key
+            if key.iam_pair and key.iam_pair.works:
+                working.append(key)
+                if key.iam_pair.past_half_life() or key.iam_pair.expired():
+                    return True
 
-            if not key.iam_pair or not key.iam_pair._works or key.iam_pair.past_half_life() or key.iam_pair.expired():
-                return True
-
-        return False
+        # Only need rotation if we have no working keys
+        return len(working) == 0
 
     def rotate(self):
         """Rotate the keys and return whether any of them changed"""
@@ -463,9 +463,9 @@ class AmazonKeys(object):
                     elif key.iam_pair.past_half_life():
                         counts["created"] += 1
                         for_rotation.append(key.iam_pair)
-                        to_remain.append(key)
+                        to_remain.append(key.iam_pair)
                     else:
-                        to_remain.append(key)
+                        to_remain.append(key.iam_pair)
 
             if not to_remain:
                 counts["created"] += 1
@@ -506,7 +506,7 @@ class AmazonKeys(object):
 
             if for_rotation or not to_remain:
                 if len(to_remain) > 1:
-                    oldest = sorted(to_remain, key=lambda k: k.iam_pair.create_epoch)[0]
+                    oldest = sorted(to_remain, key=lambda k: k.create_epoch)[0]
                     oldest.delete()
                     usable = [pair for pair in usable if pair is not oldest]
 
