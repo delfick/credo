@@ -73,7 +73,7 @@ def do_import(credo, source=False, half_life=None, **kwargs):
     access_key, secret_key = ask_user_for_secrets(source=source)
     if half_life is None:
         half_life = ask_user_for_half_life(access_key)
-    if not half_life.isdigit():
+    if isinstance(half_life, basestring) and not half_life.isdigit():
         if half_life == "hour":
             half_life = 60 * 60
         elif half_life == "day":
