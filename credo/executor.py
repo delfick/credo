@@ -52,7 +52,7 @@ class CliParser(object):
         And function is what we want to call with the kwargs
         The function should have the signature function(credo, **kwargs)
         """
-        cred_args, action, action_args = self.split_argv()
+        cred_args, action, action_args = self.split_argv(argv)
         credo = self.make_credo(cred_args, action)
         kwargs, function = self.actions[action](action, action_args)
         return credo, kwargs, function
