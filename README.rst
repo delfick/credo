@@ -177,7 +177,7 @@ It also does:
   that you think it is for
 * Copes when keys are no longer usable.
 * Lets you specify urls or just pem_data for the public keys per repository and
-  caches the values from those urls.
+  caches what it finds
 * Minimises the number of times you need to enter a password for your private
   keys
 * Tries it's best to find situations it can't handle and display nice error
