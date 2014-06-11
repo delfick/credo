@@ -174,7 +174,7 @@ It also does:
 * Knows about profiles in ~/.boto and ~/.aws/config
 * Uses signatures to ensure that only you ever write encrypted credentials
 * Uses signatures to ensure that the credentials you load is for the account
-  that you think it is for (Also records the amazon account id).
+  that you think it is for
 * Copes when keys are no longer usable.
 * Lets you specify urls or just pem_data for the public keys per repository and
   caches the values from those urls.
