@@ -75,11 +75,13 @@ Advanced Usage
 If you put something like this in your ~/.bashrc or ~/.zshrc::
 
     credo() {
-        shebang=$(head $(type -p credo | head -n1 | awk '{ print $3 }') -n1)
-        action=$(${shebang:2} -c "from credo.executor import CliParser; print CliParser().split_argv([\"$0\"] + \"$@\".split(' '))[1]" 2> /dev/null)
-        if [[ "$action" == "inject" ]]; then
+        if command credo sourceable $@; then
             output=$(command credo $@)
-            source <(echo $output)
+            if (($? == 0)); then
+                source <(echo $output)
+            else
+                echo "$output"
+            fi
         else
             command credo $@
         fi
@@ -157,6 +159,12 @@ credo remote
     Versioning with some remote
         If not already versioned, makes it a git folder, and makes sure we have
         the remote set as specified.
+
+credo sourceable <argv>
+    Exits with 0 (yes) or 1 (no) to say whether the output of running credo with
+    the specified arguments should be sourced into the running shell.
+
+    See the Advanced Usage section to see this in use.
 
 It also does:
 

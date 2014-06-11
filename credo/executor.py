@@ -65,8 +65,10 @@ class CliParser(object):
             , "show": self.parse_show
             , "remote": self.parse_remote
             , "import": self.parse_import
+            , "sourceable": self.parse_sourceable
+
             , "rotate": self.parser_for_no_args("Rotate amazon secrets", do_rotate)
-            , "inject": self.parser_for_no_args("Print out export statements for your aws creds", do_display)
+            , "inject": self.parser_for_no_args("Print out export statements for your aws creds", do_display, sourceable=True)
             , "display": self.parser_for_no_args("Print out export statements for your aws creds", do_display)
             , "current": self.parser_for_no_args("Show what user is currently in your environment", do_current)
             , "synchronize": self.parser_for_no_args("Synchronise with the remote for some repository", do_synchronize)
@@ -126,7 +128,7 @@ class CliParser(object):
         credo.setup(**vars(cred_args))
         return credo
 
-    def parser_for_no_args(self, description, func):
+    def parser_for_no_args(self, description, func, sourceable=False):
         """Return a function that parses no arguments"""
 
         def parse_noargs(action, argv):
@@ -134,6 +136,7 @@ class CliParser(object):
             parser = argparse.ArgumentParser(description=description)
             args = self.args_from_subparser(action, parser, argv)
             return args, func
+        parse_noargs.sourceable = sourceable
 
         return parse_noargs
 
@@ -207,6 +210,23 @@ class CliParser(object):
             if not argv:
                 raise NoExecCommand("argv is empty!")
             return {"command": argv}, do_exec
+
+    def parse_sourceable(self, action, argv):
+        """Use CliParser to determine if these args given to credo produces a result that can be sourced into the shell"""
+        parser = argparse.ArgumentParser(description="Entrypoint for scripts to determine if provided arguments, when given to credo, produces a result that should be sourced into the shell")
+        if argv and argv[0] in ("--help", "-h"):
+            self.args_from_subparser(action, parser, argv)
+            # argparse should already quit before this point
+            sys.exit(1)
+        else:
+            if not argv:
+                sys.exit(1)
+            else:
+                _, action, _ = CliParser().split_argv(argv)
+                if action and action in self.actions and getattr(self.actions[action], "sourceable", False):
+                    sys.exit(0)
+                else:
+                    sys.exit(1)
 
 def main(argv=None):
     __import__("boto")
