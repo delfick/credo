@@ -10,7 +10,7 @@ import boto
 import sys
 import os
 
-log = logging.getLogger("credo.credentials")
+log = logging.getLogger("credo.amazon")
 
 class IamPair(object):
     def __init__(self, aws_access_key_id, aws_secret_access_key, create_epoch=None, half_life=None):
