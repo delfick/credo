@@ -112,8 +112,8 @@ class KeyCollection(object):
 
     def make_fingerprint(self, rsa_obj):
         """Get us a fingerprint from this rsa_obj"""
-        string = hexlify(rsa_obj.get_fingerprint())
-        return ":".join(re.findall("..", string))
+        st = hexlify(rsa_obj.get_fingerprint())
+        return ":".join(re.findall("..", st))
 
     def rsaobj_from_pem(self, pem_data):
         """Get us a paramiko.RSAKey from a public key pem_data."""
