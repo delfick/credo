@@ -178,6 +178,9 @@ class Repository(object):
                 raise BadConfiguration("Couldn't write out keys json", err=err)
 
             log.debug("Writing out public keys\tlocation=%s", keys_location)
+            dirname = os.path.dirname(keys_location)
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
             with open(keys_location, 'w') as fle:
                 fle.write(content)
             self.add_change("Adjusting known public keys", [keys_location], repo=self.name)
