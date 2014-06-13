@@ -52,7 +52,7 @@ class IamPair(object):
         if getattr(self, "_works", None) is False:
             return self._works
 
-        get_cached = hasattr(self, "_last_asked") and (time.time() - self._last_asked) < 2
+        get_cached = hasattr(self, "_last_asked") and (time.time() - self._last_asked) < 6
         self._last_asked = time.time()
         self._get_user(get_cached=get_cached)
 
