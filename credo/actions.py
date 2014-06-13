@@ -91,12 +91,12 @@ def do_import(credo, source=False, half_life=None, **kwargs):
     account_id = cred_path.account.account_id(suggestion=iam_pair.ask_amazon_for_account())
     if iam_pair.ask_amazon_for_account() != account_id:
         raise BadCredential("The credentials you are importing are for a different account"
-            , credentials_account_id=iam_pair.ask_amazon_for_account(), importing_into_account_name=credo.account, importing_into_account_id=account_id
+            , credentials_account_id=iam_pair.ask_amazon_for_account(), importing_into_account_name=cred_path.account.name, importing_into_account_id=account_id
             )
 
-    if iam_pair.ask_amazon_for_username() != credo.user:
+    if iam_pair.ask_amazon_for_username() != cred_path.user.name:
         raise BadCredential("The credentials you are importing are for a different user"
-            , credentials_user=iam_pair.ask_amazon_for_username(), importing_into_user=credo.user
+            , credentials_user=iam_pair.ask_amazon_for_username(), importing_into_user=cred_path.user.name
             )
 
     creds.keys.add(iam_pair)
