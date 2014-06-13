@@ -44,10 +44,10 @@ def do_exec(credo, command, **kwargs):
     os.execvpe(command[0], command, environment)
     credo.chosen.credential_path.repository.synchronize()
 
-def do_rotate(credo, **kwargs):
+def do_rotate(credo, force=False, **kwargs):
     """Rotate some keys"""
     log.info("Doing a rotation")
-    credo.make_chosen(rotate=True).credential_path.repository.synchronize()
+    credo.make_chosen(rotate=True, invalidate_creds=force).credential_path.repository.synchronize()
 
 def do_remote(credo, remote=None, version_with=None, **kwargs):
     """Setup remotes for some repository"""

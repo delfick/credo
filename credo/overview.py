@@ -123,10 +123,12 @@ class Credo(object):
     ###   CHOSEN CREDENTIALS
     ########################
 
-    def make_chosen(self, rotate=True):
+    def make_chosen(self, rotate=True, invalidate_creds=False):
         """Make the chosen credentials from our repository"""
         structure, chains = self.find_credentials(asker=ask_for_choice)
         chosen = list(self.credentials_from(structure, chains, complain_if_missing=True))[0]
+        if invalidate_creds:
+            chosen.invalidate_creds()
 
         self.sync_public_keys(chosen.credential_path)
         self.set_options(repo=chosen.credential_path.repository.name, account=chosen.credential_path.account.name, user=chosen.credential_path.user.name)

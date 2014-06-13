@@ -30,6 +30,10 @@ class IamPair(object):
         """Set _changed to False"""
         self._changed = False
 
+    def mark_as_invalid(self):
+        """Mark the key as invalid"""
+        self.invalidated = True
+
     @classmethod
     def from_environment(kls, create_epoch=None, half_life=None):
         """Get an IAMPair from our environment variables"""
@@ -178,8 +182,8 @@ class IamPair(object):
             raise
 
     def expired(self):
-        """Say whether the age of this key is past twice it's half life"""
-        return self.age > self.half_life * 2
+        """Say whether the age of this key is past twice it's half life or marked as invalid"""
+        return getattr(self, "invalidated", False) or self.age > self.half_life * 2
 
     def past_half_life(self):
         """Say whether the age of this key is past it's half life"""
@@ -224,6 +228,11 @@ class AmazonKey(object):
         self._changed = False
         if self.iam_pair:
             self.iam_pair.unchanged()
+
+    def mark_as_invalid(self):
+        """Mark our key as invalid"""
+        if self.iam_pair:
+            self.iam_pair.mark_as_invalid()
 
     @classmethod
     def using(kls, iam_pair, credential_path, iam_pairs):
@@ -365,6 +374,11 @@ class AmazonKeys(object):
         self._changed = False
         for key in self.keys:
             key.unchanged()
+
+    def invalidate_all(self):
+        """Mark all the keys as invalid"""
+        for key in self.keys:
+            key.mark_as_invalid()
 
     @property
     def iam_pair(self):
@@ -526,7 +540,7 @@ class AmazonKeys(object):
             for key in for_deletion:
                 key.delete()
         else:
-            if for_deletion and to_remain:
+            if len(for_deletion) == 2 or (for_deletion and to_remain):
                 # Make sure we have room for creating a new key
                 deleting = for_deletion.pop(0)
                 deleting.delete()

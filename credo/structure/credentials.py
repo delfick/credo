@@ -91,6 +91,12 @@ class Credentials(object):
                 , repo=cred_path.repository.name, account=cred_path.account.name, user=cred_path.user.name
                 )
 
+    def invalidate_creds(self):
+        """Mark our creds as invalid"""
+        cred_path = self.credential_path
+        log.info("Marking the credentials as invalid\trepo=%s\taccount=%s\tuser=%s", cred_path.repository.name, cred_path.account.name, cred_path.user.name)
+        self.keys.invalidate_all()
+
     @property
     def contents(self):
         """Get us the contents"""

@@ -65,9 +65,9 @@ class CliParser(object):
             , "show": self.parse_show
             , "remote": self.parse_remote
             , "import": self.parse_import
+            , "rotate": self.parse_rotate
             , "sourceable": self.parse_sourceable
 
-            , "rotate": self.parser_for_no_args("Rotate amazon secrets", do_rotate)
             , "inject": self.parser_for_no_args("Print out export statements for your aws creds", do_display, sourceable=True)
             , "display": self.parser_for_no_args("Print out export statements for your aws creds", do_display)
             , "current": self.parser_for_no_args("Show what user is currently in your environment", do_current)
@@ -145,6 +145,16 @@ class CliParser(object):
         # It's late, I'm tired....
         print "Help is not here"
         sys.exit(1)
+
+    def parse_rotate(self, action, argv):
+        """Rotate our credentials"""
+        parser = argparse.ArgumentParser(description="Rotate the credentials")
+        parser.add_argument("--force"
+            , help = "Force expire everything"
+            , action = "store_true"
+            )
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_rotate
 
     def parse_show(self, action, argv):
         """Parser for showing available credentials"""
