@@ -186,6 +186,7 @@ def ask_for_public_keys(remote=None):
     pems = []
     locations = {}
 
+    quit_choice = "Quit"
     no_choice = "No thanks"
     choice = no_choice
 
@@ -201,10 +202,12 @@ def ask_for_public_keys(remote=None):
 
         suggestion = "https://{0}/{1}.keys".format(domain, username)
         suggestion_choice = "Use {0}".format(suggestion)
-        choice = ask_for_choice_or_new("Do you want to use a url to get public keys for this repository?", [no_choice, suggestion_choice])
+        choice = ask_for_choice_or_new("Do you want to use a url to get public keys for this repository?", [quit_choice, no_choice, suggestion_choice])
 
     while True:
-        if choice == no_choice:
+        if choice == quit_choice:
+            raise UserQuit()
+        elif choice == no_choice:
             break
         elif choice == suggestion_choice:
             urls.append(suggestion)
@@ -240,12 +243,15 @@ def ask_for_public_keys(remote=None):
     while True:
         question = "any"
         no_choice = "No thanks"
+        quit_choice = "Quit"
         if pems:
             question = "any more"
             no_choice = "No more"
 
-        choice = ask_for_choice_or_new("Do you want to add {0} public pem lines?".format(question), [no_choice] + public_key_fingerprints.keys())
-        if choice == no_choice:
+        choice = ask_for_choice_or_new("Do you want to add {0} public pem lines?".format(question), [quit_choice, no_choice] + public_key_fingerprints.keys())
+        if choice == quit_choice:
+            raise UserQuit()
+        elif choice == no_choice:
             break
         elif choice in public_key_fingerprints:
             pem = public_key_pems[choice]
