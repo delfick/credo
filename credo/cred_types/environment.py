@@ -1,46 +1,27 @@
+from credo.structure.encrypted_keys import EncryptedKeys, Unset
+from credo.errors import BadKeyFile
 import logging
 import os
 
 log = logging.getLogger("credo.cred_types.environment")
 
-class Unset(object):
-    """Used to say unset an environment variable"""
-
-class Environment(object):
+class Environment(EncryptedKeys):
     """Collection of environment variables"""
-    type = "environment"
-
-    def __init__(self, values, credential_path):
-        if not values:
-            values = {}
-
+    def __init__(self, location, credential_path):
+        self.location = location
         self.credential_path = credential_path
-        self._changed = False
 
     @property
-    def crypto(self):
-        """Proxy credential_path"""
-        return self.credential_path.crypto
-
-    def __iter__(self):
-        """Iterate through the environment variables"""
-        return iter(self.values.items())
-
-    def __len__(self):
-        """Return how many environment variables we have"""
-        return len(self.values)
+    def type(self):
+        """This needs to be set"""
+        return "environment"
 
     def add(self, key, value):
         """Add a key"""
         Empty = type("Empty", (object, ), {})
-        if self.values.get(key, Empty) != value:
+        if self.keys.get(key, Empty) != value:
             self._changed = True
-            self.values[key] = value
-
-    @property
-    def changed(self):
-        """Say whether there has been any changes"""
-        return self._changed
+            self.keys[key] = value
 
     def unchanged(self):
         """Reset changed on everything"""
@@ -51,12 +32,18 @@ class Environment(object):
         """Return our values as a dictionary with encrypted values"""
         result = []
         log.info("Making encrypted values for environment variables")
-        fingerprints = self.crypto.fingerprinted(self.values())
+        fingerprints = self.crypto.fingerprinted(self.keys)
         result = {"fingerprints": fingerprints}
         return result, self.values.keys()
 
-    def exports(self):
-        """Return a list of (key, value) exports that would be necessary for the main iam_pair"""
+    def make_keys(self, contents):
+        """Get us our keys from the contents of the file"""
+        if contents.typ != self.type:
+            raise BadKeyFile("Unknown type", type=contents.get("type"))
+        return contents.keys
+
+    def shell_exports(self):
+        """Return list of (key, val) exports we want to have in the shell"""
         unsetters = {}
         for key in self.values:
             name = "CREDO_UNSET_{0}".format(key)
@@ -66,4 +53,16 @@ class Environment(object):
                 unsetters[name] = os.environ[key]
 
         return sorted(self.values.items()) + sorted(unsetters.items())
+
+    def default_keys_type(self):
+        """Empty keys is a dict"""
+        return list
+
+    def default_keys_type_name(self):
+        """Assume type is environment"""
+        return "environment"
+
+    def as_string(self):
+        """Return information about keys as a string"""
+        return "Environment vars! {0}".format(", ".join(self))
 

@@ -110,3 +110,6 @@ class GitError(RepoError):
 class InvalidData(CredoError):
     desc = "Invalid data"
 
+class BadKeyFile(CredoError):
+    desc = "Something wrong with a file containing keys"
+

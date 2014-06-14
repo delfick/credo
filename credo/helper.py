@@ -1,8 +1,9 @@
+from credo.errors import NoValueEntered, BadKeyFile
 from credo.asker import ask_for_choice_or_new
-from credo.errors import NoValueEntered
 
 import logging
 import copy
+import json
 import os
 
 log = logging.getLogger("credo.helper")
@@ -99,4 +100,71 @@ class SignedValueFile(object):
             value = choice
 
         return value
+
+class KeysFile(object):
+    """Understands how to load and save to a keys file"""
+    def __init__(self, default_keys_type=list, default_keys_type_name="amazon"):
+        self.default_keys_type = default_keys_type
+        self.default_keys_type_name = default_keys_type_name
+
+    def read_file(self, location):
+        """Read in our location as a json file"""
+        if not os.path.exists(location):
+            raise BadKeyFile("Doesn't exist", location=location)
+        if not os.access(location, os.R_OK):
+            raise BadKeyFile("Don't have read permissions", location=location)
+
+        if os.stat(location).st_size == 0:
+            return {}
+
+        try:
+            return json.load(open(location))
+        except ValueError as err:
+            raise BadKeyFile("Keys file not valid json", location=location, error=err)
+
+    def load(self, location):
+        """Load the keys from our keys file"""
+        contents = {"keys": [], "type": "amazon"}
+        if os.path.exists(location):
+            contents = self.read_file(location)
+
+        if not isinstance(contents.get("keys", []), list):
+            raise BadKeyFile("Keys file keys are not a list", keys=type(contents["keys"]))
+
+        self.contents = contents
+        self.typ = self.contents.get("type", self.default_keys_type_name)
+        self.keys = self.contents.get("keys", self.default_keys_type())
+
+    def save(self, location, keys, **info):
+        """Save the provided keys to this location"""
+        dirname = os.path.dirname(location)
+        if not os.path.exists(dirname):
+            try:
+                os.makedirs(dirname)
+            except OSError as err:
+                raise BadKeyFile("Can't create parent directory", err=err)
+
+        if not os.access(dirname, os.W_OK):
+            raise BadKeyFile("Don't have write permissions to parent directory", location=location)
+
+        try:
+            key_vals, access_keys = keys.encrypted_values
+        except UnicodeDecodeError as err:
+            raise BadKeyFile("Can't get encrypted values for the keys file!", err=err, location=location)
+
+        try:
+            vals = {"type": keys.type, "keys": key_vals}
+            contents = json.dumps(vals, indent=4)
+        except ValueError as err:
+            raise BadKeyFile("Can't create keys as json", err=err, location=location)
+
+        try:
+            with open(location, "w") as fle:
+                info_str = ""
+                if info:
+                    info_str = "\t{0}".format("\t".join("{0}={1}".format(key, val) for key, val in info.items()))
+                log.info("Saving keys to %s%s", location, info_str)
+                fle.write(contents)
+        except OSError as err:
+            raise BadKeyFile("Can't write to the keys file", err=err, location=location)
 
