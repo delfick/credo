@@ -136,10 +136,31 @@ class IamPair(object):
         keys = self.connection.get_all_access_keys(self.ask_amazon_for_username())["list_access_keys_response"]["list_access_keys_result"]["access_key_metadata"]
         return [str(key["access_key_id"]) for key in keys]
 
+    def is_root_credentials(self):
+        """
+        Return whether these credentials are possibly root credentials
+        I.e. Amazon say they don't exist and it has the same name as an account alias
+        """
+        username = self.ask_amazon_for_username()
+        try:
+            self.connection.get_all_access_keys(username)
+        except boto.exception.BotoServerError as error:
+            if error.status == 404 and error.code == "NoSuchEntity":
+                if username in self.ask_amazon_for_account_aliases():
+                    return True
+            else:
+                raise
+        return False
+
     def ask_amazon_for_create_epoch(self):
         """Return our create_epoch"""
-        username = self.ask_amazon_for_username()
-        access_keys = self.connection.get_all_access_keys(username)["list_access_keys_response"]["list_access_keys_result"]["access_key_metadata"]
+        if self.is_root_credentials():
+            result = self.connection.get_response('ListAccessKeys', {}, list_marker='AccessKeyMetadata')
+        else:
+            username = self.ask_amazon_for_username()
+            result = self.connection.get_all_access_keys(username)
+
+        access_keys = result["list_access_keys_response"]["list_access_keys_result"]["access_key_metadata"]
         create_date = [key for key in access_keys if key["access_key_id"] == self.connection.aws_access_key_id][0]['create_date']
         return self.amazon_date_to_epoch(create_date)
 

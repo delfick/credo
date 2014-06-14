@@ -326,7 +326,7 @@ class AmazonKeys(object):
                 counts["created"] += 1
 
             extras = []
-            if any(usable):
+            if any(usable) and not usable[0].is_root_credentials():
                 others = usable[0].find_other_access_keys()
                 for access_key in others:
                     if access_key not in known:
@@ -343,9 +343,15 @@ class AmazonKeys(object):
         else:
             self._changed = True
 
-        log.info("Rotation resulted in creating %s keys, deleting %s keys, removing %s stale keys and resolving %s unknown keys"
+        log.info("Rotation will result in creating %s keys, deleting %s keys, removing %s stale keys and resolving %s unknown keys"
             , counts["created"], counts["deleted"], counts["removed"], counts["resolved"]
             )
+
+        if any(usable) and usable[0].is_root_credentials():
+            log.error("Can't programmatically rotate root credentials!")
+            log.error("Try using IAM")
+            self._changed = False
+            return False
 
         if not any(usable):
             # All the keys will be removed when we save
