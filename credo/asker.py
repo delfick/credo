@@ -295,3 +295,40 @@ def ask_user_for_half_life(access_key):
             else:
                 return int(choice)
 
+def ask_for_ssh_key_folders(already_have=None):
+    """Ask for folders where we can find private keys"""
+    if already_have is None:
+        already_have = []
+    home_ssh = os.path.expanduser("~/.ssh")
+
+    result = []
+    while True:
+        quit_choice = "Quit"
+        choices = [quit_choice]
+
+        if os.path.exists(home_ssh) and home_ssh not in already_have:
+            choices.append(home_ssh)
+
+        choice = ask_for_choice_or_new("Where can we find private ssh keys?", choices=choices)
+        if choice == quit_choice:
+            raise UserQuit()
+        else:
+            if not os.path.exists(choice):
+                log.error("Provided folder doesn't exist!\tfolder=%s", choice)
+            else:
+                if choice in already_have:
+                    log.info("Already have that folder!\tfolder=%s", choice)
+                else:
+                    result.append(choice)
+                    already_have.append(choice)
+
+        more_choice = "More folders"
+        enough_choice = "No more folders"
+        choice = ask_for_choice("What next?", choices=[quit_choice, more_choice, enough_choice])
+        if choice == quit_choice:
+            raise UserQuit()
+        elif choice == enough_choice:
+            break
+
+    return result
+

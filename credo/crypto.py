@@ -319,6 +319,10 @@ class Crypto(object):
         """Return whether we have any public keys"""
         return len(self.public_key_fingerprints) > 0
 
+    def has_private_keys(self):
+        """Return whether we have any private keys"""
+        return len(self.private_key_fingerprints) > 0
+
     def find_private_keys(self, folder):
         """Find keys to add"""
         return self.keys.find_private_keys(folder)
