@@ -33,7 +33,7 @@ def do_display(credo, **kwargs):
         if val is Unset:
             print "unset {0}".format(key)
         else:
-            print "export {0}={1}".format(key, val)
+            print "export {0}=\"{1}\"".format(key, val.replace("\\\"", "\"").replace("\"", "\\\""))
     credo.chosen.credential_path.repository.synchronize()
 
 def do_synchronize(credo, **kwargs):
