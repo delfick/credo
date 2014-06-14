@@ -53,6 +53,9 @@ class CliParser(object):
         The function should have the signature function(credo, **kwargs)
         """
         cred_args, action, action_args = self.split_argv(argv)
+        if "--version" in cred_args:
+            self.show_version_and_quit()
+
         credo = self.make_credo(cred_args, action)
         kwargs, function = self.actions[action](action, action_args)
         return credo, kwargs, function
@@ -66,6 +69,7 @@ class CliParser(object):
             , "remote": self.parse_remote
             , "import": self.parse_import
             , "rotate": self.parse_rotate
+            , "version": self.parse_version
             , "sourceable": self.parse_sourceable
 
             , "inject": self.parser_for_no_args("Print out export statements for your aws creds", do_display, sourceable=True)
@@ -100,12 +104,23 @@ class CliParser(object):
             , action = "store_true"
             )
 
+        parser.add_argument("--version"
+            , help = "Print version and quit"
+            , dest = "show_version"
+            , action = "store_true"
+            )
+
         parser.add_argument("--boto-debug"
             , help = "Show debug log messages for boto"
             , action = "store_true"
             )
 
         return parser
+
+    def show_version_and_quit(self):
+        """Show the version and quit"""
+        print("Credo {0}".format(VERSION))
+        sys.exit(0)
 
     def args_from_subparser(self, action, parser, argv):
         """Get us args from our parser as a dictionary and make sure our usage statement is nice"""
@@ -119,6 +134,7 @@ class CliParser(object):
         """Make a Credo object that knows things"""
         cred_parser = self.cred_parser()
         cred_args = cred_parser.parse_args(cred_args)
+
         setup_logging(verbose=cred_args.verbose, boto_debug=cred_args.boto_debug)
 
         if cred_args.action != expected_action:
@@ -145,6 +161,10 @@ class CliParser(object):
         # It's late, I'm tired....
         print "Help is not here"
         sys.exit(1)
+
+    def parse_version(self, action, argv):
+        """Just show the version and quit"""
+        self.show_version_and_quit()
 
     def parse_rotate(self, action, argv):
         """Rotate our credentials"""
