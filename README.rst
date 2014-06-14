@@ -10,7 +10,29 @@ encrypted on disk until you need to use them.
 Installation
 ------------
 
-Use pip!::
+Install the dependencies:
+
+Mac OSX
+    brew install libgit2 gmp
+
+Linux
+    Install the latest libgit2 (as annoying as this process sounds)::
+
+        # sudo apt-get install cmake gcc or sudo yum install cmake make gcc
+        git clone -b master git://github.com/libgit2/libgit2.git
+        mkdir libgit2/build
+        cd libgit2/build
+        cmake ..
+        cmake --build .
+        sudo cmake --build . --target install
+
+    And then, for systems with apt-get
+        sudo apt-get install libpython-dev libgmp-dev
+
+    Or for systems with yum
+        yum install python-devel gmp-devel
+
+And then use pip!::
 
     pip install credo
 
