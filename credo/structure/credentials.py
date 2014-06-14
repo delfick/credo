@@ -1,5 +1,5 @@
+from credo.cred_types.amazon import AmazonKeys
 from credo.errors import BadCredentialFile
-from credo.amazon import AmazonKeys
 
 import logging
 import json
