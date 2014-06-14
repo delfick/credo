@@ -113,6 +113,8 @@ class Credo(object):
             home_ssh = os.path.expanduser("~/.ssh")
             if os.path.exists(home_ssh) and os.access(home_ssh, os.R_OK):
                 ssh_key_folders = [home_ssh]
+            else:
+                ssh_key_folders = []
 
         crypto = Crypto()
         for folder in ssh_key_folders:
@@ -261,14 +263,20 @@ class Credo(object):
         added = []
         crypto = credential_path.crypto
         while not crypto.can_encrypt:
-            if info == {}:
-                urls, pems, locations = credential_path.repository.get_public_keys()
-                info["urls"] = urls
-                info["pems"] = pems
-                info["locations"] = locations
+            if "urls" not in info:
+                info["urls"] = []
+            if "pems" not in info:
+                info["pems"] = []
+            if "locations" not in info:
+                info["locations"] = {}
+
+            urls, pems, locations = credential_path.repository.get_public_keys()
+            info["urls"].extend(urls)
+            info["pems"].extend(pems)
+            info["locations"].update(locations)
 
             downloaded = []
-            for url in info["urls"]:
+            for url in info.get("urls", []):
                 downloaded.extend(self.download_pems(url))
             info["pems"].extend(downloaded)
 
