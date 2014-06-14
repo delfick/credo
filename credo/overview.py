@@ -122,8 +122,8 @@ class Credo(object):
 
         # Keep asking for folders until we can sign
         while not crypto.has_private_keys():
-            more_ssh_key_folders = ask_for_ssh_key_folders()
-            for folder in more_ssh_key_folders:
+            more_ssh_key_folders = ask_for_ssh_key_folders(already_have=crypto.ssh_key_folders)
+            for folder in set(ssh_key_folders + crypto.ssh_key_folders + more_ssh_key_folders):
                 crypto.find_private_keys(folder)
 
         return crypto
@@ -261,7 +261,7 @@ class Credo(object):
     ###   SSH KEYS
     ########################
 
-    def sync_public_keys(self, credential_path):
+    def sync_public_keys(self, credential_path, ask_anyway=False):
         """
         Find public keys for this credential_path and add them to the crypto object
         And remove public keys we don't know about anymore
@@ -269,7 +269,7 @@ class Credo(object):
         info = {}
         added = []
         crypto = credential_path.crypto
-        while not crypto.can_encrypt:
+        while ask_anyway or not crypto.can_encrypt:
             if "urls" not in info:
                 info["urls"] = []
             if "pems" not in info:
@@ -277,7 +277,10 @@ class Credo(object):
             if "locations" not in info:
                 info["locations"] = {}
 
-            urls, pems, locations = credential_path.repository.get_public_keys()
+            urls, pems, locations, new_ones = credential_path.repository.get_public_keys(ask_anyway=ask_anyway, known_private_key_fingerprints=self.crypto.private_key_fingerprints)
+            if not new_ones and ask_anyway:
+                break
+
             info["urls"].extend(urls)
             info["pems"].extend(pems)
             info["locations"].update(locations)
@@ -303,6 +306,8 @@ class Credo(object):
                 log.error("Was unable to find any public keys")
                 del info["urls"]
                 del info["pems"]
+            else:
+                break
 
         for fingerprint in crypto.public_key_fingerprints:
             if fingerprint not in added:

@@ -69,7 +69,7 @@ def do_import(credo, source=False, half_life=None, **kwargs):
         raise CantEncrypt("No public keys to encrypt with", repo=cred_path.repository.name)
     if not credo.crypto.can_sign:
         log.error("Couldn't find any private keys matching your known public keys!")
-        cred_path.repository.get_public_keys(ask_anyway=True)
+        cred_path.crypto.sync_public_keys(ask_anyway=True)
         if not credo.crypto.can_sign:
             raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
 

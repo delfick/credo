@@ -294,6 +294,7 @@ class Crypto(object):
         if keys is None:
             keys = SSHKeys()
         self.keys = keys
+        self.ssh_key_folders = []
 
     @property
     def can_encrypt(self):
@@ -325,6 +326,8 @@ class Crypto(object):
 
     def find_private_keys(self, folder):
         """Find keys to add"""
+        if folder not in self.ssh_key_folders:
+            self.ssh_key_folders.append(folder)
         return self.keys.find_private_keys(folder)
 
     def add_public_keys(self, public_keys):

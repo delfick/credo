@@ -142,10 +142,11 @@ class Repository(object):
 
         self.driver.add_change(message, changes)
 
-    def get_public_keys(self, ask_anyway=False):
+    def get_public_keys(self, ask_anyway=False, known_private_key_fingerprints=None):
         """
-        Return public keys for this repository as (urls, pems, locations)
+        Return public keys for this repository as (urls, pems, locations, new_ones)
         Where locations is a map of {<pem>: <location>} for when we know the location
+        and new_ones says whether we got any new ones from the user
         """
         keys_location = os.path.join(self.location, "keys")
 
@@ -159,8 +160,11 @@ class Repository(object):
             except ValueError as err:
                 result = self.fix_keys(keys_location, err)
 
+        new_ones = False
         if not os.path.exists(keys_location) or ask_anyway:
-            urls, pems, locations = ask_for_public_keys(self.driver.remote)
+            urls, pems, locations = ask_for_public_keys(self.driver.remote, known_private_key_fingerprints)
+            if urls or pems:
+                new_ones = True
 
             if "urls" not in result:
                 result["urls"] = []
@@ -185,7 +189,7 @@ class Repository(object):
                 fle.write(content)
             self.add_change("Adjusting known public keys", [keys_location], repo=self.name)
 
-        return result.get("urls", []), result.get("pems", []), locations
+        return result.get("urls", []), result.get("pems", []), locations, new_ones
 
     def fix_keys(self, location, error):
         """Get user to fix the keys file"""

@@ -177,7 +177,7 @@ def ask_user_for_secrets(source=None):
 
     return access_key, secret_key
 
-def ask_for_public_keys(remote=None):
+def ask_for_public_keys(remote=None, known_private_key_fingerprints=None):
     """
     Get keys from the user (urls, pems, locations)
     Where locations is a map of {<pem>: <location>} for when we know the location
@@ -248,12 +248,19 @@ def ask_for_public_keys(remote=None):
             question = "any more"
             no_choice = "No more"
 
-        choice = ask_for_choice_or_new("Do you want to add {0} public pem lines?".format(question), [quit_choice, no_choice] + public_key_fingerprints.keys())
+        public_key_fingerprints_choices = {}
+        for location, fingerprint in public_key_fingerprints.items():
+            public_key_fingerprints_choices["{0} ({1})".format(location, fingerprint)] = location
+
+        if known_private_key_fingerprints:
+            log.info("Know the following private keys\n\t%s", "\n\t".join(known_private_key_fingerprints))
+        choice = ask_for_choice_or_new("Do you want to add {0} public pem lines?".format(question), [quit_choice, no_choice] + sorted(public_key_fingerprints_choices.keys()))
         if choice == quit_choice:
             raise UserQuit()
         elif choice == no_choice:
             break
-        elif choice in public_key_fingerprints:
+        elif choice in public_key_fingerprints_choices:
+            choice = public_key_fingerprints_choices[choice]
             pem = public_key_pems[choice]
             locations[pem] = location
             pems.append(public_key_pems[choice])
@@ -299,6 +306,7 @@ def ask_for_ssh_key_folders(already_have=None):
     """Ask for folders where we can find private keys"""
     if already_have is None:
         already_have = []
+    originally_already_have = list(already_have)
     home_ssh = os.path.expanduser("~/.ssh")
 
     result = []
@@ -306,12 +314,32 @@ def ask_for_ssh_key_folders(already_have=None):
         quit_choice = "Quit"
         choices = [quit_choice]
 
+        retry_choice = None
+        if originally_already_have:
+            retry_choice = "I've added more keys to existing folders ({0}), try those again".format(", ".join(originally_already_have))
+            choices.append(retry_choice)
+
+        retry_home_choice = None
+        if not os.path.exists(home_ssh):
+            retry_home_choice = "I've used ssh-keygen, look for keys again"
+            choices.append(retry_home_choice)
+
         if os.path.exists(home_ssh) and home_ssh not in already_have:
             choices.append(home_ssh)
 
         choice = ask_for_choice_or_new("Where can we find private ssh keys?", choices=choices)
         if choice == quit_choice:
             raise UserQuit()
+        elif choice == retry_choice:
+            break
+        elif choice == retry_home_choice:
+            if not os.path.exists(home_ssh):
+                log.error("You say you've used ssh-keygen, but ~/.ssh (%s) doesn't exist....", home_ssh)
+                continue
+            else:
+                if home_ssh not in result:
+                    result.append(home_ssh)
+                return result
         else:
             if not os.path.exists(choice):
                 log.error("Provided folder doesn't exist!\tfolder=%s", choice)
