@@ -91,15 +91,16 @@ def do_import(credo, source=False, half_life=None, **kwargs):
     if not iam_pair.works:
         raise BadCredential("The credentials you just provided don't work....")
 
-    account_id = cred_path.account.account_id(suggestion=iam_pair.ask_amazon_for_account())
+    account_id = cred_path.account.account_id(iam_pair=iam_pair)
     if iam_pair.ask_amazon_for_account() != account_id:
         raise BadCredential("The credentials you are importing are for a different account"
             , credentials_account_id=iam_pair.ask_amazon_for_account(), importing_into_account_name=cred_path.account.name, importing_into_account_id=account_id
             )
 
-    if iam_pair.ask_amazon_for_username() != cred_path.user.name:
+    username = cred_path.user.username(iam_pair=iam_pair)
+    if iam_pair.ask_amazon_for_username() != username:
         raise BadCredential("The credentials you are importing are for a different user"
-            , credentials_user=iam_pair.ask_amazon_for_username(), importing_into_user=cred_path.user.name
+            , credentials_user=iam_pair.ask_amazon_for_username(), importing_into_user=username
             )
 
     creds.keys.add(iam_pair)
