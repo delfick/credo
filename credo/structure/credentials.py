@@ -117,7 +117,7 @@ class Credentials(object):
     def shell_exports(self):
         """Return list of (key, val) exports we want to have in the shell"""
         cred_path = self.credential_path
-        return self.keys.exports() + [
+        return self.keys.exports() + cred_path.repository.shell_exports() + cred_path.account.shell_exports() + cred_path.user.shell_exports() + [
               ("CREDO_CURRENT_REPO", cred_path.repository.name)
             , ("CREDO_CURRENT_USER", cred_path.user.name)
             , ("CREDO_CURRENT_ACCOUNT", cred_path.account.name)

@@ -1,5 +1,6 @@
 from credo.asker import ask_user_for_secrets, ask_user_for_half_life, ask_for_choice_or_new
 from credo.errors import CantEncrypt, CantSign, BadCredential, CredoError
+from credo.cred_types.environment import Unset
 from credo.helper import print_list_of_tuples
 from credo.structure import repository
 from credo.amazon import IamPair
@@ -29,7 +30,10 @@ def do_current(credo, **kwargs):
 def do_display(credo, **kwargs):
     """Just print out the chosen creds"""
     for key, val in credo.chosen.shell_exports():
-        print "export {0}={1}".format(key, val)
+        if val is Unset:
+            print "unset {0}".format(key)
+        else:
+            print "export {0}={1}".format(key, val)
     credo.chosen.credential_path.repository.synchronize()
 
 def do_synchronize(credo, **kwargs):
@@ -40,7 +44,12 @@ def do_synchronize(credo, **kwargs):
 def do_exec(credo, command, **kwargs):
     """Exec some command with aws credentials in the environment"""
     environment = dict(os.environ)
-    environment.update(dict(credo.chosen.shell_exports()))
+    for key, val in credo.chosen.shell_exports():
+        if val == Unset:
+            if key in environment:
+                del environment[key]
+        else:
+            environment[key] = val
     os.execvpe(command[0], command, environment)
     credo.chosen.credential_path.repository.synchronize()
 

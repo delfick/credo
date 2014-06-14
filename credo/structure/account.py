@@ -21,6 +21,10 @@ class Account(object):
         """Proxy credential_path"""
         return self.credential_path.repository.name
 
+    def shell_exports(self):
+        """Get us some environment exports if there are any"""
+        return []
+
     @property
     def account_info_location(self):
         """Location of where our account id is"""

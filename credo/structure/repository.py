@@ -73,6 +73,10 @@ class Repository(object):
         """Ask the driver to synchronize the folder"""
         self.driver.synchronize(override=override)
 
+    def shell_exports(self):
+        """Get us some environment exports if there are any"""
+        return []
+
     @property
     def versioned(self):
         """Say whether the driver is versioned or not"""
