@@ -1,5 +1,6 @@
 from credo.helper import copy_dict_structure
 
+from fnmatch import fnmatch
 import os
 
 def filtered(original, looking_for=None, required_files=None):
@@ -32,7 +33,7 @@ def filtered(original, looking_for=None, required_files=None):
                         del thing[key]
             else:
                 for key, val in thing.items():
-                    if wanted and key != wanted:
+                    if wanted and not fnmatch(key, wanted):
                         del thing[key]
                     elif only_if and not only_if(val):
                         del thing[key]
