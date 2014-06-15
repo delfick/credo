@@ -223,8 +223,8 @@ class SSHKeys(object):
             raise BadFolder("Not readable", folder=folder)
 
         for filename in os.listdir(folder):
+            location = os.path.join(folder, filename)
             if not filename.endswith(".pub") and filename not in ("known_hosts", "authorized_keys", "config"):
-                location = os.path.join(folder, filename)
                 if os.access(location, os.R_OK):
                     is_private = False
                     try:
@@ -242,7 +242,7 @@ class SSHKeys(object):
 
             elif filename.endswith(".pub"):
                 try:
-                    with open(os.path.join(folder, filename)) as fle:
+                    with open(location) as fle:
                         self.collection.add_public_key(fle.read(), location)
                 except BadSSHKey:
                     pass
