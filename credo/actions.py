@@ -38,7 +38,7 @@ def do_unset(credo, **kwargs):
     for command in make_export_commands(exports):
         print(command)
 
-def do_display(credo, chosen=None, repository=None, **kwargs):
+def do_exports(credo, chosen=None, repository=None, **kwargs):
     """Just print out the chosen creds"""
     if chosen is None:
         chosen = credo.chosen
@@ -94,7 +94,7 @@ def do_env(credo, all_accounts=False, all_users=False, find_user=False, **kwargs
         repository = part.credential_path.repository
     else:
         repository = part
-    do_display(credo, chosen=part, repository=repository)
+    do_exports(credo, chosen=part, repository=repository)
 
 def do_synchronize(credo, **kwargs):
     """Just synchronize some repo"""

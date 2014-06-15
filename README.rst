@@ -50,7 +50,7 @@ Import some keys::
 
 Export those keys to your environment::
 
-    `credo display`
+    `credo exports`
     # Display prints out the required environment exports
     # The backticks means your shell will run those exports
 
@@ -140,11 +140,13 @@ Features
 Credo usage allows you to specify what you want to do via the cli and credo will
 ask questions for any ambiguity it comes across.
 
-credo display
+credo exports
     Print out export lines for exporting the credentials
 
 credo inject
-    An alias for credo display
+    An alias for credo exports
+
+    Credo inject will be registered as sourceable by the credo sourceable command
 
 credo exec
     Run a command with credentials in the environment of that command
