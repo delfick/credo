@@ -176,7 +176,7 @@ class CliParser(object):
     def parse_help(self, action, argv):
         """Just prints help and quits"""
         # It's late, I'm tired....
-        print "Help is not here"
+        print "Try the --help option"
         sys.exit(1)
 
     def parse_version(self, action, argv):
