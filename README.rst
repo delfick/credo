@@ -130,9 +130,8 @@ So until tests are written, this should be **considered alpha quality**.
 Also, credulous has more people working on it and one of the reasons they chose
 golang was the ability to distribute a single, static binary.
 
-Credo, however, does have things credulous doesn't,
-like signatures on certain values, an arguably nicer UI and the ability to choose
-which keys are used for encryption.
+Credo, however, does have some things credulous doesn't and a different approach
+to storing and retrieving information.
 
 Features
 --------
