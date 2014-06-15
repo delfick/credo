@@ -182,7 +182,7 @@ credo remote
     changes as they are made and will try to synchronise with any remote that is
     set.
 
-    Note that this functionality is very rudimentary atm.
+    Note that this functionality is extremely rudimentary
 
     Versioning without a remote
         Makes it a git repository without adding any remote
