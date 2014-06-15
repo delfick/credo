@@ -15,7 +15,7 @@ class Credentials(EncryptedKeys):
             self.keys.rotate()
 
         if force or self.keys.changed:
-            self.contents.save(self.location, self.keys, access_keys=self.keys.access_keys)
+            self.contents.save(self.location, self.keys, access_keys=list(self.keys.access_keys))
             self.keys.unchanged()
 
             cred_path = self.credential_path
