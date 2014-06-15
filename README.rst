@@ -200,6 +200,9 @@ credo sourceable <argv>
 
     See the Advanced Usage section to see this in use.
 
+    Note that if you give "--no-sourcing" as an action option, then sourceable
+    will say this command should not be sourced
+
 It also does:
 
 * Stores your credentials so that you have repositories of users in particular
