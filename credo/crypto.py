@@ -394,20 +394,21 @@ class Crypto(object):
         if self.keys.collection.location_for_fingerprint(fingerprint):
             return True
 
+        def make_ssh_key_location(folders):
+            """Get a string to say where we have ssh key folders"""
+            if len(self.ssh_key_folders) == 1:
+                return self.ssh_key_folders[0]
+            else:
+                return "one of {0}".format(", ".join(self.ssh_key_folders))
+
         def add_more_ssh_key_folders():
             """Add more ssh key folders"""
             more_ssh_key_folders = ask_for_ssh_key_folders(already_have=self.ssh_key_folders)
             self.ssh_key_folders.extend(more_ssh_key_folders)
 
-            if len(self.ssh_key_folders) == 1:
-                ssh_key_locations = self.ssh_key_folders[0]
-            else:
-                ssh_key_locations = "one of {0}".format(", ".join(self.ssh_key_folders))
-
-            return ssh_key_locations
-
         while not self.ssh_key_folders:
-            ssh_key_locations = add_more_ssh_key_folders()
+            add_more_ssh_key_folders()
+        ssh_key_locations = make_ssh_key_location(self.ssh_key_folders)
 
         while True:
             if self.keys.collection.location_for_fingerprint(fingerprint):
@@ -422,7 +423,8 @@ class Crypto(object):
             elif choice == try_again_choice:
                 continue
             elif choice == have_another_ssh_key_folder:
-                ssh_key_locations = add_more_ssh_key_folders()
+                add_more_ssh_key_folders()
+                ssh_key_locations = make_ssh_key_location(self.ssh_key_folders)
 
             self.keys.find_public_keys()
 
