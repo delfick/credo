@@ -417,7 +417,7 @@ class Crypto(object):
             ignore_choice = "I don't have this key"
             try_again_choice = "I've added the key to {0}".format(ssh_key_locations)
             have_another_ssh_key_folder = "I have another folder with ssh keys in it"
-            choice = ask_for_choice("Looking for a public key with fingerprint {0}".format(fingerprint))
+            choice = ask_for_choice("Looking for a public key with fingerprint {0}".format(fingerprint), choices=[ignore_choice, try_again_choice, have_another_ssh_key_folder])
             if choice == ignore_choice:
                 return False
             elif choice == try_again_choice:

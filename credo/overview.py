@@ -134,10 +134,11 @@ class Credo(object):
         """Make the chosen credentials from our repository"""
         structure, chains = self.find_credentials(asker=ask_for_choice)
         chosen = list(self.credentials_from(structure, chains, complain_if_missing=True))[0]
+        chosen.credential_path.repository.pub_key_syncer.sync()
+
         if invalidate_creds:
             chosen.invalidate_creds()
 
-        chosen.credential_path.repository.pub_key_syncer.sync()
         self.set_options(repo=chosen.credential_path.repository.name, account=chosen.credential_path.account.name, user=chosen.credential_path.user.name)
 
         if rotate:

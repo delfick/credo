@@ -163,6 +163,8 @@ class PubKeySyncer(object):
         new_ones = False
         if not os.path.exists(keys_location) or ask_anyway:
             urls, pems, locations = ask_for_public_keys(remote, known_private_key_fingerprints)
+            self.crypto.add_public_keys(locations.items())
+
             if urls or pems:
                 new_ones = True
 
