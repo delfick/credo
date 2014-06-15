@@ -70,7 +70,7 @@ def do_import(credo, source=False, half_life=None, **kwargs):
     cred_path = creds.credential_path
     log.info("Making credentials for\trepo=%s\taccount=%s\tuser=%s", cred_path.repository.name, cred_path.account.name, cred_path.user.name)
 
-    credo.sync_public_keys(cred_path)
+    cred_path.repository.pub_key_syncer.sync()
     log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints)
     log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints)
 
@@ -78,7 +78,7 @@ def do_import(credo, source=False, half_life=None, **kwargs):
         raise CantEncrypt("No public keys to encrypt with", repo=cred_path.repository.name)
     if not credo.crypto.can_sign:
         log.error("Couldn't find any private keys matching your known public keys!")
-        cred_path.crypto.sync_public_keys(ask_anyway=True)
+        cred_path.repository.pub_key_syncer.sync(ask_anyway=True)
         if not credo.crypto.can_sign:
             raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
 

@@ -1,9 +1,9 @@
-from credo.asker import ask_for_choice, ask_for_public_keys, ask_for_choice_or_new
-from credo.errors import UserQuit, BadConfiguration, RepoError
+from credo.asker import ask_for_choice, ask_for_choice_or_new
+from credo.errors import UserQuit, RepoError
 from credo.versioning import determine_driver
+from credo.pub_keys import PubKeySyncer
 
 import logging
-import json
 import os
 
 log = logging.getLogger("credo.versioning")
@@ -63,11 +63,15 @@ def configure(repo_name, location, new_remote=None, version_with=None):
 
 class Repository(object):
     """Understands how to version a directory"""
-    def __init__(self, name, location):
+    def __init__(self, name, location, crypto):
         self.name = name
+        self.crypto = crypto
         self.location = location
 
         self.driver = determine_driver(location)
+
+        root_dir = os.path.join(os.path.dirname(self.location), "..")
+        self.pub_key_syncer = PubKeySyncer(root_dir, self)
 
     def synchronize(self, override=False):
         """Ask the driver to synchronize the folder"""
@@ -145,76 +149,4 @@ class Repository(object):
                 changes.append(filename)
 
         self.driver.add_change(message, changes)
-
-    def get_public_keys(self, ask_anyway=False, known_private_key_fingerprints=None):
-        """
-        Return public keys for this repository as (urls, pems, locations, new_ones)
-        Where locations is a map of {<pem>: <location>} for when we know the location
-        and new_ones says whether we got any new ones from the user
-        """
-        keys_location = os.path.join(self.location, "keys")
-
-        result = {}
-        locations = {}
-
-        if os.path.exists(keys_location):
-            try:
-                with open(keys_location) as fle:
-                    result = json.load(fle)
-            except ValueError as err:
-                result = self.fix_keys(keys_location, err)
-
-        new_ones = False
-        if not os.path.exists(keys_location) or ask_anyway:
-            urls, pems, locations = ask_for_public_keys(self.driver.remote, known_private_key_fingerprints)
-            if urls or pems:
-                new_ones = True
-
-            if "urls" not in result:
-                result["urls"] = []
-            if "pems" not in result:
-                result["pems"] = []
-            result["urls"].extend(urls)
-            result["pems"].extend(pems)
-
-        urls = result.get("urls")
-        pems = result.get("pems")
-        if urls or pems:
-            try:
-                content = json.dumps(result, indent=4)
-            except ValueError as err:
-                raise BadConfiguration("Couldn't write out keys json", err=err)
-
-            log.debug("Writing out public keys\tlocation=%s", keys_location)
-            dirname = os.path.dirname(keys_location)
-            if not os.path.exists(dirname):
-                os.makedirs(dirname)
-            with open(keys_location, 'w') as fle:
-                fle.write(content)
-            self.add_change("Adjusting known public keys", [keys_location], repo=self.name)
-
-        return result.get("urls", []), result.get("pems", []), locations, new_ones
-
-    def fix_keys(self, location, error):
-        """Get user to fix the keys file"""
-        info = {"error": error}
-        while True:
-            quit_choice = "Quit"
-            remove_choice = "Remove the file"
-            try_again_choice = "I fixed it, Try again"
-            choices = [try_again_choice, remove_choice, quit_choice]
-            response = ask_for_choice("Couldn't load {0} as a json file ({1})".format(location, info["error"]), choices)
-
-            if response == quit_choice:
-                raise UserQuit()
-
-            elif response == remove_choice:
-                os.remove(location)
-                return {}
-
-            else:
-                try:
-                    return json.load(location)
-                except ValueError as err:
-                    info["error"] = err
 

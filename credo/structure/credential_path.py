@@ -17,7 +17,7 @@ class CredentialPath(object):
 
     def fill_out(self, directory_structure, repo, account, user):
         """Make the things leading up to the credentials"""
-        self.repository = Repository(repo, directory_structure[repo]['/location/'])
+        self.repository = Repository(repo, directory_structure[repo]['/location/'], self.crypto)
         self.account = Account(account, directory_structure[repo][account]['/location/'], self)
         self.user = User(user, directory_structure[repo][account][user]['/location/'], self)
 

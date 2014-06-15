@@ -4,10 +4,8 @@ from credo.structure.credential_path import CredentialPath
 from credo.crypto import Crypto
 from credo import explorer
 
-import requests
 import logging
 import json
-import time
 import os
 
 log = logging.getLogger("credo.overview")
@@ -139,7 +137,7 @@ class Credo(object):
         if invalidate_creds:
             chosen.invalidate_creds()
 
-        self.sync_public_keys(chosen.credential_path)
+        chosen.credential_path.repository.pub_key_syncer.sync()
         self.set_options(repo=chosen.credential_path.repository.name, account=chosen.credential_path.account.name, user=chosen.credential_path.user.name)
 
         if rotate:
@@ -147,7 +145,7 @@ class Credo(object):
                 changed = chosen.credential_path.repository.synchronize(override=True)
                 if changed:
                     chosen.load()
-                    self.sync_public_keys(chosen.credential_path)
+                    chosen.credential_path.repository.pub_key_syncer.sync()
 
             chosen.save()
         return chosen
@@ -256,126 +254,4 @@ class Credo(object):
         for option in self.options_from_config:
             if option in options:
                 setattr(self, option, options[option])
-
-    ########################
-    ###   SSH KEYS
-    ########################
-
-    def sync_public_keys(self, credential_path, ask_anyway=False):
-        """
-        Find public keys for this credential_path and add them to the crypto object
-        And remove public keys we don't know about anymore
-        """
-        info = {}
-        added = []
-        crypto = credential_path.crypto
-        while ask_anyway or not crypto.can_encrypt:
-            if "urls" not in info:
-                info["urls"] = []
-            if "pems" not in info:
-                info["pems"] = []
-            if "locations" not in info:
-                info["locations"] = {}
-
-            urls, pems, locations, new_ones = credential_path.repository.get_public_keys(ask_anyway=ask_anyway, known_private_key_fingerprints=self.crypto.private_key_fingerprints)
-            if not new_ones and ask_anyway:
-                break
-
-            info["urls"].extend(urls)
-            info["pems"].extend(pems)
-            info["locations"].update(locations)
-
-            downloaded = []
-            for url in info.get("urls", []):
-                downloaded.extend(self.download_pems(url))
-            info["pems"].extend(downloaded)
-
-            for pem in info["pems"]:
-                location = info["locations"].get(pem)
-                fingerprint = crypto.add_public_keys([pem]).get(pem)
-                added.append(fingerprint)
-                if not fingerprint:
-                    log.error("Failed to add public key\tpem=%s", pem)
-                else:
-                    if location:
-                        log.debug("Adding a public key\tlocation=%s\tfingerprint=%s", location, fingerprint)
-                    else:
-                        log.debug("Adding a public key\tfingerprint=%s", fingerprint)
-
-            if not crypto.can_encrypt:
-                log.error("Was unable to find any public keys")
-                del info["urls"]
-                del info["pems"]
-            else:
-                break
-
-        for fingerprint in crypto.public_key_fingerprints:
-            if fingerprint not in added:
-                log.info("Removing public key we aren't encrypting with anymore\tfingerprint=%s", fingerprint)
-                crypto.remove_public_key()
-
-    def download_pems(self, url):
-        """Get pems from some url"""
-        cache = {}
-        cache_location = os.path.join(self.root_dir, "cache")
-        if os.path.exists(cache_location):
-            try:
-                with open(cache_location) as fle:
-                    cache = json.load(fle)
-            except ValueError as err:
-                log.warning("Failed to load the pem url cache\tlocation=%s\terr=%s", cache_location, err)
-        else:
-            log.debug("No cache to load urls from\tlocation=%s", cache_location)
-
-        last_downloaded = None
-        if url in cache.get("cached", {}):
-            if "times" in cache and url in cache["times"]:
-                last_downloaded = cache["times"][url]
-                if not isinstance(last_downloaded, float) and not isinstance(last_downloaded, int):
-                    last_downloaded = None
-
-                else:
-                    diff = time.time() - last_downloaded
-                    if diff < 0 or diff > 3600:
-                        log.info("Cache for %s is older than an hour, re-getting the keys", url)
-                        last_downloaded = None
-
-        cached = []
-        if last_downloaded is not None and url in cache.get("cached", {}):
-            cached = cache["cached"][url]
-            if isinstance(cached, list) and all(isinstance(pem, basestring) for pem in cached):
-                log.info("Using %s cached pem keys from %s", len(cached), url)
-                return cached
-
-        if "times" not in cache:
-            cache["times"] = {}
-        cache["times"][url] = time.time()
-
-        if "cached" not in cache:
-            cache["cached"] = {}
-
-        try:
-            lines = requests.get(url).content.split('\n')
-        except requests.exceptions.RequestException as err:
-            lines = None
-            log.error("Failed to get pem keys from url\turl=%s\terr=%s\treason=%s", url, err.__class__.__name__, err)
-            if cached:
-                log.info("Using %s keys from cache of %s", len(cached), url)
-
-        if lines:
-            cached = []
-            for line in lines:
-                if line.startswith("ssh-rsa"):
-                    cached.append(line)
-
-            cache["cached"][url] = cached
-            log.info("Got %s keys from %s", len(cached), url)
-
-            try:
-                with open(cache_location, "w") as fle:
-                    json.dump(cache, fle)
-            except ValueError as err:
-                log.error("Couldn't write cache\tlocation=%s\terr=e%s", cache_location, err)
-
-        return cached
 
