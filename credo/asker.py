@@ -360,7 +360,65 @@ def ask_for_ssh_key_folders(already_have=None):
 
     return result
 
-def ask_for_env():
+def ask_for_env(part, env, remove_env, ask_for_more=False):
     """Ask the user for environment variables to store"""
-    return []
+    if env:
+        part.add_env(env, part.crypto)
+    if remove_env:
+        part.remove_env(remove_env, part.crypto)
+
+    if ask_for_more or not env:
+        env_file = part.get_env_file(part.crypto)
+        while True:
+            stop_choice = "Stop specifying environment variables"
+            show_choice = "Show what we currently have stored"
+            add_new_choice = "Create new environment variable"
+            uncapture_choice = "Uncapture a variable"
+            use_existing_choice = "Use existing environment variable"
+
+            choices = [stop_choice, show_choice, add_new_choice, use_existing_choice]
+            if any(env_file.keys):
+                choices.append(uncapture_choice)
+                print >> sys.stderr, "Captured env variables for [{0}]".format(", ".join('"{0}"'.format(key) for key in env_file.keys.keys()))
+
+            choice = ask_for_choice("What to do?", choices=choices)
+            if choice == stop_choice:
+                break
+            elif choice == show_choice:
+                print >> sys.stderr, ""
+                for key, val in env_file.keys.items():
+                    print >> sys.stderr, "{0} = {1}".format(key, val)
+                    print >> sys.stderr, "---"
+                    print >> sys.stderr, ""
+
+                if hasattr(part, "parent_path_part"):
+                    shell_exports = part.parent_path_part.shell_exports()
+                    if shell_exports:
+                        print "=" * 80
+                        print "Overriding"
+                        print "-" * 40
+                        print ""
+                        for key, val in shell_exports:
+                            print >> sys.stderr, "{0} = {1}".format(key, val)
+                            print >> sys.stderr, "==="
+                            print >> sys.stderr, ""
+
+            elif choice == add_new_choice:
+                name = get_response(prompt="Name: ")
+                value = get_response(prompt="Value: ")
+                part.add_env([(name, value)], part.crypto)
+            elif choice == use_existing_choice:
+                name = get_response(prompt="Name: ")
+                if name not in os.environ:
+                    log.error("There is no environment variable called %s", name)
+                else:
+                    part.add_env([(name, os.environ[name])], part.crypto)
+            elif choice == uncapture_choice:
+                ignore_choice = "Actually, I don't want to uncapture any"
+                choices = [ignore_choice] + env_file.keys.keys()
+                choice = ask_for_choice("Which do you want to remove?", choices=choices)
+                if choice != ignore_choice:
+                    part.remove_env([choice], part.crypto)
+
+    return env, remove_env
 

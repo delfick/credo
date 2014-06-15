@@ -82,14 +82,7 @@ def do_capture(credo, env=None, remove_env=None, all_accounts=False, all_users=F
     else:
         repository = part
 
-    if not env:
-        env = ask_for_env()
-
-    if env:
-        part.add_env(env, credo.crypto)
-    if remove_env:
-        part.remove_env(remove_env, credo.crypto)
-
+    env, remove_env = ask_for_env(part, env, remove_env, ask_for_more=False)
     keys = part.get_env_file(credo.crypto)
     if keys.changed:
         repository.add_change("Capturing environment variables", [part.environment_location])
