@@ -167,6 +167,16 @@ credo current
 credo synchronize
     Make a repository synced with it's remote
 
+credo capture
+    Capture environment variables
+
+credo env
+    Display only environment variables that have been captured
+
+credo unset
+    Reset any environment variables credo has changed to what they were before
+    credo set them
+
 credo remote
     Allows you to edit the remote for some repository. All commands will add
     changes as they are made and will try to synchronise with any remote that is
@@ -208,6 +218,7 @@ It also does:
   messages to the screen
 * Tries to be informative about what is happening
 * Rotate keys automatically
+* Can capture environment variables per repository, account and user
 
 Rotation
 --------
@@ -244,10 +255,13 @@ Credo will layout your credentials using the following folder structure::
         repos/
             <repository>/
                 keys
+                env.json
                 <account>/
                     account_id
+                    env.json
                     <user>/
                         username
+                        env.json
                         credentials.json
 
 Where ``config.json`` has some configuration for credo, ``account_id`` holds
@@ -278,6 +292,10 @@ signifying when that credential was created and for each key we use to decrypt
 the data, a secret that is encrypted with your ssh key, a signature saying your
 private key created that secret, and the credentials themselves encrypted with
 AES using that secret.
+
+Each ``env.json`` file has a similar format to ``credentials.json`` but it has
+type of ``environment`` and includes environment variables that have been captured
+by the ``credo capture`` command.
 
 Tests
 -----
