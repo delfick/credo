@@ -9,9 +9,9 @@ import os
 
 log = logging.getLogger("credo.versioning")
 
-def synchronize(repo_name, location):
+def synchronize(repo_name, location, crypto):
     """Synchronise this repository"""
-    repository = Repository(repo_name, location)
+    repository = Repository(repo_name, location, crypto)
     if repository.versioned:
         repository.synchronize()
 

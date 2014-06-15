@@ -99,7 +99,7 @@ def do_env(credo, all_accounts=False, all_users=False, find_user=False, **kwargs
 def do_synchronize(credo, **kwargs):
     """Just synchronize some repo"""
     repo_name, location = credo.find_one_repository(want_new=False)
-    structure.repository.synchronize(repo_name, location)
+    structure.repository.synchronize(repo_name, location, credo.crypto)
 
 def do_exec(credo, command, **kwargs):
     """Exec some command with aws credentials in the environment"""
