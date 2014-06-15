@@ -9,7 +9,7 @@ import shutil
 import pygit2
 import os
 
-log = logging.getLogger(name="credo.versioning.git")
+log = logging.getLogger("credo.versioning.git")
 
 class GitDriver(Base):
     """Knows how to git"""

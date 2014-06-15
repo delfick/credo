@@ -10,7 +10,7 @@ import time
 import sys
 import os
 
-log = logging.getLogger("credo.overview")
+log = logging.getLogger("credo.pub_keys")
 
 class PubKeySyncer(object):
     """Knows about what public keys we can encrypt with"""

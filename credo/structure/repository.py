@@ -7,7 +7,7 @@ from credo.pub_keys import PubKeySyncer
 import logging
 import os
 
-log = logging.getLogger("credo.versioning")
+log = logging.getLogger("credo.structure.repository")
 
 def synchronize(repo_name, location, crypto):
     """Synchronise this repository"""

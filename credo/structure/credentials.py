@@ -4,7 +4,7 @@ from credo.errors import BadCredentialFile
 
 import logging
 
-log = logging.getLogger("credo.structure")
+log = logging.getLogger("credo.structure.credentials")
 
 class Credentials(EncryptedKeys):
     """Knows about credential files"""

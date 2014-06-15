@@ -4,7 +4,7 @@ from credo.helper import SignedValueFile
 import logging
 import os
 
-log = logging.getLogger("credo.account")
+log = logging.getLogger("credo.structure.account")
 
 class Account(object, EnvironmentMixin):
     def __init__(self, name, location, credential_path):
