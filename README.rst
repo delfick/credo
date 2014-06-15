@@ -34,7 +34,7 @@ Linux
 
 And then use pip!::
 
-    pip install credo
+    pip install credo_manager
 
 Or if you're developing it::
 

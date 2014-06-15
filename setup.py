@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 from credo import VERSION
 
 setup(
-      name = "credo"
+      name = "credo_manager"
     , version = VERSION
     , packages = ['credo'] + ['credo.%s' % pkg for pkg in find_packages('credo')]
     , include_package_data = True
@@ -32,7 +32,7 @@ setup(
       }
 
     # metadata for upload to PyPI
-    , url = "http://credo.readthedocs.org"
+    , url = "https://github.com/delfick/credo"
     , author = "Stephen Moore"
     , author_email = "stephen@delfick.com"
     , description = "Manager for aws credentials"
