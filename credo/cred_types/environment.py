@@ -1,15 +1,29 @@
-from credo.structure.encrypted_keys import EncryptedKeys, Unset
-from credo.errors import BadKeyFile
+from credo.structure.encrypted_keys import EncryptedKeys
+from credo.errors import BadKeyFile, CredoError
 import logging
 import os
 
 log = logging.getLogger("credo.cred_types.environment")
 
-class Environment(EncryptedKeys):
+class EnvironmentFile(EncryptedKeys):
     """Collection of environment variables"""
-    def __init__(self, location, credential_path):
+    def __init__(self, location):
         self.location = location
-        self.credential_path = credential_path
+
+    @classmethod
+    def shell_exports_from(self, location, logger):
+        """Return the shell exports from this environment file and log errors"""
+        if not os.path.exists(location):
+            return []
+
+        keys = EnvironmentFile(location)
+        try:
+            keys.load()
+        except CredoError as error:
+            log.warning("Failed to load environment variables\tlocation=%s\terror_type=%s\terror=%s", location, error.__class__.__name__, error)
+            return []
+
+        return keys.shell_exports()
 
     @property
     def type(self):
@@ -48,7 +62,7 @@ class Environment(EncryptedKeys):
         for key in self.values:
             name = "CREDO_UNSET_{0}".format(key)
             if key not in os.environ:
-                unsetters[name] = Unset
+                unsetters[name] = "CREDO_UNSET"
             else:
                 unsetters[name] = os.environ[key]
 

@@ -1,4 +1,5 @@
 from credo.asker import ask_for_choice, ask_for_choice_or_new
+from credo.cred_types.environment import EnvironmentFile
 from credo.errors import UserQuit, RepoError
 from credo.versioning import determine_driver
 from credo.pub_keys import PubKeySyncer
@@ -79,7 +80,8 @@ class Repository(object):
 
     def shell_exports(self):
         """Get us some environment exports if there are any"""
-        return []
+        environment_location = os.path.join(self.location, "env.json")
+        return EnvironmentFile.shell_exports_from(environment_location, log)
 
     @property
     def versioned(self):

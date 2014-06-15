@@ -1,8 +1,5 @@
 from credo.helper import KeysFile
 
-class Unset(object):
-    """Used to say unset an environment variable"""
-
 class EncryptedKeys(object):
     """Collection of environment variables"""
     def __init__(self, location, credential_path):

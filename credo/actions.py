@@ -1,7 +1,6 @@
 from credo.asker import ask_user_for_secrets, ask_user_for_half_life, ask_for_choice_or_new
 from credo.errors import CantEncrypt, CantSign, BadCredential, CredoError
-from credo.cred_types.environment import Unset
-from credo.helper import print_list_of_tuples
+from credo.helper import print_list_of_tuples, make_export_commands
 from credo.structure import repository
 from credo.amazon import IamPair
 
@@ -27,13 +26,24 @@ def do_current(credo, **kwargs):
                 iam_pair.ask_amazon_for_username(), aliases[0], iam_pair.ask_amazon_for_account()
                 )
 
+def do_unset(credo, **kwargs):
+    """Just print out the exports and unsets necessary to unset credo exports"""
+    exports = []
+    for key, val in os.environ.items():
+        if key.startswith("CREDO_UNSET"):
+            name = key[12:]
+            exports.append((name, val))
+            exports.append((key, "CREDO_UNSET"))
+
+    for command in make_export_commands(exports):
+        print(command)
+
 def do_display(credo, **kwargs):
     """Just print out the chosen creds"""
-    for key, val in credo.chosen.shell_exports():
-        if val is Unset:
-            print "unset {0}".format(key)
-        else:
-            print "export {0}=\"{1}\"".format(key, val.replace("\\\"", "\"").replace("\"", "\\\""))
+    shell_exports = credo.chosen.shell_exports()
+    do_unset(credo)
+    for command in make_export_commands(shell_exports):
+        print(command)
     credo.chosen.credential_path.repository.synchronize()
 
 def do_synchronize(credo, **kwargs):
@@ -45,7 +55,7 @@ def do_exec(credo, command, **kwargs):
     """Exec some command with aws credentials in the environment"""
     environment = dict(os.environ)
     for key, val in credo.chosen.shell_exports():
-        if val == Unset:
+        if val == "CREDO_UNSET":
             if key in environment:
                 del environment[key]
         else:

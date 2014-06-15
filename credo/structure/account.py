@@ -1,3 +1,4 @@
+from credo.cred_types.environment import EnvironmentFile
 from credo.helper import SignedValueFile
 
 import logging
@@ -23,7 +24,8 @@ class Account(object):
 
     def shell_exports(self):
         """Get us some environment exports if there are any"""
-        return []
+        environment_location = os.path.join(self.location, "env.json")
+        return EnvironmentFile.shell_exports_from(environment_location, log)
 
     @property
     def account_info_location(self):

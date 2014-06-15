@@ -28,6 +28,13 @@ def print_list_of_tuples(lst, prefix):
     if any(val for _, val in lst):
         print "{0}: {1}".format(prefix, " | ".join("{0}={1}".format(key, val) for key, val in lst if val))
 
+def make_export_commands(exports):
+    for key, val in exports:
+        if val == "CREDO_UNSET":
+            yield "unset {0}".format(key)
+        else:
+            yield "export {0}=\"{1}\"".format(key, val.replace("\\\"", "\"").replace("\"", "\\\""))
+
 class SignedValueFile(object):
     """Knows how to store a value in a file with a signature"""
     def __init__(self, location, crypto, extra_info):
