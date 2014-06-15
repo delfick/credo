@@ -241,20 +241,29 @@ Credo will layout your credentials using the following folder structure::
 
         repos/
             <repository>/
+                keys
                 <account>/
                     account_id
                     <user>/
+                        username
                         credentials.json
 
 Where ``config.json`` has some configuration for credo, ``account_id`` holds
 the id of the amazon account represented by that folder, and ``credentials.json``
 has amazon credential for that user and account.
 
+The ``keys`` file holds the pems you want credo to encrypt details with. It is
+signed by one of your private keys to ensure only your public keys are in this
+file.
+
 The ``account_id`` is a file with one line containing
 "<account_id>,<fingerprint>,<signature>" where the fingerprint and signature is
 used to verify that one of your private keys recorded this account_id under this
 account and repository. This is to ensure that the credentials found in
 credentials.json do actually belong to this account and repo.
+
+The ``username`` is a file like the ``account_id`` but holds the amazon username
+associated with this user, and a signature used to validate this name.
 
 The ``credentials.json`` contains the credentials encrypted with each public key
 it knows about and a signature used to verify that the credentials were written
