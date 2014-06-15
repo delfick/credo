@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from credo.asker import ask_for_choice, ask_for_public_keys
 from credo.errors import BadConfiguration, UserQuit
 
@@ -5,6 +7,7 @@ import requests
 import logging
 import json
 import time
+import sys
 import os
 
 log = logging.getLogger("credo.overview")
@@ -25,7 +28,9 @@ class PubKeySyncer(object):
         added = []
         crypto = self.crypto
 
-        while ask_anyway or not crypto.can_encrypt:
+        first = True
+        while first or (ask_anyway or not crypto.can_encrypt):
+            first = False
             if "urls" not in info:
                 info["urls"] = []
             if "pems" not in info:
@@ -48,7 +53,7 @@ class PubKeySyncer(object):
 
             for pem in info["pems"]:
                 location = info["locations"].get(pem)
-                fingerprint = crypto.add_public_keys([pem]).get(pem)
+                fingerprint = crypto.add_public_keys([(pem, location)]).get(pem)
                 added.append(fingerprint)
                 if not fingerprint:
                     log.error("Failed to add public key\tpem=%s", pem)
@@ -68,7 +73,7 @@ class PubKeySyncer(object):
         for fingerprint in crypto.public_key_fingerprints:
             if fingerprint not in added:
                 log.info("Removing public key we aren't encrypting with anymore\tfingerprint=%s", fingerprint)
-                crypto.remove_public_key()
+                crypto.remove_public_key(fingerprint)
 
     def download_pems(self, url):
         """Get pems from some url"""
@@ -153,6 +158,8 @@ class PubKeySyncer(object):
             except ValueError as err:
                 result = self.fix_keys(keys_location, err)
 
+            result = self.validate_keys_file(keys_location, result)
+
         new_ones = False
         if not os.path.exists(keys_location) or ask_anyway:
             urls, pems, locations = ask_for_public_keys(remote, known_private_key_fingerprints)
@@ -170,6 +177,8 @@ class PubKeySyncer(object):
         pems = result.get("pems", [])
 
         if urls or pems:
+            for_signing = self.make_signing_value(urls, pems)
+            result["signature"] = self.crypto.create_signature(for_signing)
             try:
                 content = json.dumps(result, indent=4)
             except ValueError as err:
@@ -207,4 +216,113 @@ class PubKeySyncer(object):
                     return json.load(location)
                 except ValueError as err:
                     info["error"] = err
+
+    def make_signing_value(self, urls, pems):
+        """Make a signature for our public keys file"""
+        return "urls:{0}||pems:{0}".format(",".join(sorted(urls)), ",".join(sorted(pems)))
+
+    def validate_keys_file(self, location, contents):
+        """Validate the signature in our contents file"""
+        signature = contents.get("signature")
+        if signature:
+            if not isinstance(signature, list) or len(signature) != 2:
+                log.warning("Signature for keys file is not a valid format\tlocation=%s", location)
+                signature = None
+        else:
+            log.warning("Didn't find a signature in the keys file\tlocation=%s", location)
+
+        if not signature:
+            return self.manually_confirm_keys(location, contents)
+
+        fingerprint, signature = signature
+        for_signing = self.make_signing_value(contents.get("urls", []), contents.get("pems", []))
+
+        has_public_key = self.crypto.retrieve_public_key_from_disk(fingerprint, reason="to check the signature in {0}".format(location))
+        if has_public_key and self.crypto.is_signature_valid(for_signing, fingerprint, signature):
+            return contents
+        else:
+            log.warning("Couldn't validate the signature for the keys file\tlocation=%s", location)
+            return self.manually_confirm_keys(location, contents)
+
+    def manually_confirm_keys(self, location, contents):
+        """Manually confirm the urls and pems in our contents file"""
+        result = {"pems": [], "urls": []}
+        pems = contents.get("pems", [])
+        urls = contents.get("urls", [])
+
+        if pems:
+            log.info("You need to confirm that you own the private keys for these public keys")
+            fingerprints_with_pems = self.crypto.zip_with_fingerprints(pems)
+            print("File contains public keys with these fingerprints", file=sys.stderr)
+            print("\t{0}".format("\n\t".join(v[0] for v in fingerprints_with_pems)), file=sys.stderr)
+
+            if self.crypto.private_key_fingerprints:
+                print("\nWe know about these private keys", file=sys.stderr)
+                print("\t{0}".format("\n\t".join(self.crypto.private_key_fingerprints)), file=sys.stderr)
+
+            matches = all(fingerprint in self.crypto.private_key_fingerprints for fingerprint, _ in fingerprints_with_pems)
+            matches_str = " (Not all the public keys match existing private keys)"
+            if matches:
+                matches_str = " (All the keys match private keys on your computer)"
+
+            quit_choice = "Quit"
+            confirm_all_choice = "I say all of them are valid {0}".format(matches_str)
+            individual_confirm_choice = "I'll confirm them individually"
+
+            if matches:
+                confirm_all_choice = "I say all of them are valid (All the keys match private keys on this computer)"
+            else:
+                individual_confirm_choice = "I'll confirm them individually (Not all the keys match private keys on this computer)"
+
+            choice = ask_for_choice("How do you want to confirm your keys?", [quit_choice, confirm_all_choice, individual_confirm_choice])
+
+            if choice == quit_choice:
+                raise UserQuit()
+            elif choice == confirm_all_choice:
+                result["pems"].extend(pems)
+            else:
+                for fingerprint, pem in fingerprints_with_pems:
+                    matches = fingerprint in self.crypto.private_key_fingerprints
+                    matches_str = ""
+                    if matches:
+                        matches_str = " (Matches a private key on this computer)"
+                    quit_choice = "Quit"
+                    exclude_choice = "No"
+                    include_choice = "yes"
+                    if matches:
+                        include_choice = "Yes{0}".format(matches_str)
+                    else:
+                        exclude_choice = "No{0}".format(matches_str)
+
+                    choice = ask_for_choice("Is {0} a fingerprint of yours?".format(fingerprint), [include_choice, exclude_choice, quit_choice])
+                    if choice == quit_choice:
+                        raise UserQuit()
+                    elif choice == include_choice:
+                        result["pems"].append(pem)
+
+        if urls:
+            log.info("You need to confirm you want keys from these urls")
+            print("\t{0}".join("\n\t".join(urls)))
+
+            quit_choice = "Quit"
+            confirm_all_choice = "All of them are valid"
+            individual_confirm_choice = "I'll confirm them individually"
+            choice = ask_for_choice("How do you want to confirm the urls?", [quit_choice, confirm_all_choice, individual_confirm_choice])
+
+            if choice == quit_choice:
+                raise UserQuit()
+            elif confirm_all_choice:
+                result["urls"].extend(urls)
+            else:
+                for url in urls:
+                    quit_choice = "Quit"
+                    exclude_choice = "No"
+                    include_choice = "Yes"
+                    choice = ask_for_choice("Is this urls fine?", [include_choice, exclude_choice, quit_choice])
+                    if choice == quit_choice:
+                        raise UserQuit()
+                    elif choice == include_choice:
+                        result["urls"].append(url)
+
+        return result
 

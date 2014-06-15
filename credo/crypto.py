@@ -3,7 +3,7 @@ from credo.errors import (
     , BadPlainText, PasswordRequired, BadPrivateKey, BadPublicKey
     , NoSuchFingerPrint, CantFindPrivateKey, InvalidData
     )
-from credo.asker import ask_for_choice, get_response
+from credo.asker import ask_for_choice, get_response, ask_for_ssh_key_folders
 
 from Crypto.Cipher import PKCS1_OAEP, AES
 from Crypto.PublicKey import RSA
@@ -50,11 +50,13 @@ class KeyCollection(object):
 
         raise CantFindPrivateKey(**info)
 
-    def add_public_key(self, pem_data):
+    def add_public_key(self, pem_data, location=None):
         """Record this public key"""
         rsaobj = self.rsaobj_from_pem(pem_data)
         fingerprint = self.make_fingerprint(rsaobj)
         self.public_fingerprints[fingerprint] = rsaobj
+        if location:
+            self.fingerprint_to_location[fingerprint] = location
         return fingerprint
 
     def remove_public_key(self, fingerprint):
@@ -213,8 +215,8 @@ class SSHKeys(object):
         """Says whether we have a public key with this fingerprint"""
         return fingerprint in self.collection.public_fingerprints
 
-    def find_private_keys(self, folder):
-        """Find more private keys in specified folder"""
+    def find_keys(self, folder):
+        """Find more private and public keys in specified folder"""
         if not os.path.exists(folder):
             raise BadFolder("Doesn't exist", folder=folder)
         if not os.access(folder, os.R_OK):
@@ -224,17 +226,36 @@ class SSHKeys(object):
             if not filename.endswith(".pub") and filename not in ("known_hosts", "authorized_keys", "config"):
                 location = os.path.join(folder, filename)
                 if os.access(location, os.R_OK):
+                    is_private = False
                     try:
                         self.collection.add_private_key(location)
+                        is_private = True
                     except BadSSHKey:
                         pass
+
+                    if not is_private:
+                        try:
+                            with open(location) as fle:
+                                self.collection.add_public_key(fle.read(), location)
+                        except BadSSHKey:
+                            pass
+
+            elif filename.endswith(".pub"):
+                try:
+                    with open(os.path.join(folder, filename)) as fle:
+                        self.collection.add_public_key(fle.read(), location)
+                except BadSSHKey:
+                    pass
 
     def add_public_keys(self, public_keys):
         """Add the specified public keys"""
         fingerprints = {}
         for pem_data in public_keys:
             try:
-                fingerprints[pem_data] = self.collection.add_public_key(pem_data)
+                location = None
+                if (isinstance(pem_data, tuple) or isinstance(pem_data, list)) and len(pem_data) == 2:
+                    pem_data, location = pem_data
+                fingerprints[pem_data] = self.collection.add_public_key(pem_data, location=location)
             except BadSSHKey as err:
                 log.error("Found a bad public key\terr=%s", err)
         return fingerprints
@@ -324,11 +345,11 @@ class Crypto(object):
         """Return whether we have any private keys"""
         return len(self.private_key_fingerprints) > 0
 
-    def find_private_keys(self, folder):
+    def find_keys(self, folder):
         """Find keys to add"""
         if folder not in self.ssh_key_folders:
             self.ssh_key_folders.append(folder)
-        return self.keys.find_private_keys(folder)
+        return self.keys.find_keys(folder)
 
     def add_public_keys(self, public_keys):
         """Add public keys"""
@@ -344,13 +365,66 @@ class Crypto(object):
 
     def is_signature_valid(self, signed, fingerprint, signature):
         """Return whether this signature is valid for the signed data"""
-        return self.keys.collection.public_rsaobj_for(fingerprint).verify_ssh_sig(signed, paramiko.Message(unhexlify(signature)))
+        try:
+            return self.keys.collection.public_rsaobj_for(fingerprint).verify_ssh_sig(signed, paramiko.Message(unhexlify(signature)))
+        except TypeError:
+            return False
 
     def create_signature(self, for_signing):
         """Return a signature given this data"""
         fingerprint = self.keys.collection.get_any_private_fingerprint(need_private_key_for="signing")
         message = self.keys.collection.private_rsaobj_for(fingerprint).sign_ssh_data(for_signing)
         return fingerprint, hexlify(str(message))
+
+    def zip_with_fingerprints(self, pems):
+        """Return (fingerprint, pem) for each pem in pems"""
+        result = []
+        for pem in pems:
+            try:
+                rsaobj = self.keys.collection.rsaobj_from_pem(pem)
+                fingerprint = self.keys.collection.make_fingerprint(rsaobj)
+            except BadSSHKey as error:
+                log.warning("Found a pem key that was invalid\terror=%s", error)
+
+            result.append((fingerprint, pem))
+        return result
+
+    def retrieve_public_key_from_disk(self, fingerprint, reason=None):
+        """Get this fingerprint and return whether we successfully did so"""
+        if self.keys.collection.location_for_fingerprint(fingerprint):
+            return True
+
+        def add_more_ssh_key_folders():
+            """Add more ssh key folders"""
+            more_ssh_key_folders = ask_for_ssh_key_folders(already_have=self.ssh_key_folders)
+            self.ssh_key_folders.extend(more_ssh_key_folders)
+
+            if len(self.ssh_key_folders) == 1:
+                ssh_key_locations = self.ssh_key_folders[0]
+            else:
+                ssh_key_locations = "one of {0}".format(", ".join(self.ssh_key_folders))
+
+            return ssh_key_locations
+
+        while not self.ssh_key_folders:
+            ssh_key_locations = add_more_ssh_key_folders()
+
+        while True:
+            if self.keys.collection.location_for_fingerprint(fingerprint):
+                return True
+
+            ignore_choice = "I don't have this key"
+            try_again_choice = "I've added the key to {0}".format(ssh_key_locations)
+            have_another_ssh_key_folder = "I have another folder with ssh keys in it"
+            choice = ask_for_choice("Looking for a public key with fingerprint {0}".format(fingerprint))
+            if choice == ignore_choice:
+                return False
+            elif choice == try_again_choice:
+                continue
+            elif choice == have_another_ssh_key_folder:
+                ssh_key_locations = add_more_ssh_key_folders()
+
+            self.keys.find_public_keys()
 
     def decrypt_by_fingerprint(self, fingerprints, verifier, **info):
         """Return the first valid decrypted value"""

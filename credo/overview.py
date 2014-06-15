@@ -116,13 +116,13 @@ class Credo(object):
 
         crypto = Crypto()
         for folder in ssh_key_folders:
-            crypto.find_private_keys(folder)
+            crypto.find_keys(folder)
 
         # Keep asking for folders until we can sign
         while not crypto.has_private_keys():
             more_ssh_key_folders = ask_for_ssh_key_folders(already_have=crypto.ssh_key_folders)
             for folder in set(ssh_key_folders + crypto.ssh_key_folders + more_ssh_key_folders):
-                crypto.find_private_keys(folder)
+                crypto.find_keys(folder)
 
         return crypto
 
