@@ -204,6 +204,39 @@ class Credo(object):
         location = os.path.join(self.root_dir, repo_name)
         return repo_name, location
 
+    def find_credential_path_part(self, all_accounts=False, all_users=False, find_user=False):
+        """Find a repository, account or user"""
+        directory_structure, shortened = explorer.find_repo_structure(self.root_dir, levels=3)
+        mask = explorer.filtered(shortened, [self.repo, self.account, self.user])
+        asker = ask_for_choice
+
+        user_title = explorer.Stop if all_users else "User"
+        account_title = explorer.Stop if all_accounts else "Account"
+        want_any_after = 1
+        if find_user:
+            want_any_after = None
+        explorer.narrow(mask, ["Repository", account_title, user_title], asker, want_any_after=want_any_after)
+        if not mask:
+            raise CredoError("Couldn't find anything to work with")
+
+        repo = mask.keys()[0]
+        user = None
+        account = None
+        if mask[repo]:
+            account = mask[repo].keys()[0]
+            if mask[repo][account]:
+                user = mask[repo][account].keys()[0]
+
+        credential_path = CredentialPath(self.crypto)
+        credential_path.fill_out(directory_structure, repo, account, user)
+
+        if credential_path.user:
+            return credential_path.user
+        elif credential_path.account:
+            return credential_path.account
+        else:
+            return credential_path.repository
+
     ########################
     ###   CONFIGURATION
     ########################

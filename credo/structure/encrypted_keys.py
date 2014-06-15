@@ -5,6 +5,7 @@ class EncryptedKeys(object):
     def __init__(self, location, credential_path):
         self.location = location
         self.credential_path = credential_path
+        self.crypto = credential_path.crypto
 
     def add(self, key, value):
         """Add a key"""
@@ -25,24 +26,28 @@ class EncryptedKeys(object):
 
     def shell_exports(self):
         """Return list of (key, val) exports we want to have in the shell"""
-        raise NotImplementedError()
+        env_list = []
+        if hasattr(self, "extra_env"):
+            env_list.extend(self.extra_env())
+        if getattr(self, "parent_path_part", None):
+            env_list.extend(self.parent_path_part.shell_exports())
+        if hasattr(self, "exports"):
+            env_list.extend(self.exports())
+        return env_list
 
     def as_string(self):
         """Return information about keys as a string"""
         raise NotImplementedError()
 
+    @property
     def default_keys_type(self):
         """Return the default key type (i.e. list, dict)"""
         raise NotImplementedError()
 
+    @property
     def default_keys_type_name(self):
         """Return the default key type name (i.e. amazon, environment)"""
         raise NotImplementedError()
-
-    @property
-    def crypto(self):
-        """Proxy credential_path"""
-        return self.credential_path.crypto
 
     def load(self):
         """Just return the contents"""

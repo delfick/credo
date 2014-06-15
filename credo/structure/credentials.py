@@ -29,25 +29,32 @@ class Credentials(EncryptedKeys):
         log.info("Marking the credentials as invalid\trepo=%s\taccount=%s\tuser=%s", cred_path.repository.name, cred_path.account.name, cred_path.user.name)
         self.keys.invalidate_all()
 
+    @property
+    def path(self):
+        """Return the repo, account and user this represents"""
+        return "repo={0}|account={1}|user={2}|Credentials".format(self.repo_name, self.account_name, self.name)
+
+    @property
+    def parent_path_part(self):
+        """Return our user"""
+        return self.credential_path.user
+
     def make_keys(self, contents):
         """Get us some keys"""
         if contents.typ != "amazon":
             raise BadCredentialFile("Unknown credentials type", found=contents.typ, location=contents.location)
         return AmazonKeys(contents.keys, self.credential_path)
 
-    def shell_exports(self):
-        """Return list of (key, val) exports we want to have in the shell"""
-        cred_path = self.credential_path
-        return self.keys.exports() + cred_path.repository.shell_exports() + cred_path.account.shell_exports() + cred_path.user.shell_exports() + [
-              ("CREDO_CURRENT_REPO", cred_path.repository.name)
-            , ("CREDO_CURRENT_USER", cred_path.user.name)
-            , ("CREDO_CURRENT_ACCOUNT", cred_path.account.name)
-            ]
+    def exports(self):
+        """The exports specific to the credentials stored"""
+        return self.keys.exports()
 
+    @property
     def default_keys_type(self):
         """Empty keys is a list"""
         return list
 
+    @property
     def default_keys_type_name(self):
         """Assume type is amazon"""
         return "amazon"

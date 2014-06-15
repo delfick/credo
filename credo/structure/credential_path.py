@@ -18,11 +18,12 @@ class CredentialPath(object):
     def fill_out(self, directory_structure, repo, account, user):
         """Make the things leading up to the credentials"""
         self.repository = Repository(repo, directory_structure[repo]['/location/'], self.crypto)
-        self.account = Account(account, directory_structure[repo][account]['/location/'], self)
-        self.user = User(user, directory_structure[repo][account][user]['/location/'], self)
-
-        credential_location = os.path.join(self.user.location, "credentials.json")
-        self.credentials = Credentials(credential_location, self)
+        if account:
+            self.account = Account(account, directory_structure[repo][account]['/location/'], self)
+            if user:
+                self.user = User(user, directory_structure[repo][account][user]['/location/'], self)
+                credential_location = os.path.join(self.user.location, "credentials.json")
+                self.credentials = Credentials(credential_location, self)
 
     def add_change(self, location, message, **info):
         """Register a change that was made"""

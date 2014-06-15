@@ -1,8 +1,8 @@
-from credo.asker import ask_user_for_secrets, ask_user_for_half_life, ask_for_choice_or_new
+from credo.asker import ask_user_for_secrets, ask_user_for_half_life, ask_for_choice_or_new, ask_for_env
 from credo.errors import CantEncrypt, CantSign, BadCredential, CredoError
 from credo.helper import print_list_of_tuples, make_export_commands
-from credo.structure import repository
 from credo.amazon import IamPair
+from credo import structure
 
 import logging
 import os
@@ -38,18 +38,75 @@ def do_unset(credo, **kwargs):
     for command in make_export_commands(exports):
         print(command)
 
-def do_display(credo, **kwargs):
+def do_display(credo, chosen=None, repository=None, **kwargs):
     """Just print out the chosen creds"""
-    shell_exports = credo.chosen.shell_exports()
+    if chosen is None:
+        chosen = credo.chosen
+
+    if repository is None:
+        repository = credo.chosen.credential_path.repository
+
+    shell_exports = {}
+    for key, val in chosen.shell_exports():
+        shell_exports[key] = val
+
+    if not shell_exports:
+        print("# {0} has no environment variables".format(chosen.path))
+
+    unsetters = {}
+    for key, val in shell_exports.items():
+        name = "CREDO_UNSET_{0}".format(key)
+        if key not in os.environ or os.environ[key] == val:
+            unsetters[name] = "CREDO_UNSET"
+        else:
+            unsetters[name] = os.environ[key]
+
+    print("## Find values to unset")
     do_unset(credo)
-    for command in make_export_commands(shell_exports):
+
+    print("\n## Values to be set now")
+    for command in make_export_commands(sorted(shell_exports.items())):
         print(command)
-    credo.chosen.credential_path.repository.synchronize()
+
+    print("\n## And unsetters for when we change")
+    for command in make_export_commands(sorted(unsetters.items()), no_transform=True):
+        print(command)
+
+    repository.synchronize()
+
+def do_capture(credo, env=None, remove_env=None, all_accounts=False, all_users=False, find_user=False, **kwargs):
+    """Capture environment variables"""
+    part = credo.find_credential_path_part(all_accounts=all_accounts, all_users=all_users, find_user=find_user)
+    if hasattr(part, "credential_path"):
+        repository = part.credential_path.repository
+    else:
+        repository = part
+
+    if not env:
+        env = ask_for_env()
+
+    if env:
+        part.add_env(env, credo.crypto)
+    if remove_env:
+        part.remove_env(remove_env, credo.crypto)
+
+    keys = part.get_env_file(credo.crypto)
+    if keys.changed:
+        repository.add_change("Capturing environment variables", [part.environment_location])
+
+def do_env(credo, all_accounts=False, all_users=False, find_user=False, **kwargs):
+    """display environment variables only"""
+    part = credo.find_credential_path_part(all_accounts=all_accounts, all_users=all_users, find_user=find_user)
+    if hasattr(part, "credential_path"):
+        repository = part.credential_path.repository
+    else:
+        repository = part
+    do_display(credo, chosen=part, repository=repository)
 
 def do_synchronize(credo, **kwargs):
     """Just synchronize some repo"""
     repo_name, location = credo.find_one_repository(want_new=False)
-    repository.synchronize(repo_name, location)
+    structure.repository.synchronize(repo_name, location)
 
 def do_exec(credo, command, **kwargs):
     """Exec some command with aws credentials in the environment"""
@@ -71,7 +128,7 @@ def do_rotate(credo, force=False, **kwargs):
 def do_remote(credo, remote=None, version_with=None, **kwargs):
     """Setup remotes for some repository"""
     repo_name, location = credo.find_one_repository()
-    repository.configure(repo_name, location, new_remote=remote, version_with=version_with)
+    structure.repository.configure(repo_name, location, new_remote=remote, version_with=version_with)
 
 def do_import(credo, source=False, half_life=None, **kwargs):
     """Import some creds"""

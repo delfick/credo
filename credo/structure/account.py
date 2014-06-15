@@ -1,4 +1,4 @@
-from credo.cred_types.environment import EnvironmentFile
+from credo.cred_types.environment import EnvironmentMixin
 from credo.helper import SignedValueFile
 
 import logging
@@ -6,7 +6,7 @@ import os
 
 log = logging.getLogger("credo.account")
 
-class Account(object):
+class Account(object, EnvironmentMixin):
     def __init__(self, name, location, credential_path):
         self.name = name
         self.location = location
@@ -22,15 +22,24 @@ class Account(object):
         """Proxy credential_path"""
         return self.credential_path.repository.name
 
-    def shell_exports(self):
-        """Get us some environment exports if there are any"""
-        environment_location = os.path.join(self.location, "env.json")
-        return EnvironmentFile.shell_exports_from(environment_location, log)
-
     @property
     def account_info_location(self):
         """Location of where our account id is"""
         return os.path.join(self.location, "account_id")
+
+    @property
+    def path(self):
+        """Return the repo and account this represents"""
+        return "repo={0}|account={1}".format(self.repo_name, self.name)
+
+    @property
+    def parent_path_part(self):
+        """Return our repository"""
+        return self.credential_path.repository
+
+    def extra_env(self):
+        """Define default env stuff"""
+        return [("CREDO_CURRENT_ACCOUNT", self.name)]
 
     def account_id(self, suggestion=None, iam_pair=None):
         """

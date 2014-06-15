@@ -1,5 +1,5 @@
 from credo.asker import ask_for_choice, ask_for_choice_or_new
-from credo.cred_types.environment import EnvironmentFile
+from credo.cred_types.environment import EnvironmentMixin
 from credo.errors import UserQuit, RepoError
 from credo.versioning import determine_driver
 from credo.pub_keys import PubKeySyncer
@@ -62,7 +62,7 @@ def configure(repo_name, location, new_remote=None, version_with=None):
         if choice == change_choice:
             repository.change_remote(new_remote, remote_type=version_with)
 
-class Repository(object):
+class Repository(object, EnvironmentMixin):
     """Understands how to version a directory"""
     def __init__(self, name, location, crypto):
         self.name = name
@@ -78,10 +78,19 @@ class Repository(object):
         """Ask the driver to synchronize the folder"""
         self.driver.synchronize(override=override)
 
-    def shell_exports(self):
-        """Get us some environment exports if there are any"""
-        environment_location = os.path.join(self.location, "env.json")
-        return EnvironmentFile.shell_exports_from(environment_location, log)
+    @property
+    def path(self):
+        """Return the repo this represents"""
+        return "repo={0}".format(self.name)
+
+    @property
+    def path_parts(self):
+        """Return the objects in the path to here"""
+        return ()
+
+    def extra_env(self):
+        """Define default env stuff"""
+        return [("CREDO_CURRENT_REPO", self.name)]
 
     @property
     def versioned(self):

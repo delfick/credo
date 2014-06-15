@@ -165,21 +165,35 @@ def find_repo_structure(root_dir, collection=None, sofar=None, shortened=None, l
 
     return collection, shortened
 
-def narrow(structure, chain, asker, want_new=None, forced_vals=None):
+class Stop(object):
+    """Used to stop searching in narrow"""
+
+def narrow(structure, chain, asker, want_new=None, want_any_after=None, forced_vals=None, level=0):
     """Narrow down our mask to a single result"""
     if not chain:
         return
     else:
         nxt = chain.pop(0)
-        chosen = None
+        if nxt is Stop:
+            chosen = nxt
+        else:
+            chosen = None
+
         if forced_vals:
             chosen = forced_vals.pop(0)
 
         if not chosen:
-            if len(structure.keys()) > 1 or want_new:
-                chosen = asker(nxt, sorted(structure.keys()))
-            elif structure:
-                chosen = structure.keys()[0]
+            if want_any_after is not None and level >= want_any_after:
+                choices = sorted(structure.keys())
+                all_choice = "All {0}".format(nxt)
+                chosen = asker(nxt, choices + [all_choice])
+                if chosen == all_choice:
+                    chosen = Stop
+            else:
+                if len(structure.keys()) > 1 or want_new:
+                    chosen = asker(nxt, sorted(structure.keys()))
+                elif structure:
+                    chosen = structure.keys()[0]
 
         for key in structure.keys():
             if key != chosen:
@@ -189,7 +203,7 @@ def narrow(structure, chain, asker, want_new=None, forced_vals=None):
             structure[chosen] = {} if chain else []
 
         if structure:
-            narrow(structure.values()[0], chain, asker, want_new=want_new, forced_vals=forced_vals)
+            narrow(structure.values()[0], chain, asker, want_new=want_new, want_any_after=want_any_after, forced_vals=forced_vals, level=level+1)
 
 def flatten(directory_structure, mask, want_new=False):
     """

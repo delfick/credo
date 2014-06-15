@@ -1,4 +1,4 @@
-from credo.actions import do_display, do_exec, do_showavailable, do_import, do_rotate, do_current, do_remote, do_synchronize
+from credo.actions import do_display, do_exec, do_showavailable, do_import, do_rotate, do_current, do_remote, do_synchronize, do_capture, do_env, do_unset
 from credo.errors import CredoError, NoExecCommand
 from credo.asker import secret_sources
 from credo.overview import Credo
@@ -8,6 +8,7 @@ from rainbow_logging_handler import RainbowLoggingHandler
 import argparse
 import logging
 import sys
+import os
 
 log = logging.getLogger("executor")
 
@@ -27,6 +28,13 @@ def setup_logging(verbose=False, boto_debug=False):
         logging.getLogger("boto").setLevel([logging.CRITICAL, logging.ERROR][verbose])
 
     logging.getLogger("requests").setLevel([logging.CRITICAL, logging.ERROR][verbose])
+
+def sourceable_if(action_is):
+    """Set a parser as sourceable if the action is as specified"""
+    def wrapper(func):
+        func.sourceable_if = action_is
+        return func
+    return wrapper
 
 class CliParser(object):
     def split_argv(self, argv=None):
@@ -72,6 +80,10 @@ class CliParser(object):
             , "version": self.parse_version
             , "sourceable": self.parse_sourceable
 
+            , "env": self.parse_env
+            , "capture": self.parse_env
+
+            , "unset": self.parser_for_no_args("Unset credo environment variables", do_unset, sourceable=True)
             , "inject": self.parser_for_no_args("Print out export statements for your aws creds", do_display, sourceable=True)
             , "display": self.parser_for_no_args("Print out export statements for your aws creds", do_display)
             , "current": self.parser_for_no_args("Show what user is currently in your environment", do_current)
@@ -150,6 +162,11 @@ class CliParser(object):
         def parse_noargs(action, argv):
             """No args to parse"""
             parser = argparse.ArgumentParser(description=description)
+            if sourceable:
+                parser.add_argument("--no-sourcing"
+                    , help = "Tell credo sourceable not to source this output"
+                    , action = "store_true"
+                    )
             args = self.args_from_subparser(action, parser, argv)
             return args, func
         parse_noargs.sourceable = sourceable
@@ -165,6 +182,64 @@ class CliParser(object):
     def parse_version(self, action, argv):
         """Just show the version and quit"""
         self.show_version_and_quit()
+
+    @sourceable_if("env")
+    def parse_env(self, action, argv):
+        """Capture/display environment variables"""
+        parser = argparse.ArgumentParser(description="Capture environment variables")
+
+        def env_spec(key):
+            """Specification for an environment variable"""
+            if "=" not in key:
+                if key not in os.environ:
+                    raise argparse.ArgumentTypeError("The specified environment variable {0} isn't in the current environment".format(key))
+                else:
+                    return (key, os.environ[key])
+            else:
+                k, v = key.split('=', 1)
+                return (k.strip(), v.strip())
+
+        if action == "capture":
+            parser.add_argument("--env"
+                , help = "Capture this environment variable"
+                , type = env_spec
+                , action = "append"
+                )
+
+            parser.add_argument("--remove-env"
+                , help = "Remove this env from our capture"
+                , action = "append"
+                )
+
+        chooser = parser.add_mutually_exclusive_group()
+
+        chooser.add_argument("--all-accounts"
+            , help = "Capture environment variables for our chosen repository"
+            , action = "store_true"
+            )
+
+        chooser.add_argument("--all-users"
+            , help = "Capture environment variables for our chosen account"
+            , action = "store_true"
+            )
+
+        chooser.add_argument("--find-user"
+            , help = "Find a particular user"
+            , action = "store_true"
+            )
+
+        if action == "env":
+            parser.add_argument("--no-sourcing"
+                , help = "Make credo sourceable say this is not sourceable"
+                , action = "store_true"
+                )
+
+        args = self.args_from_subparser(action, parser, argv)
+
+        func = do_env
+        if action == "capture":
+            func = do_capture
+        return args, func
 
     def parse_rotate(self, action, argv):
         """Rotate our credentials"""
@@ -252,11 +327,17 @@ class CliParser(object):
             if not argv:
                 sys.exit(1)
             else:
-                _, action, _ = CliParser().split_argv(argv)
-                if action and action in self.actions and getattr(self.actions[action], "sourceable", False):
-                    sys.exit(0)
-                else:
-                    sys.exit(1)
+                _, action, action_args = CliParser().split_argv(argv)
+                if "--no-sourcing" not in action_args:
+                    if action and action in self.actions:
+                        parser = self.actions[action]
+                        if getattr(parser, "sourceable", False):
+                            sys.exit(0)
+                        elif getattr(parser, "sourceable_if", None) == action:
+                            sys.exit(0)
+
+                # Otherwise, not sourceable
+                sys.exit(1)
 
 def main(argv=None):
     __import__("boto")

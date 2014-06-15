@@ -360,3 +360,7 @@ def ask_for_ssh_key_folders(already_have=None):
 
     return result
 
+def ask_for_env():
+    """Ask the user for environment variables to store"""
+    return []
+

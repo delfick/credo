@@ -28,9 +28,9 @@ def print_list_of_tuples(lst, prefix):
     if any(val for _, val in lst):
         print "{0}: {1}".format(prefix, " | ".join("{0}={1}".format(key, val) for key, val in lst if val))
 
-def make_export_commands(exports):
+def make_export_commands(exports, no_transform=False):
     for key, val in exports:
-        if val == "CREDO_UNSET":
+        if val == "CREDO_UNSET" and not no_transform:
             yield "unset {0}".format(key)
         else:
             yield "export {0}=\"{1}\"".format(key, val.replace("\\\"", "\"").replace("\"", "\\\""))
@@ -131,12 +131,12 @@ class KeysFile(object):
 
     def load(self, location):
         """Load the keys from our keys file"""
-        contents = {"keys": [], "type": "amazon"}
+        contents = {"keys": self.default_keys_type(), "type": self.default_keys_type_name}
         if os.path.exists(location):
             contents = self.read_file(location)
 
-        if not isinstance(contents.get("keys", []), list):
-            raise BadKeyFile("Keys file keys are not a list", keys=type(contents["keys"]))
+        if not isinstance(contents.get("keys", []), self.default_keys_type):
+            raise BadKeyFile("Keys file keys are not correct", expected_type=self.default_keys_type, got_type=type(contents["keys"]))
 
         self.contents = contents
         self.typ = self.contents.get("type", self.default_keys_type_name)
