@@ -323,6 +323,18 @@ Each ``env.json`` file has a similar format to ``credentials.json`` but it has
 type of ``environment`` and includes environment variables that have been captured
 by the ``credo capture`` command.
 
+Changelog
+---------
+
+0.2.3
+    Made pygit2 optional because compiling libgit2 is annoying
+
+0.2.1 and 0.2.2
+    Tiny bug fixes I noticed after release
+
+0.2
+    Initial version that is opensourced
+
 Tests
 -----
 
