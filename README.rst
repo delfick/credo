@@ -12,10 +12,12 @@ Installation
 
 Install the dependencies:
 
-Mac OSX
+Mac OSX::
+
     brew install libgit2 gmp
 
-For ubuntu
+For ubuntu::
+
     sudo add-apt-repository ppa:dennis/python
     sudo apt-get update
     sudo apt-get install python-crypto python-pygit2
