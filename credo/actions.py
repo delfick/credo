@@ -121,7 +121,7 @@ def do_rotate(credo, force=False, **kwargs):
 def do_remote(credo, remote=None, version_with=None, **kwargs):
     """Setup remotes for some repository"""
     repo_name, location = credo.find_one_repository()
-    structure.repository.configure(repo_name, location, new_remote=remote, version_with=version_with)
+    structure.repository.configure(repo_name, location, credo.crypto, new_remote=remote, version_with=version_with)
 
 def do_import(credo, source=False, half_life=None, **kwargs):
     """Import some creds"""

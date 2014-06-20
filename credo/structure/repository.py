@@ -15,9 +15,9 @@ def synchronize(repo_name, location, crypto):
     if repository.versioned:
         repository.synchronize()
 
-def configure(repo_name, location, new_remote=None, version_with=None):
+def configure(repo_name, location, crypto, new_remote=None, version_with=None):
     """Configure a repository"""
-    repository = Repository(repo_name, location)
+    repository = Repository(repo_name, location, crypto)
     if repository.versioned:
         remote = "<none set>"
         if repository.remote:
