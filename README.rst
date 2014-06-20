@@ -15,22 +15,12 @@ Install the dependencies:
 Mac OSX
     brew install libgit2 gmp
 
-Linux
-    Install the latest libgit2 (as annoying as this process sounds)::
+For ubuntu
+    sudo add-apt-repository ppa:dennis/python
+    sudo apt-get update
+    sudo apt-get install python-crypto python-pygit2
 
-        # sudo apt-get install cmake gcc or sudo yum install cmake make gcc
-        git clone -b master git://github.com/libgit2/libgit2.git
-        mkdir libgit2/build
-        cd libgit2/build
-        cmake ..
-        cmake --build .
-        sudo cmake --build . --target install
-
-    And then, for systems with apt-get
-        sudo apt-get install libpython-dev libgmp-dev
-
-    Or for systems with yum
-        yum install python-devel gmp-devel
+For other systems, see the ``Compiled Python Dependencies`` section below
 
 And then use pip!::
 
@@ -90,6 +80,40 @@ The <credo_options> filter can be:
 -r/--repo <repo>
 
     Where repo is the name of the repository.
+
+Compiled Python dependencies
+----------------------------
+
+If you don't want to use prebuilt packages for pycrypto you could make sure you
+don't have that package installed, then install the python development libraries
+and the gmp development libraries (gmp is needed for crypto to be faster).
+
+So,
+
+For debian systems, something like
+  sudo apt-get install libpython-dev libgmp-dev
+
+For those with yum
+  yum install python-devel gmp-devel
+
+And then do ``pip install credo``.
+
+You can also compile libgit2 yourself if you want::
+
+    # sudo apt-get install cmake gcc
+    # or
+    # sudo yum install cmake make gcc
+
+    git clone -b master git://github.com/libgit2/libgit2.git
+    mkdir libgit2/build
+    cd libgit2/build
+    cmake ..
+    cmake --build .
+    sudo cmake --build . --target install
+
+    pip install pygit2
+
+Pygit2 is an optional dependency, and for now, git support is rather weak anyway.
 
 Advanced Usage
 --------------

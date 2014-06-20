@@ -1,5 +1,6 @@
 from credo.asker import ask_for_choice, ask_for_choice_or_new
 from credo.cred_types.environment import EnvironmentMixin
+from credo.versioning import has_git_abilities
 from credo.errors import UserQuit, RepoError
 from credo.versioning import determine_driver
 from credo.pub_keys import PubKeySyncer
@@ -137,6 +138,8 @@ class Repository(object, EnvironmentMixin):
 
         if remote_type is None:
             remote_type = "git"
+            if not has_git_abilities():
+                raise RepoError("Sorry, no pygit2, can't do git things")
         elif remote_type != "git":
             raise RepoError("Unsupported versioning type", type=remote_type)
 

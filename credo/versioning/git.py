@@ -6,8 +6,13 @@ from contextlib import contextmanager
 import tempfile
 import logging
 import shutil
-import pygit2
 import os
+
+try:
+    # Optional dependency is optional
+    import pygit2
+except ImportError:
+    pygit2 = None
 
 log = logging.getLogger("credo.versioning.git")
 

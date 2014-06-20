@@ -13,7 +13,6 @@ setup(
       , "paramiko>=1.14.0"
       , "requests"
       , "keyring"
-      , "pygit2"
       , "boto"
       ]
 
@@ -22,6 +21,10 @@ setup(
         [ "noseOfYeti>=1.5.0"
         , "nose"
         , "mock"
+        ]
+
+      , "git":
+        [ "pygit2"
         ]
       }
 
