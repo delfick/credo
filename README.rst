@@ -328,6 +328,10 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.2.4
+    Made it so that --help when used with credo sourceable doesn't return
+    exit code 0 because the bash helper would source --help output
+
 0.2.3
     Made pygit2 optional because compiling libgit2 is annoying
 
