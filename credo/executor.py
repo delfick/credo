@@ -320,9 +320,12 @@ class CliParser(object):
         """Use CliParser to determine if these args given to credo produces a result that can be sourced into the shell"""
         parser = argparse.ArgumentParser(description="Entrypoint for scripts to determine if provided arguments, when given to credo, produces a result that should be sourced into the shell")
         if argv and argv[0] in ("--help", "-h"):
-            self.args_from_subparser(action, parser, argv)
-            # argparse should already quit before this point
-            sys.exit(1)
+            try:
+                self.args_from_subparser(action, parser, argv)
+            except SystemExit:
+                # Want to quit with an error code
+                # So bash helper doesn't source the --help output
+                sys.exit(1)
         else:
             if not argv:
                 sys.exit(1)
