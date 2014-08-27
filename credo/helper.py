@@ -1,5 +1,5 @@
-from credo.errors import NoValueEntered, BadKeyFile
-from credo.asker import ask_for_choice_or_new
+from credo.asker import ask_for_choice_or_new, ask_user_for_half_life
+from credo.errors import NoValueEntered, BadKeyFile, CredoError
 
 import logging
 import copy
@@ -34,6 +34,24 @@ def make_export_commands(exports, no_transform=False):
             yield "unset {0}".format(key)
         else:
             yield "export {0}=\"{1}\"".format(key, val.replace("\\\"", "\"").replace("\"", "\\\""))
+
+def normalise_half_life(half_life, access_key=None):
+    if half_life is None:
+        if access_key is None:
+            return
+        half_life = ask_user_for_half_life(access_key)
+
+    if isinstance(half_life, basestring) and not half_life.isdigit():
+        if half_life == "hour":
+            half_life = 60 * 60
+        elif half_life == "day":
+            half_life = 60 * 60 * 24
+        elif half_life == "week":
+            half_life = 60 * 60 * 24 * 7
+        else:
+            raise CredoError("Unknown half life value", half_life=half_life)
+
+    return half_life
 
 class SignedValueFile(object):
     """Knows how to store a value in a file with a signature"""

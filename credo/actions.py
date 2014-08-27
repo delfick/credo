@@ -1,6 +1,6 @@
-from credo.asker import ask_user_for_secrets, ask_user_for_half_life, ask_for_choice_or_new, ask_for_env
-from credo.errors import CantEncrypt, CantSign, BadCredential, CredoError
-from credo.helper import print_list_of_tuples, make_export_commands
+from credo.helper import print_list_of_tuples, make_export_commands, normalise_half_life
+from credo.asker import ask_user_for_secrets, ask_for_choice_or_new, ask_for_env
+from credo.errors import CantEncrypt, CantSign, BadCredential
 from credo.amazon import IamPair
 from credo import structure
 
@@ -143,17 +143,7 @@ def do_import(credo, source=False, half_life=None, **kwargs):
             raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
 
     access_key, secret_key = ask_user_for_secrets(source=source)
-    if half_life is None:
-        half_life = ask_user_for_half_life(access_key)
-    if isinstance(half_life, basestring) and not half_life.isdigit():
-        if half_life == "hour":
-            half_life = 60 * 60
-        elif half_life == "day":
-            half_life = 60 * 60 * 24
-        elif half_life == "week":
-            half_life = 60 * 60 * 24 * 7
-        else:
-            raise CredoError("Unknown half life value", half_life=half_life)
+    half_life = normalise_half_life(half_life, access_key)
     iam_pair = IamPair(access_key, secret_key, half_life=half_life)
 
     # Make sure the iam pair is for the right place
