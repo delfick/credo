@@ -75,7 +75,7 @@ class Credo(object):
 
     root_dir = ConfigFileProperty("root_dir")
     ssh_key_folders = ConfigFileProperty("ssh_key_folders")
-    options_from_config = ["root_dir", "ssh_key_folders"]
+    options_from_config = ["root_dir", "ssh_key_folders", "half_life"]
 
     def validate_options(self):
         """Make sure our options make sense"""

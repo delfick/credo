@@ -116,7 +116,7 @@ def do_exec(credo, command, **kwargs):
 def do_rotate(credo, force=False, half_life=None, **kwargs):
     """Rotate some keys"""
     log.info("Doing a rotation")
-    half_life = normalise_half_life(half_life)
+    half_life = normalise_half_life(half_life or getattr(credo, "half_life", None))
     credo.make_chosen(rotate=True, invalidate_creds=force, half_life=half_life).credential_path.repository.synchronize()
 
 def do_remote(credo, remote=None, version_with=None, **kwargs):
@@ -144,7 +144,7 @@ def do_import(credo, source=False, half_life=None, **kwargs):
             raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
 
     access_key, secret_key = ask_user_for_secrets(source=source)
-    half_life = normalise_half_life(half_life, access_key)
+    half_life = normalise_half_life(half_life, access_key) or getattr(credo, "half_life", None)
     iam_pair = IamPair(access_key, secret_key, half_life=half_life)
 
     # Make sure the iam pair is for the right place
