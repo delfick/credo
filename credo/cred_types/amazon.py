@@ -294,7 +294,7 @@ class AmazonKeys(object):
         # Only need rotation if we have no working keys
         return len(working) == 0
 
-    def rotate(self):
+    def rotate(self, half_life=None):
         """Rotate the keys and return whether any of them changed"""
         while True:
             # Keep looking at the keys until we have no more surprises
@@ -372,7 +372,9 @@ class AmazonKeys(object):
                     usable = [pair for pair in usable if pair is not oldest]
 
                 iam_pair = usable[0].create_new()
-                iam_pair.set_half_life(ask_user_for_half_life(access_key))
+                if half_life is None:
+                    half_life = ask_user_for_half_life(access_key)
+                iam_pair.set_half_life(half_life)
                 self.add_key(iam_pair)
 
             for key in for_deletion:

@@ -130,7 +130,7 @@ class Credo(object):
     ###   CHOSEN CREDENTIALS
     ########################
 
-    def make_chosen(self, rotate=True, invalidate_creds=False):
+    def make_chosen(self, rotate=True, invalidate_creds=False, half_life=None):
         """Make the chosen credentials from our repository"""
         structure, chains = self.find_credentials(asker=ask_for_choice)
         chosen = list(self.credentials_from(structure, chains, complain_if_missing=True))[0]
@@ -148,7 +148,7 @@ class Credo(object):
                     chosen.load()
                     chosen.credential_path.repository.pub_key_syncer.sync()
 
-            chosen.save()
+            chosen.save(half_life=half_life)
         return chosen
 
     def find_credentials(self, asker=None, missing_is_bad=False, want_new=False, no_mask=False):

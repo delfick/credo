@@ -9,10 +9,10 @@ log = logging.getLogger("credo.structure.credentials")
 class Credentials(EncryptedKeys):
     """Knows about credential files"""
 
-    def save(self, force=False):
+    def save(self, force=False, half_life=None):
         """Save our credentials to file"""
         if self.keys.needs_rotation():
-            self.keys.rotate()
+            self.keys.rotate(half_life)
 
         if force or self.keys.changed:
             self.contents.save(self.location, self.keys, access_keys=list(self.keys.access_keys))

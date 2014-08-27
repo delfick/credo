@@ -248,6 +248,10 @@ class CliParser(object):
             , help = "Force expire everything"
             , action = "store_true"
             )
+        parser.add_argument("--half-life"
+            , help = "Choose a half life for your new key"
+            , choices = ["hour", "day", "week"]
+            )
         args = self.args_from_subparser(action, parser, argv)
         return args, do_rotate
 
