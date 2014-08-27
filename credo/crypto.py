@@ -222,30 +222,31 @@ class SSHKeys(object):
         if not os.access(folder, os.R_OK):
             raise BadFolder("Not readable", folder=folder)
 
-        for filename in os.listdir(folder):
-            location = os.path.join(folder, filename)
-            if not filename.endswith(".pub") and filename not in ("known_hosts", "authorized_keys", "config"):
-                if os.access(location, os.R_OK):
-                    is_private = False
-                    try:
-                        self.collection.add_private_key(location)
-                        is_private = True
-                    except BadSSHKey:
-                        pass
-
-                    if not is_private:
+        for root, dirs, files in os.walk(folder):
+            for filename in files:
+                location = os.path.join(root, filename)
+                if not filename.endswith(".pub") and filename not in ("known_hosts", "authorized_keys", "config"):
+                    if os.access(location, os.R_OK):
+                        is_private = False
                         try:
-                            with open(location) as fle:
-                                self.collection.add_public_key(fle.read(), location)
+                            self.collection.add_private_key(location)
+                            is_private = True
                         except BadSSHKey:
                             pass
 
-            elif filename.endswith(".pub"):
-                try:
-                    with open(location) as fle:
-                        self.collection.add_public_key(fle.read(), location)
-                except BadSSHKey:
-                    pass
+                        if not is_private:
+                            try:
+                                with open(location) as fle:
+                                    self.collection.add_public_key(fle.read(), location)
+                            except BadSSHKey:
+                                pass
+
+                elif filename.endswith(".pub"):
+                    try:
+                        with open(location) as fle:
+                            self.collection.add_public_key(fle.read(), location)
+                    except BadSSHKey:
+                        pass
 
     def add_public_keys(self, public_keys):
         """Add the specified public keys"""

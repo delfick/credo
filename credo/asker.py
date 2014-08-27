@@ -1,5 +1,6 @@
 from credo.errors import BadConfigFile, BadSSHKey, BadCredentialSource, CredoProgrammerError, UserQuit
 
+from itertools import chain
 import ConfigParser
 import getpass
 import logging
@@ -226,7 +227,11 @@ def ask_for_public_keys(remote=None, known_private_key_fingerprints=None):
     ssh_folder = os.path.expanduser("~/.ssh")
 
     if os.path.exists(ssh_folder):
-        available = [os.path.join(ssh_folder, filename) for filename in os.listdir(ssh_folder) if filename.endswith(".pub")]
+        available = list(chain.from_iterable(
+            [ os.path.join(root, filename) for filename in files if filename.endswith(".pub")]
+            for root, _, files in  os.walk(ssh_folder)
+        ))
+
         for location in available:
             try:
                 with open(location) as fle:
