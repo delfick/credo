@@ -328,6 +328,13 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.2.5
+    Fixed bug where credo would crash if your ~/.ssh folder had subfolders
+
+    Can now specify --half-life when you do a rotate, exec, inject or exports
+
+    You can now set a ``half_life`` option in ~/.credo/config
+
 0.2.4
     Made it so that --help when used with credo sourceable doesn't return
     exit code 0 because the bash helper would source --help output
