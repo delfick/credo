@@ -84,8 +84,8 @@ class CliParser(object):
             , "capture": self.parse_env
 
             , "unset": self.parser_for_no_args("Unset credo environment variables", do_unset, sourceable=True)
-            , "inject": self.parser_for_no_args("Print out export statements for your aws creds", do_exports, sourceable=True)
-            , "exports": self.parser_for_no_args("Print out export statements for your aws creds", do_exports)
+            , "inject": self.parser_for_no_args("Print out export statements for your aws creds", do_exports, sourceable=True, extra_args=self.other_export_args)
+            , "exports": self.parser_for_no_args("Print out export statements for your aws creds", do_exports, extra_args=self.other_export_args)
             , "current": self.parser_for_no_args("Show what user is currently in your environment", do_current)
             , "synchronize": self.parser_for_no_args("Synchronise with the remote for some repository", do_synchronize)
             }
@@ -156,7 +156,7 @@ class CliParser(object):
         credo.setup(**vars(cred_args))
         return credo
 
-    def parser_for_no_args(self, description, func, sourceable=False):
+    def parser_for_no_args(self, description, func, sourceable=False, extra_args=None):
         """Return a function that parses no arguments"""
 
         def parse_noargs(action, argv):
@@ -167,11 +167,20 @@ class CliParser(object):
                     , help = "Tell credo sourceable not to source this output"
                     , action = "store_true"
                     )
+            if extra_args:
+                parser = extra_args(action, argv, parser)
             args = self.args_from_subparser(action, parser, argv)
             return args, func
         parse_noargs.sourceable = sourceable
 
         return parse_noargs
+
+    def other_export_args(self, action, argv, parser):
+        parser.add_argument("--half-life"
+            , help = "Choose a half life for your new key"
+            , choices = ["hour", "day", "week"]
+            )
+        return parser
 
     def parse_help(self, action, argv):
         """Just prints help and quits"""
@@ -311,6 +320,10 @@ class CliParser(object):
     def parse_exec(self, action, argv):
         """Exec passes on everything else also doesn't have arguments yet"""
         parser = argparse.ArgumentParser(description="Run the provided command using a sub shell with the aws credentials in it")
+        parser.add_argument("--half-life"
+            , help = "Choose a half life for your new key"
+            , choices = ["hour", "day", "week"]
+            )
         if argv and argv[0] in ("--help", "-h"):
             self.args_from_subparser(action, parser, argv)
             # argparse should already quit before this point

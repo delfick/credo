@@ -38,10 +38,12 @@ def do_unset(credo, **kwargs):
     for command in make_export_commands(exports):
         print(command)
 
-def do_exports(credo, chosen=None, repository=None, **kwargs):
+def do_exports(credo, chosen=None, repository=None, half_life=None, **kwargs):
     """Just print out the chosen creds"""
+    half_life = normalise_half_life(half_life or getattr(credo, "half_life", None))
+
     if chosen is None:
-        chosen = credo.chosen
+        chosen = credo._chosen = credo.make_chosen(rotate=True, half_life=half_life)
 
     if repository is None:
         repository = credo.chosen.credential_path.repository
@@ -101,8 +103,11 @@ def do_synchronize(credo, **kwargs):
     repo_name, location = credo.find_one_repository(want_new=False)
     structure.repository.synchronize(repo_name, location, credo.crypto)
 
-def do_exec(credo, command, **kwargs):
+def do_exec(credo, command, half_life=None, **kwargs):
     """Exec some command with aws credentials in the environment"""
+    half_life = normalise_half_life(half_life or getattr(credo, "half_life", None))
+    credo._chosen = credo.make_chosen(rotate=True, half_life=half_life)
+
     environment = dict(os.environ)
     for key, val in credo.chosen.shell_exports():
         if val == "CREDO_UNSET":
