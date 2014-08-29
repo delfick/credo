@@ -328,6 +328,11 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.2.6
+    Pinning install_requires dependencies
+
+    Using delfick_error now
+
 0.2.5
     Fixed bug where credo would crash if your ~/.ssh folder had subfolders
 
