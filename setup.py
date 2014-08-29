@@ -8,13 +8,13 @@ setup(
     , include_package_data = True
 
     , install_requires =
-      [ "rainbow_logging_handler"
-      , "pycrypto"
-      , "paramiko>=1.14.0"
-      , "requests"
-      , "keyring"
-      , "boto"
-      , "delfick_error>=1.5"
+      [ "rainbow_logging_handler==2.2.0"
+      , "pycrypto==2.6.1"
+      , "paramiko==1.14.0"
+      , "requests==2.2.1"
+      , "keyring==3.5"
+      , "boto==2.20.1"
+      , "delfick_error==1.5"
       ]
 
     , extras_require =
