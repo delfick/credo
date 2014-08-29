@@ -1,4 +1,4 @@
-from credo.errors import NoConfigFile, BadConfigFile, BadConfiguration, CredoProgrammerError, CredoError, RepoError
+from credo.errors import NoConfigFile, BadConfigFile, BadConfiguration, ProgrammerError, CredoError, RepoError
 from credo.asker import ask_for_choice, ask_for_choice_or_new, ask_for_ssh_key_folders
 from credo.structure.credential_path import CredentialPath
 from credo.crypto import Crypto
@@ -20,7 +20,7 @@ class ConfigFileProperty(object):
 
     def __get__(self, obj, type=None):
         if not hasattr(obj, self.name):
-            raise CredoProgrammerError("Credo object needs to have setup() called before being used")
+            raise ProgrammerError("Credo object needs to have setup() called before being used")
         return getattr(obj, self.name)
 
     def __set__(self, obj, val):

@@ -1,4 +1,4 @@
-from credo.errors import BadConfigFile, BadSSHKey, BadCredentialSource, CredoProgrammerError, UserQuit
+from credo.errors import BadConfigFile, BadSSHKey, BadCredentialSource, ProgrammerError, UserQuit
 
 from itertools import chain
 import ConfigParser
@@ -174,7 +174,7 @@ def ask_user_for_secrets(source=None):
             keyring_name = parser.get(section, 'keyring')
             secret_key = keyring.get_password(keyring_name, access_key)
     else:
-        raise CredoProgrammerError("Not possible to reach this point", source=source)
+        raise ProgrammerError("Not possible to reach this point", source=source)
 
     return access_key, secret_key
 

@@ -14,6 +14,7 @@ setup(
       , "requests"
       , "keyring"
       , "boto"
+      , "delfick_error>=1.5"
       ]
 
     , extras_require =

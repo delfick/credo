@@ -1,4 +1,4 @@
-from credo.errors import UserQuit, GitError, CredoProgrammerError
+from credo.errors import UserQuit, GitError, ProgrammerError
 from credo.asker import ask_for_choice
 from credo.versioning.base import Base
 
@@ -35,7 +35,7 @@ class GitDriver(Base):
 
         self.resolve_dirty_repo()
         if self.repo.status():
-            raise CredoProgrammerError("Somehow there are still changes in the repo....")
+            raise ProgrammerError("Somehow there are still changes in the repo....")
 
         origin = self.origin
         res = origin.fetch()
