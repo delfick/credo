@@ -1,5 +1,5 @@
+from credo.asker import ask_user_for_secrets, ask_for_choice_or_new, ask_for_env, ask_user_for_saml
 from credo.helper import print_list_of_tuples, make_export_commands, normalise_half_life
-from credo.asker import ask_user_for_secrets, ask_for_choice_or_new, ask_for_env
 from credo.errors import CantEncrypt, CantSign, BadCredential
 from credo.amazon import IamPair
 from credo import structure
@@ -148,29 +148,42 @@ def do_import(credo, source=False, half_life=None, **kwargs):
         if not credo.crypto.can_sign:
             raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
 
-    access_key, secret_key = ask_user_for_secrets(source=source)
-    half_life = normalise_half_life(half_life, access_key) or getattr(credo, "half_life", None)
-    iam_pair = IamPair(access_key, secret_key, half_life=half_life)
+    typ, info = ask_user_for_secrets(credo, source=source)
+    if typ == "amazon":
+        access_key, secret_key = info
+        half_life = normalise_half_life(half_life, access_key) or getattr(credo, "half_life", None)
+        iam_pair = IamPair(access_key, secret_key, half_life=half_life)
 
-    # Make sure the iam pair is for the right place
-    if not iam_pair.works:
-        raise BadCredential("The credentials you just provided don't work....")
+        # Make sure the iam pair is for the right place
+        if not iam_pair.works:
+            raise BadCredential("The credentials you just provided don't work....")
 
-    account_id = cred_path.account.account_id(iam_pair=iam_pair)
-    if iam_pair.ask_amazon_for_account() != account_id:
-        raise BadCredential("The credentials you are importing are for a different account"
-            , credentials_account_id=iam_pair.ask_amazon_for_account(), importing_into_account_name=cred_path.account.name, importing_into_account_id=account_id
-            )
+        account_id = cred_path.account.account_id(iam_pair=iam_pair)
+        if iam_pair.ask_amazon_for_account() != account_id:
+            raise BadCredential("The credentials you are importing are for a different account"
+                , credentials_account_id=iam_pair.ask_amazon_for_account(), importing_into_account_name=cred_path.account.name, importing_into_account_id=account_id
+                )
 
-    username = cred_path.user.username(iam_pair=iam_pair)
-    if iam_pair.ask_amazon_for_username() != username:
-        raise BadCredential("The credentials you are importing are for a different user"
-            , credentials_user=iam_pair.ask_amazon_for_username(), importing_into_user=username
-            )
+        username = cred_path.user.username(iam_pair=iam_pair)
+        if iam_pair.ask_amazon_for_username() != username:
+            raise BadCredential("The credentials you are importing are for a different user"
+                , credentials_user=iam_pair.ask_amazon_for_username(), importing_into_user=username
+                )
 
-    creds.keys.add(iam_pair)
-    creds.save()
+        creds.keys.add(iam_pair)
+        creds.save()
+    elif typ == "saml":
+        print("Saml!")
+
     cred_path.repository.synchronize()
+
+def do_register_saml(credo, provider=None, **kwargs):
+    """Register a saml provider"""
+    repo_name, location = credo.find_one_repository()
+    if provider:
+        credo.register_saml_provider(provider)
+    else:
+        ask_user_for_saml(credo)
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""

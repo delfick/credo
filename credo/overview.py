@@ -40,7 +40,7 @@ class Credo(object):
             self._chosen = self.make_chosen(rotate=True)
         return self._chosen
 
-    def setup(self, config_file=Unspecified, root_dir=Unspecified, ssh_key_folders=Unspecified, **kwargs):
+    def setup(self, config_file=Unspecified, root_dir=Unspecified, ssh_key_folders=Unspecified, providers=Unspecified, **kwargs):
         """Setup the credo!"""
         if config_file is Unspecified:
             config_file = self.find_config_file(config_file)
@@ -54,7 +54,8 @@ class Credo(object):
             self.read_from_config(config_file)
 
         # Override the root dir and ssh_key_folders if supplied
-        for key, val in (("root_dir", root_dir), ("ssh_key_folders", ssh_key_folders)):
+        self.config_file_location = config_file
+        for key, val in (("root_dir", root_dir), ("ssh_key_folders", ssh_key_folders), ("providers", providers)):
             if val is not Unspecified:
                 setattr(self, key, val)
             elif not hasattr(self, key):
@@ -74,8 +75,9 @@ class Credo(object):
     ########################
 
     root_dir = ConfigFileProperty("root_dir")
+    providers = ConfigFileProperty("providers")
     ssh_key_folders = ConfigFileProperty("ssh_key_folders")
-    options_from_config = ["root_dir", "ssh_key_folders", "half_life"]
+    options_from_config = ["root_dir", "ssh_key_folders", "half_life", "providers"]
 
     def validate_options(self):
         """Make sure our options make sense"""
@@ -289,4 +291,27 @@ class Credo(object):
         for option in self.options_from_config:
             if option in options:
                 setattr(self, option, options[option])
+
+    def write_config(self):
+        """Write the configuration"""
+        cfg = dict((option, getattr(self, option, None)) for option in self.options_from_config)
+        json.dump(cfg, open(self.config_file_location, "w"))
+
+    ########################
+    ###   SAML
+    ########################
+
+    def register_saml_provider(self, provider):
+        """Register a saml provider"""
+        if getattr(self, 'providers', None):
+            self.providers.append(provider)
+        else:
+            self.providers = [provider]
+        self.write_config()
+
+    def remove_saml_provider(self, provider):
+        """Remove a saml provider"""
+        providers = getattr(self, 'providers', [])
+        self.providers = [p for p in providers if p != provider]
+        self.write_config()
 

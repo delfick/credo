@@ -83,10 +83,12 @@ secret_sources = {
     , "aws_config": "Your awscli config file"
     , "boto_config": "Your boto config file"
     , "environment": "Your current environment"
+    , "saml_provider": "One of your registered saml providers"
     }
 
-def ask_user_for_secrets(source=None):
+def ask_user_for_secrets(credo, source=None):
     """Ask the user for access_key and secret_key"""
+    typ = "amazon"
     choices = []
     access_key_name = "AWS_ACCESS_KEY_ID"
     secret_key_name = "AWS_SECRET_ACCESS_KEY"
@@ -101,6 +103,9 @@ def ask_user_for_secrets(source=None):
 
     if os.path.exists(os.path.expanduser("~/.boto")):
         choices.append(secret_sources["boto_config"])
+
+    if credo.providers:
+        choices.extend(["Saml provider '{0}'".format(provider) for provider in credo.providers])
 
     val = None
     if not source:
@@ -173,10 +178,14 @@ def ask_user_for_secrets(source=None):
         else:
             keyring_name = parser.get(section, 'keyring')
             secret_key = keyring.get_password(keyring_name, access_key)
+
+    elif secret_sources["saml_provider"] in (val, source) or "Saml provider" in val:
+        return "saml", "idp.realestate.com.au"
+
     else:
         raise ProgrammerError("Not possible to reach this point", source=source)
 
-    return access_key, secret_key
+    return typ, (access_key, secret_key)
 
 def ask_for_public_keys(remote=None, known_private_key_fingerprints=None):
     """
@@ -426,4 +435,75 @@ def ask_for_env(part, env, remove_env, ask_for_more=False):
                     part.remove_env([choice], part.crypto)
 
     return env, remove_env
+
+def ask_user_for_saml(credo, action=None, provider=None):
+    """Ask the user for saml providers"""
+    if action not in (None, "delete", "add", "show"):
+        raise CredoProgrammerError("Given a saml action other than delete or add", got=action)
+
+    first = True
+    supplied_action = action
+    while True:
+        quit_action = "Quit"
+        add_action = "Add a provider"
+        show_action = "Show providers"
+        delete_action = "Delete a provider"
+        no_more_action = "No more"
+
+        if supplied_action:
+            action = {"add": add_action, "delete": delete_action, "show": show_action}[supplied_action]
+
+        if not supplied_action:
+            question = "Do you want to add a provider or remove a provider?"
+            choices = [quit_action]
+            if not first:
+                choices.append(no_more_action)
+
+            if credo.providers:
+                question = "{0} or remove a provider?".format(question)
+                choices.extend([add_action, show_action, delete_action])
+            else:
+                question = "{0}?".format(question)
+                choices.append(add_action)
+
+            action = ask_for_choice(question, choices)
+
+        if action == no_more_action:
+            return
+
+        elif action == show_action:
+            print("Current providers are:")
+            for provider in credo.providers:
+                print("\t{0}".format(provider))
+
+        elif action == add_action:
+            if not provider:
+                provider = get_response("Saml provider")
+
+            credo.register_saml_provider(provider)
+            if supplied_action:
+                return
+
+        elif action == delete_action:
+            if not credo.providers:
+                log.info("No providers to delete!")
+                if supplied_action:
+                    return
+
+            removing = provider
+            if not removing:
+                removing = ask_for_choice("Which provider do you want to remove?", choices=credo.providers)
+
+            credo.remove_saml_provider(removing)
+            if supplied_action:
+                return
+
+        elif action == quit_action:
+            raise UserQuit()
+
+        # Reset for next loop iteration
+        first = False
+        action = None
+        provider = None
+        supplied_action = False
 
