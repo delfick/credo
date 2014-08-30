@@ -283,6 +283,8 @@ class IamSaml(IamBase):
         acsurl = "https://signin.aws.amazon.com/saml"
         acsurlbinding = "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"
 
+        tree = None
+        tree_body = None
         for _ in range(5):
             now = (datetime.utcnow() - timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%S")
             ident = uuid.uuid1().hex
@@ -313,25 +315,29 @@ class IamSaml(IamBase):
             connection = httplib.HTTPSConnection(self.provider, 443)
             connection.request("POST", "/idp/profile/SAML2/SOAP/ECP", envelope, headers)
             resp = connection.getresponse()
-            if resp.status == 200:
-                break
-            elif resp.status == 401:
+
+            if resp.status == 401:
                 log.info("Not authorized, perhaps you entered the wrong password")
+                self._works = False
                 raise SamlNotAuthorized()
-            else:
+            elif resp.status != 200:
                 log.info("Failed to authenticate, trying again in 5 seconds")
                 time.sleep(5)
+                self._works = False
+            else:
+                body = resp.read()
+                tree = ET.fromstring(body)
+                tree_body = tree.find("{http://schemas.xmlsoap.org/soap/envelope/}Body")
+                if tree_body is None:
+                    log.info("Failed to authenticate, saml provider didn't return any soap. Trying again in 5 seconds")
+                    time.sleep(5)
+                    self._works = False
+                else:
+                    self._works = True
+                    break
 
-        if resp.status != 200:
-            self._works = False
-            raise BadSamlProvider("Failed to authenticate", provider=self.provider)
-
-        body = resp.read()
-        tree = ET.fromstring(body)
-        tree_body = tree.find("{http://schemas.xmlsoap.org/soap/envelope/}Body")
-        if tree_body is None:
-            self._works = False
-            raise BadSamlProvider("Saml provider didn't return soap", provider=self.provider)
+        if tree is None:
+            raise BadSamlProvider("Failed to authenticate", provider=self.provider, username=self.username)
 
         arns = tree.findall(".//*[@FriendlyName='Role']/*")
         self._works = True
