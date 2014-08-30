@@ -13,7 +13,6 @@ import time
 import uuid
 import boto
 import os
-import re
 
 log = logging.getLogger("credo.amazon")
 

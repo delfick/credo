@@ -3,7 +3,7 @@ import re
 class SamlRole(object):
     def __init__(self, principal_arn, role_arn):
         self.role_arn = role_arn
-        self.prinicpal_role = principal_arn
+        self.principal_arn = principal_arn
         info = re.match("arn:aws:iam::(?P<account_id>[^:]+):role/(?P<role_name>.+)", self.role_arn).groups()
         self.account_id, self.role_name = info
 
@@ -16,8 +16,8 @@ class SamlRole(object):
 class SamlInfo(object):
     type = "saml"
 
-    def __init__(self, provider, account, idp_username):
-        self.account = account
+    def __init__(self, provider, role, idp_username):
+        self.role = role
         self.provider = provider
         self.idp_username = idp_username
         self.changed = True

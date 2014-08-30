@@ -102,12 +102,12 @@ class SamlCredentials(Credentials):
         pair = IamSaml(self.keys.provider, self.keys.idp_username, password)
         return pair.exports(self.keys.role)
 
-    def set_info(self, provider, role, idp_user):
+    def set_info(self, provider, role, idp_username):
         """Register our provider, account and idp_user details"""
         # self.contents.keys = SamlInfo(provider, account, idp_user)
         self.role = role
-        self.idp_user = idp_user
         self.provider = provider
+        self.idp_username = idp_username
 
     def make_keys(self, contents):
         """Get us some keys"""
@@ -115,8 +115,8 @@ class SamlCredentials(Credentials):
             raise BadCredentialFile("Unknown credentials type", found=contents.typ, location=contents.location)
 
         if not contents.keys:
+            contents.keys["role"] = self.role.encrypted_values()
             contents.keys["provider"] = self.provider
-            contents.keys["role"] = self.account.encrypted_values()
             contents.keys["idp_username"] = self.idp_username
         return SamlInfo(contents.keys["provider"], SamlRole(*contents.keys["role"].split(",")), contents.keys["idp_username"])
 
