@@ -3,6 +3,7 @@ from credo.asker import ask_user_for_half_life
 from credo.cred_types.saml import SamlRole
 
 from boto.iam.connection import IAMConnection
+from boto.sts.connection import STSConnection
 from datetime import datetime, timedelta
 import xml.etree.ElementTree as ET
 from textwrap import dedent
@@ -251,7 +252,7 @@ class IamSaml(IamBase):
     def connection(self):
         """Get a connection"""
         if not getattr(self, "_connection", None):
-            self._connection = IAMConnection()
+            self._connection = STSConnection(anon=True)
         return self._connection
 
     @property
