@@ -15,8 +15,8 @@ class Credentials(Keys):
         if self.keys.needs_rotation():
             self.keys.rotate(half_life)
 
-        if force or self.keys.changed:
-            self.contents.save(self.location, self.keys, access_keys=list(self.keys.access_keys))
+        if force or self.changed or self.keys.changed:
+            self.contents.save(self.location, self.keys, access_keys=list(self.keys.access_keys()))
             self.keys.unchanged()
 
             cred_path = self.credential_path
