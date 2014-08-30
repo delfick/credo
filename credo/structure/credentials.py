@@ -33,7 +33,12 @@ class Credentials(Keys):
     @property
     def path(self):
         """Return the repo, account and user this represents"""
-        return "repo={0}|account={1}|user={2}|Credentials".format(self.repo_name, self.account_name, self.name)
+        return "repo={0}|account={1}|user={2}|{3}".format(self.repo_name, self.account_name, self.name, self.path_name)
+
+    @property
+    def path_name(self):
+        """Return this part of the path"""
+        return "Credentials"
 
     @property
     def parent_path_part(self):
