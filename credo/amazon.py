@@ -243,6 +243,7 @@ class IamSaml(IamBase):
     def __init__(self, provider, username, password, connection=None, create_epoch=None, half_life=None):
         self.provider = provider
         self.basic_auth = base64.b64encode("{0}:{1}".format(username, password))
+        self.username = username
         self._connection = connection
         super(IamSaml, self).__init__(create_epoch=create_epoch, half_life=half_life)
 
@@ -343,7 +344,7 @@ class IamSaml(IamBase):
         self._works = True
 
         self._assertion = base64.b64encode(ET.tostring(list(tree_body)[0]))
-        self._arns = [SamlRole(*arn.text.split(",")) for arn in arns]
+        self._arns = sorted([SamlRole(*arn.text.split(",")) for arn in arns], key = lambda a: a.role_arn)
 
     def exports(self, role):
         """Get exports for this account"""
