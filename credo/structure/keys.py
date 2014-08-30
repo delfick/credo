@@ -1,11 +1,12 @@
 from credo.helper import KeysFile
 
-class EncryptedKeys(object):
+class Keys(object):
     """Collection of environment variables"""
     def __init__(self, location, credential_path):
         self.location = location
         self.credential_path = credential_path
         self.crypto = credential_path.crypto
+        self._changed = False
 
     def add(self, key, value):
         """Add a key"""

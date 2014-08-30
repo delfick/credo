@@ -1,12 +1,12 @@
-from credo.structure.encrypted_keys import EncryptedKeys
 from credo.cred_types.amazon import AmazonKeys
 from credo.errors import BadCredentialFile
+from credo.structure.keys import Keys
 
 import logging
 
 log = logging.getLogger("credo.structure.credentials")
 
-class Credentials(EncryptedKeys):
+class Credentials(Keys):
     """Knows about credential files"""
 
     def save(self, force=False, half_life=None):
