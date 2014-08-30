@@ -35,9 +35,9 @@ def get_response(*messages, **kwargs):
 
     try:
         if password:
-            return getpass.getpass("")
+            return getpass.getpass(" ")
         else:
-            return raw_input()
+            return raw_input() or kwargs.get("default", "")
     except KeyboardInterrupt:
         raise UserQuit()
     except EOFError:
