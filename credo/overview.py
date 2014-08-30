@@ -173,7 +173,7 @@ class Credo(object):
 
         return directory_structure, explorer.flatten(directory_structure, mask, want_new=want_new)
 
-    def credentials_from(self, directory_structure, chains, complain_if_missing=False):
+    def credentials_from(self, directory_structure, chains, complain_if_missing=False, typ="amazon"):
         """Yield the credentials from the [location, <repo>, <account>, <user>] chains that are provided"""
         if not chains and complain_if_missing:
             raise CredoError("Didn't find any credentials!")
@@ -186,7 +186,7 @@ class Credo(object):
                 raise CredoError("Trying to find credentials that don't exist!", repo=repo, account=account, user=user)
 
             credential_path = CredentialPath(self.crypto)
-            credential_path.fill_out(directory_structure, repo, account, user)
+            credential_path.fill_out(directory_structure, repo, account, user, typ=typ)
             credentials = credential_path.credentials
             credentials.load()
             yield credentials
@@ -206,7 +206,7 @@ class Credo(object):
         location = os.path.join(self.root_dir, repo_name)
         return repo_name, location
 
-    def find_credential_path_part(self, all_accounts=False, all_users=False, find_user=False):
+    def find_credential_path_part(self, all_accounts=False, all_users=False, find_user=False, typ=None):
         """Find a repository, account or user"""
         directory_structure, shortened = explorer.find_repo_structure(self.root_dir, levels=3)
         mask = explorer.filtered(shortened, [self.repo, self.account, self.user])
@@ -230,7 +230,7 @@ class Credo(object):
                 user = mask[repo][account].keys()[0]
 
         credential_path = CredentialPath(self.crypto)
-        credential_path.fill_out(directory_structure, repo, account, user)
+        credential_path.fill_out(directory_structure, repo, account, user, typ=typ)
 
         if credential_path.user:
             return credential_path.user
