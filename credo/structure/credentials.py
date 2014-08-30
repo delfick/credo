@@ -8,6 +8,7 @@ log = logging.getLogger("credo.structure.credentials")
 
 class Credentials(Keys):
     """Knows about credential files"""
+    requires_encryption = True
 
     def save(self, force=False, half_life=None):
         """Save our credentials to file"""

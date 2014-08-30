@@ -8,6 +8,8 @@ import os
 log = logging.getLogger("credo.cred_types.environment")
 
 class EnvironmentMixin:
+    requires_encryption = True
+
     @property
     def environment_location(self):
         """Where we should store environment vars"""
