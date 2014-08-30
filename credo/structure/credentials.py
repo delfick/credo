@@ -1,7 +1,10 @@
+from credo.cred_types.saml import SamlInfo, SamlRole
 from credo.cred_types.amazon import AmazonKeys
 from credo.errors import BadCredentialFile
 from credo.structure.keys import Keys
-
+from credo.asker import get_response
+from credo.errors import CredoError
+from credo.amazon import IamSaml
 import logging
 
 log = logging.getLogger("credo.structure.credentials")
@@ -68,3 +71,52 @@ class Credentials(Keys):
     def as_string(self):
         """Return information about keys as a string"""
         return "keys!"
+
+class SamlCredentials(Credentials):
+    """Knows about saml information"""
+
+    requires_encryption = False
+
+    @property
+    def default_keys_type(self):
+        """Empty keys is a list"""
+        return dict
+
+    @property
+    def default_keys_type_name(self):
+        """Assume type is amazon"""
+        return "saml"
+
+    @property
+    def path_name(self):
+        """Return this part of the path"""
+        return "Saml Credentials"
+
+    def as_string(self):
+        """Return information about keys as a string"""
+        return "Saml things!"
+
+    def exports(self):
+        """Export some values"""
+        password = get_response("Password for idp user {0}".format(self.keys.idp_username), password=True)
+        pair = IamSaml(self.keys.provider, self.keys.idp_username, password)
+        return pair.exports(self.keys.role)
+
+    def set_info(self, provider, role, idp_user):
+        """Register our provider, account and idp_user details"""
+        # self.contents.keys = SamlInfo(provider, account, idp_user)
+        self.role = role
+        self.idp_user = idp_user
+        self.provider = provider
+
+    def make_keys(self, contents):
+        """Get us some keys"""
+        if contents.typ != "saml":
+            raise BadCredentialFile("Unknown credentials type", found=contents.typ, location=contents.location)
+
+        if not contents.keys:
+            contents.keys["provider"] = self.provider
+            contents.keys["role"] = self.account.encrypted_values()
+            contents.keys["idp_username"] = self.idp_username
+        return SamlInfo(contents.keys["provider"], SamlRole(*contents.keys["role"].split(",")), contents.keys["idp_username"])
+

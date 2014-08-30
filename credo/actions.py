@@ -1,7 +1,7 @@
-from credo.asker import ask_user_for_secrets, ask_for_choice_or_new, ask_for_env, ask_user_for_saml
+from credo.asker import ask_user_for_secrets, ask_for_choice_or_new, ask_for_env, ask_user_for_saml, get_response, ask_for_choice
+from credo.errors import CantEncrypt, CantSign, BadCredential, ProgrammerError, SamlNotAuthorized
 from credo.helper import print_list_of_tuples, make_export_commands, normalise_half_life
-from credo.errors import CantEncrypt, CantSign, BadCredential
-from credo.amazon import IamPair
+from credo.amazon import IamPair, IamSaml
 from credo import structure
 
 import logging
@@ -131,33 +131,52 @@ def do_remote(credo, remote=None, version_with=None, **kwargs):
 
 def do_import(credo, source=False, half_life=None, **kwargs):
     """Import some creds"""
-    structure, chains = credo.find_credentials(asker=ask_for_choice_or_new, want_new=True)
-    creds = list(credo.credentials_from(structure, chains))[0]
-    cred_path = creds.credential_path
-    log.info("Making credentials for\trepo=%s\taccount=%s\tuser=%s", cred_path.repository.name, cred_path.account.name, cred_path.user.name)
-
-    cred_path.repository.pub_key_syncer.sync()
-    log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints)
-    log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints)
-
-    if not credo.crypto.can_encrypt:
-        raise CantEncrypt("No public keys to encrypt with", repo=cred_path.repository.name)
-    if not credo.crypto.can_sign:
-        log.error("Couldn't find any private keys matching your known public keys!")
-        cred_path.repository.pub_key_syncer.sync(ask_anyway=True)
-        if not credo.crypto.can_sign:
-            raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
-
     typ, info = ask_user_for_secrets(credo, source=source)
     if typ == "amazon":
         access_key, secret_key = info
-        half_life = normalise_half_life(half_life, access_key) or getattr(credo, "half_life", None)
         iam_pair = IamPair(access_key, secret_key, half_life=half_life)
 
-        # Make sure the iam pair is for the right place
         if not iam_pair.works:
             raise BadCredential("The credentials you just provided don't work....")
+    elif typ == "saml":
+        access_key = None
 
+        # Keep asking for username and password until they give one
+        while True:
+            idp_username = get_response("Idp username", default=os.environ.get("USER"))
+            idp_password = get_response("Idp password", password=True)
+            iam_pair = IamSaml(info, idp_username, idp_password, half_life=half_life)
+            try:
+                arns = iam_pair.arns
+            except SamlNotAuthorized:
+                continue
+
+            saml_account = ask_for_choice("Which account do you want to use?", choices=arns)
+            break
+    else:
+        raise ProgrammerError("Unknown credential type {0}".format(typ))
+
+    structure, chains = credo.find_credentials(asker=ask_for_choice_or_new, want_new=True)
+    creds = list(credo.credentials_from(structure, chains, typ=typ))[0]
+    cred_path = creds.credential_path
+    log.info("Making credentials for\trepo=%s\taccount=%s\tuser=%s", cred_path.repository.name, cred_path.account.name, cred_path.user.name)
+
+    if typ != "saml":
+        cred_path.repository.pub_key_syncer.sync()
+        log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints)
+        log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints)
+
+        if not credo.crypto.can_encrypt:
+            raise CantEncrypt("No public keys to encrypt with", repo=cred_path.repository.name)
+        if not credo.crypto.can_sign:
+            log.error("Couldn't find any private keys matching your known public keys!")
+            cred_path.repository.pub_key_syncer.sync(ask_anyway=True)
+            if not credo.crypto.can_sign:
+                raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
+
+    half_life = normalise_half_life(half_life, access_key) or getattr(credo, "half_life", None)
+
+    if typ == "amazon":
         account_id = cred_path.account.account_id(iam_pair=iam_pair)
         if iam_pair.ask_amazon_for_account() != account_id:
             raise BadCredential("The credentials you are importing are for a different account"
@@ -171,10 +190,10 @@ def do_import(credo, source=False, half_life=None, **kwargs):
                 )
 
         creds.keys.add(iam_pair)
-        creds.save()
     elif typ == "saml":
-        print("Saml!")
+        creds.set_info(info, saml_account, idp_username)
 
+    creds.save()
     cred_path.repository.synchronize()
 
 def do_register_saml(credo, provider=None, **kwargs):

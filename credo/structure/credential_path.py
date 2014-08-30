@@ -1,4 +1,4 @@
-from credo.structure.credentials import Credentials
+from credo.structure.credentials import Credentials, SamlCredentials
 from credo.structure.repository import Repository
 from credo.structure.account import Account
 from credo.structure.user import User
@@ -42,7 +42,9 @@ class CredentialPath(object):
                 if contents and isinstance(contents, dict) and 'type' in contents:
                     typ = contents.get("type", typ)
 
-        if typ == "amazon":
+        if typ == "saml":
+            return SamlCredentials(location, self)
+        else:
             return Credentials(location, self)
 
     def add_change(self, location, message, **info):
