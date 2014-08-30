@@ -187,7 +187,7 @@ def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs
         """Turn the list of chains into a dictionary"""
         dct = {}
         for chain in chains:
-            location, rest, last = chain[0], chain[1:-1], chain[-1]
+            rest, last = chain[1:-1], chain[-1]
             d = dct
             for part in rest:
                 if part not in d:
