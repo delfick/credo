@@ -333,6 +333,9 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.2.8
+    Some minor fixes
+
 0.2.7
     Added register_saml function
 
