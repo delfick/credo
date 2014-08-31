@@ -1,6 +1,6 @@
 from credo.errors import BadKeyFile, CredoError, UserQuit
-from credo.structure.encrypted_keys import EncryptedKeys
 from credo.asker import ask_for_choice
+from credo.structure.keys import Keys
 
 import logging
 import os
@@ -8,6 +8,8 @@ import os
 log = logging.getLogger("credo.cred_types.environment")
 
 class EnvironmentMixin:
+    requires_encryption = True
+
     @property
     def environment_location(self):
         """Where we should store environment vars"""
@@ -45,7 +47,7 @@ class EnvironmentMixin:
 
         return keys.shell_exports()
 
-class EnvironmentFile(EncryptedKeys):
+class EnvironmentFile(Keys):
     """Collection of environment variables"""
     def __init__(self, location, crypto, owner):
         self.owner = owner

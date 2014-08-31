@@ -1,9 +1,13 @@
-from credo.structure.credentials import Credentials
+from credo.structure.credentials import Credentials, SamlCredentials
 from credo.structure.repository import Repository
 from credo.structure.account import Account
 from credo.structure.user import User
 
+import logging
+import json
 import os
+
+log = logging.getLogger("credo.structure.credential_path")
 
 class CredentialPath(object):
     """Knows about everything leading up to a credentials"""
@@ -15,7 +19,7 @@ class CredentialPath(object):
     def __init__(self, crypto):
         self.crypto = crypto
 
-    def fill_out(self, directory_structure, repo, account, user):
+    def fill_out(self, directory_structure, repo, account, user, typ="amazon"):
         """Make the things leading up to the credentials"""
         self.repository = Repository(repo, directory_structure[repo]['/location/'], self.crypto)
         if account:
@@ -23,7 +27,25 @@ class CredentialPath(object):
             if user:
                 self.user = User(user, directory_structure[repo][account][user]['/location/'], self)
                 credential_location = os.path.join(self.user.location, "credentials.json")
-                self.credentials = Credentials(credential_location, self)
+                self.credentials = self.make_credentials(credential_location, self, typ)
+
+    def make_credentials(self, location, cred_path, typ="amazon"):
+        """Make a credentials object from this location"""
+        if os.path.exists(location):
+            with open(location) as f:
+                contents = None
+                try:
+                    contents = json.load(f)
+                except (ValueError, TypeError) as error:
+                    log.warning("Failed to find type of file\terror=%s\tlocation=%s", error, location)
+
+                if contents and isinstance(contents, dict) and 'type' in contents:
+                    typ = contents.get("type", typ)
+
+        if typ == "saml":
+            return SamlCredentials(location, self)
+        else:
+            return Credentials(location, self)
 
     def add_change(self, location, message, **info):
         """Register a change that was made"""

@@ -1,4 +1,4 @@
-from credo.actions import do_exports, do_exec, do_showavailable, do_import, do_rotate, do_current, do_remote, do_synchronize, do_capture, do_env, do_unset
+from credo.actions import do_exports, do_exec, do_showavailable, do_import, do_rotate, do_current, do_remote, do_synchronize, do_capture, do_env, do_unset, do_register_saml
 from credo.errors import CredoError, NoExecCommand
 from credo.asker import secret_sources
 from credo.overview import Credo
@@ -79,6 +79,7 @@ class CliParser(object):
             , "rotate": self.parse_rotate
             , "version": self.parse_version
             , "sourceable": self.parse_sourceable
+            , "register_saml": self.parse_register_saml
 
             , "env": self.parse_env
             , "capture": self.parse_env
@@ -332,6 +333,17 @@ class CliParser(object):
             if not argv:
                 raise NoExecCommand("argv is empty!")
             return {"command": argv}, do_exec
+
+    def parse_register_saml(self, action, argv):
+        """Args for registering a saml provider"""
+        parser = argparse.ArgumentParser(description="Register a saml provider")
+
+        parser.add_argument("--provider"
+            , help = "The name of the provider"
+            )
+
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_register_saml
 
     def parse_sourceable(self, action, argv):
         """Use CliParser to determine if these args given to credo produces a result that can be sourced into the shell"""

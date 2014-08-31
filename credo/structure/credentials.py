@@ -1,20 +1,23 @@
-from credo.structure.encrypted_keys import EncryptedKeys
+from credo.cred_types.saml import SamlInfo, SamlRole
 from credo.cred_types.amazon import AmazonKeys
 from credo.errors import BadCredentialFile
-
+from credo.structure.keys import Keys
+from credo.asker import get_response
+from credo.amazon import IamSaml
 import logging
 
 log = logging.getLogger("credo.structure.credentials")
 
-class Credentials(EncryptedKeys):
+class Credentials(Keys):
     """Knows about credential files"""
+    requires_encryption = True
 
     def save(self, force=False, half_life=None):
         """Save our credentials to file"""
         if self.keys.needs_rotation():
             self.keys.rotate(half_life)
 
-        if force or self.keys.changed:
+        if force or self.changed or self.keys.changed:
             self.contents.save(self.location, self.keys, access_keys=list(self.keys.access_keys))
             self.keys.unchanged()
 
@@ -32,7 +35,12 @@ class Credentials(EncryptedKeys):
     @property
     def path(self):
         """Return the repo, account and user this represents"""
-        return "repo={0}|account={1}|user={2}|Credentials".format(self.repo_name, self.account_name, self.name)
+        return "repo={0}|account={1}|user={2}|{3}".format(self.repo_name, self.account_name, self.name, self.path_name)
+
+    @property
+    def path_name(self):
+        """Return this part of the path"""
+        return "Credentials"
 
     @property
     def parent_path_part(self):
@@ -62,3 +70,52 @@ class Credentials(EncryptedKeys):
     def as_string(self):
         """Return information about keys as a string"""
         return "keys!"
+
+class SamlCredentials(Credentials):
+    """Knows about saml information"""
+
+    requires_encryption = False
+
+    @property
+    def default_keys_type(self):
+        """Empty keys is a list"""
+        return dict
+
+    @property
+    def default_keys_type_name(self):
+        """Assume type is amazon"""
+        return "saml"
+
+    @property
+    def path_name(self):
+        """Return this part of the path"""
+        return "Saml Credentials"
+
+    def as_string(self):
+        """Return information about keys as a string"""
+        return "Saml things!"
+
+    def exports(self):
+        """Export some values"""
+        password = get_response("Password for idp user {0}".format(self.keys.idp_username), password=True)
+        pair = IamSaml(self.keys.provider, self.keys.idp_username, password)
+        return pair.exports(self.keys.role)
+
+    def set_info(self, provider, role, idp_username):
+        """Register our provider, account and idp_user details"""
+        # self.contents.keys = SamlInfo(provider, account, idp_user)
+        self.role = role
+        self.provider = provider
+        self.idp_username = idp_username
+
+    def make_keys(self, contents):
+        """Get us some keys"""
+        if contents.typ != "saml":
+            raise BadCredentialFile("Unknown credentials type", found=contents.typ, location=contents.location)
+
+        if not contents.keys:
+            contents.keys["role"] = self.role.encrypted_values()
+            contents.keys["provider"] = self.provider
+            contents.keys["idp_username"] = self.idp_username
+        return SamlInfo(contents.keys["provider"], SamlRole(*contents.keys["role"].split(",")), contents.keys["idp_username"])
+

@@ -1,7 +1,7 @@
+from credo.asker import ask_user_for_secrets, ask_for_choice_or_new, ask_for_env, ask_user_for_saml, get_response, ask_for_choice
+from credo.errors import CantEncrypt, CantSign, BadCredential, ProgrammerError, SamlNotAuthorized
 from credo.helper import print_list_of_tuples, make_export_commands, normalise_half_life
-from credo.asker import ask_user_for_secrets, ask_for_choice_or_new, ask_for_env
-from credo.errors import CantEncrypt, CantSign, BadCredential
-from credo.amazon import IamPair
+from credo.amazon import IamPair, IamSaml
 from credo import structure
 
 import logging
@@ -131,46 +131,78 @@ def do_remote(credo, remote=None, version_with=None, **kwargs):
 
 def do_import(credo, source=False, half_life=None, **kwargs):
     """Import some creds"""
+    typ, info = ask_user_for_secrets(credo, source=source)
+    if typ == "amazon":
+        access_key, secret_key = info
+        iam_pair = IamPair(access_key, secret_key, half_life=half_life)
+
+        if not iam_pair.works:
+            raise BadCredential("The credentials you just provided don't work....")
+    elif typ == "saml":
+        access_key = None
+
+        # Keep asking for username and password until they give one
+        while True:
+            idp_username = get_response("Idp username", default=os.environ.get("USER"))
+            idp_password = get_response("Idp password", password=True)
+            iam_pair = IamSaml(info, idp_username, idp_password, half_life=half_life)
+            try:
+                arns = iam_pair.arns
+            except SamlNotAuthorized:
+                continue
+
+            saml_account = ask_for_choice("Which account do you want to use?", choices=arns)
+            break
+    else:
+        raise ProgrammerError("Unknown credential type {0}".format(typ))
+
     structure, chains = credo.find_credentials(asker=ask_for_choice_or_new, want_new=True)
-    creds = list(credo.credentials_from(structure, chains))[0]
+    creds = list(credo.credentials_from(structure, chains, typ=typ))[0]
     cred_path = creds.credential_path
     log.info("Making credentials for\trepo=%s\taccount=%s\tuser=%s", cred_path.repository.name, cred_path.account.name, cred_path.user.name)
 
-    cred_path.repository.pub_key_syncer.sync()
-    log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints)
-    log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints)
+    if typ != "saml":
+        cred_path.repository.pub_key_syncer.sync()
+        log.debug("Crypto has private keys %s", credo.crypto.private_key_fingerprints)
+        log.debug("Crypto has public_keys %s", credo.crypto.public_key_fingerprints)
 
-    if not credo.crypto.can_encrypt:
-        raise CantEncrypt("No public keys to encrypt with", repo=cred_path.repository.name)
-    if not credo.crypto.can_sign:
-        log.error("Couldn't find any private keys matching your known public keys!")
-        cred_path.repository.pub_key_syncer.sync(ask_anyway=True)
+        if not credo.crypto.can_encrypt:
+            raise CantEncrypt("No public keys to encrypt with", repo=cred_path.repository.name)
         if not credo.crypto.can_sign:
-            raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
+            log.error("Couldn't find any private keys matching your known public keys!")
+            cred_path.repository.pub_key_syncer.sync(ask_anyway=True)
+            if not credo.crypto.can_sign:
+                raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
 
-    access_key, secret_key = ask_user_for_secrets(source=source)
     half_life = normalise_half_life(half_life, access_key) or getattr(credo, "half_life", None)
-    iam_pair = IamPair(access_key, secret_key, half_life=half_life)
 
-    # Make sure the iam pair is for the right place
-    if not iam_pair.works:
-        raise BadCredential("The credentials you just provided don't work....")
+    if typ == "amazon":
+        account_id = cred_path.account.account_id(iam_pair=iam_pair)
+        if iam_pair.ask_amazon_for_account() != account_id:
+            raise BadCredential("The credentials you are importing are for a different account"
+                , credentials_account_id=iam_pair.ask_amazon_for_account(), importing_into_account_name=cred_path.account.name, importing_into_account_id=account_id
+                )
 
-    account_id = cred_path.account.account_id(iam_pair=iam_pair)
-    if iam_pair.ask_amazon_for_account() != account_id:
-        raise BadCredential("The credentials you are importing are for a different account"
-            , credentials_account_id=iam_pair.ask_amazon_for_account(), importing_into_account_name=cred_path.account.name, importing_into_account_id=account_id
-            )
+        username = cred_path.user.username(iam_pair=iam_pair)
+        if iam_pair.ask_amazon_for_username() != username:
+            raise BadCredential("The credentials you are importing are for a different user"
+                , credentials_user=iam_pair.ask_amazon_for_username(), importing_into_user=username
+                )
 
-    username = cred_path.user.username(iam_pair=iam_pair)
-    if iam_pair.ask_amazon_for_username() != username:
-        raise BadCredential("The credentials you are importing are for a different user"
-            , credentials_user=iam_pair.ask_amazon_for_username(), importing_into_user=username
-            )
+        creds.keys.add(iam_pair)
+    elif typ == "saml":
+        creds.set_info(info, saml_account, idp_username)
 
-    creds.keys.add(iam_pair)
     creds.save()
     cred_path.repository.synchronize()
+
+def do_register_saml(credo, provider=None, **kwargs):
+    """Register a saml provider"""
+    repo_name, location = credo.find_one_repository()
+    if provider:
+        credo.register_saml_provider(provider)
+    else:
+        ask_user_for_saml(credo)
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
@@ -187,7 +219,7 @@ def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs
         """Turn the list of chains into a dictionary"""
         dct = {}
         for chain in chains:
-            location, rest, last = chain[0], chain[1:-1], chain[-1]
+            rest, last = chain[1:-1], chain[-1]
             d = dct
             for part in rest:
                 if part not in d:

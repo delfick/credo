@@ -40,7 +40,7 @@ class Credo(object):
             self._chosen = self.make_chosen(rotate=True)
         return self._chosen
 
-    def setup(self, config_file=Unspecified, root_dir=Unspecified, ssh_key_folders=Unspecified, **kwargs):
+    def setup(self, config_file=Unspecified, root_dir=Unspecified, ssh_key_folders=Unspecified, providers=Unspecified, **kwargs):
         """Setup the credo!"""
         if config_file is Unspecified:
             config_file = self.find_config_file(config_file)
@@ -54,7 +54,8 @@ class Credo(object):
             self.read_from_config(config_file)
 
         # Override the root dir and ssh_key_folders if supplied
-        for key, val in (("root_dir", root_dir), ("ssh_key_folders", ssh_key_folders)):
+        self.config_file_location = config_file
+        for key, val in (("root_dir", root_dir), ("ssh_key_folders", ssh_key_folders), ("providers", providers)):
             if val is not Unspecified:
                 setattr(self, key, val)
             elif not hasattr(self, key):
@@ -74,8 +75,9 @@ class Credo(object):
     ########################
 
     root_dir = ConfigFileProperty("root_dir")
+    providers = ConfigFileProperty("providers")
     ssh_key_folders = ConfigFileProperty("ssh_key_folders")
-    options_from_config = ["root_dir", "ssh_key_folders", "half_life"]
+    options_from_config = ["root_dir", "ssh_key_folders", "half_life", "providers"]
 
     def validate_options(self):
         """Make sure our options make sense"""
@@ -134,7 +136,8 @@ class Credo(object):
         """Make the chosen credentials from our repository"""
         structure, chains = self.find_credentials(asker=ask_for_choice)
         chosen = list(self.credentials_from(structure, chains, complain_if_missing=True))[0]
-        chosen.credential_path.repository.pub_key_syncer.sync()
+        if chosen.requires_encryption:
+            chosen.credential_path.repository.pub_key_syncer.sync()
 
         if invalidate_creds:
             chosen.invalidate_creds()
@@ -172,7 +175,7 @@ class Credo(object):
 
         return directory_structure, explorer.flatten(directory_structure, mask, want_new=want_new)
 
-    def credentials_from(self, directory_structure, chains, complain_if_missing=False):
+    def credentials_from(self, directory_structure, chains, complain_if_missing=False, typ="amazon"):
         """Yield the credentials from the [location, <repo>, <account>, <user>] chains that are provided"""
         if not chains and complain_if_missing:
             raise CredoError("Didn't find any credentials!")
@@ -185,7 +188,7 @@ class Credo(object):
                 raise CredoError("Trying to find credentials that don't exist!", repo=repo, account=account, user=user)
 
             credential_path = CredentialPath(self.crypto)
-            credential_path.fill_out(directory_structure, repo, account, user)
+            credential_path.fill_out(directory_structure, repo, account, user, typ=typ)
             credentials = credential_path.credentials
             credentials.load()
             yield credentials
@@ -205,7 +208,7 @@ class Credo(object):
         location = os.path.join(self.root_dir, repo_name)
         return repo_name, location
 
-    def find_credential_path_part(self, all_accounts=False, all_users=False, find_user=False):
+    def find_credential_path_part(self, all_accounts=False, all_users=False, find_user=False, typ=None):
         """Find a repository, account or user"""
         directory_structure, shortened = explorer.find_repo_structure(self.root_dir, levels=3)
         mask = explorer.filtered(shortened, [self.repo, self.account, self.user])
@@ -229,7 +232,7 @@ class Credo(object):
                 user = mask[repo][account].keys()[0]
 
         credential_path = CredentialPath(self.crypto)
-        credential_path.fill_out(directory_structure, repo, account, user)
+        credential_path.fill_out(directory_structure, repo, account, user, typ=typ)
 
         if credential_path.user:
             return credential_path.user
@@ -288,4 +291,27 @@ class Credo(object):
         for option in self.options_from_config:
             if option in options:
                 setattr(self, option, options[option])
+
+    def write_config(self):
+        """Write the configuration"""
+        cfg = dict((option, getattr(self, option, None)) for option in self.options_from_config)
+        json.dump(cfg, open(self.config_file_location, "w"))
+
+    ########################
+    ###   SAML
+    ########################
+
+    def register_saml_provider(self, provider):
+        """Register a saml provider"""
+        if getattr(self, 'providers', None):
+            self.providers.append(provider)
+        else:
+            self.providers = [provider]
+        self.write_config()
+
+    def remove_saml_provider(self, provider):
+        """Remove a saml provider"""
+        providers = getattr(self, 'providers', [])
+        self.providers = [p for p in providers if p != provider]
+        self.write_config()
 

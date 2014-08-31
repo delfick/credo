@@ -87,3 +87,9 @@ class InvalidData(CredoError):
 class BadKeyFile(CredoError):
     desc = "Something wrong with a file containing keys"
 
+class BadSamlProvider(CredoError):
+    desc = "Something wrong with a saml provider"
+
+class SamlNotAuthorized(CredoError):
+    desc = "Saml said no"
+
