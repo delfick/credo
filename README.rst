@@ -228,6 +228,10 @@ credo sourceable <argv>
     Note that if you give "--no-sourcing" as an action option, then sourceable
     will say this command should not be sourced
 
+credo register_saml
+    Used to register an idp provider so that when you do an inject it is
+    available as a source of credentials
+
 It also does:
 
 * Stores your credentials so that you have repositories of users in particular
@@ -247,6 +251,7 @@ It also does:
 * Tries to be informative about what is happening
 * Rotate keys automatically
 * Can capture environment variables per repository, account and user
+* Retrieve credentials from a saml based identity provider
 
 Rotation
 --------
