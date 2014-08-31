@@ -198,7 +198,6 @@ def do_import(credo, source=False, half_life=None, **kwargs):
 
 def do_register_saml(credo, provider=None, **kwargs):
     """Register a saml provider"""
-    repo_name, location = credo.find_one_repository()
     if provider:
         credo.register_saml_provider(provider)
     else:
