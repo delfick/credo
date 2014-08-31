@@ -151,7 +151,7 @@ def do_import(credo, source=False, half_life=None, **kwargs):
             except SamlNotAuthorized:
                 continue
 
-            saml_account = ask_for_choice("Which account do you want to use?", choices=arns)
+            saml_account = ask_for_choice("Which account do you want to use?", choices=sorted(arns, key=lambda a: a.role_arn))
             break
     else:
         raise ProgrammerError("Unknown credential type {0}".format(typ))

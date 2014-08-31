@@ -1,5 +1,6 @@
 from credo.errors import BadConfigFile, BadSSHKey, BadCredentialSource, ProgrammerError, UserQuit
 
+from collections import OrderedDict
 from itertools import chain
 import ConfigParser
 import getpass
@@ -45,7 +46,7 @@ def get_response(*messages, **kwargs):
 
 def ask_for_choice(message, choices):
     """Ask for a value from some choices"""
-    mapped = dict(enumerate(sorted(choices)))
+    mapped = OrderedDict(enumerate(choices))
     no_value = True
     while no_value:
         response = get_response(message, "Please choose a value from the following", mapped)
