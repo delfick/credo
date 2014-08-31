@@ -440,7 +440,7 @@ def ask_for_env(part, env, remove_env, ask_for_more=False):
 def ask_user_for_saml(credo, action=None, provider=None):
     """Ask the user for saml providers"""
     if action not in (None, "delete", "add", "show"):
-        raise CredoProgrammerError("Given a saml action other than delete or add", got=action)
+        raise ProgrammerError("Given a saml action other than delete or add", got=action)
 
     first = True
     supplied_action = action
