@@ -25,6 +25,7 @@ class SamlInfo(object):
     def needs_rotation(self):
         return False
 
+    @property
     def access_keys(self):
         return []
 
