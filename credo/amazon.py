@@ -4,9 +4,12 @@ from credo.cred_types.saml import SamlRole
 
 from boto.iam.connection import IAMConnection
 from boto.sts.connection import STSConnection
+from boto.sts.credentials import AssumedRole
 from datetime import datetime, timedelta
 import xml.etree.ElementTree as ET
 from textwrap import dedent
+import requests
+import xml.sax
 import httplib
 import logging
 import base64
@@ -240,6 +243,35 @@ class IamPair(IamBase):
 ###   SAML CREDS
 ########################
 
+class FixedSTSConnection(STSConnection):
+    """
+    assume_role_with_saml seems broken because it puts the assertion in the query parameters.
+    awscli puts it in the POST data and isn't broken, so lets do that here as well.
+    """
+    def assume_role_with_saml(self, role_arn, principal_arn, saml_assertion, policy=None, duration_seconds=None):
+        data = {
+            'RoleArn': role_arn,
+            'PrincipalArn': principal_arn,
+            'SAMLAssertion': saml_assertion,
+        }
+        if policy is not None:
+            data['Policy'] = policy
+        if duration_seconds is not None:
+            data['DurationSeconds'] = duration_seconds
+
+        params = {"Action": "AssumeRoleWithSAML", "Version": self.APIVersion}
+        response = requests.post("https://{0}".format(self.host), headers={"User-Agent": boto.UserAgent}, params=params, data=data)
+
+        if response.status_code == 200:
+            obj = AssumedRole(self)
+            h = boto.handler.XmlHandler(obj, self)
+            xml.sax.parseString(response.content, h)
+            return obj
+        else:
+            boto.log.error('%s %s' % (response.status_code, response.reason))
+            boto.log.error('%s' % response.content)
+            raise self.ResponseError(response.status_code, response.reason, response.content)
+
 class IamSaml(IamBase):
     def __init__(self, provider, username, password, connection=None, create_epoch=None, half_life=None):
         self.provider = provider
@@ -252,7 +284,7 @@ class IamSaml(IamBase):
     def connection(self):
         """Get a connection"""
         if not getattr(self, "_connection", None):
-            self._connection = STSConnection(anon=True)
+            self._connection = FixedSTSConnection(anon=True)
         return self._connection
 
     @property
@@ -343,8 +375,9 @@ class IamSaml(IamBase):
 
         arns = tree.findall(".//*[@FriendlyName='Role']/*")
         self._works = True
-
-        self._assertion = base64.b64encode(ET.tostring(list(tree_body)[0]))
+        body_start = "<soap11:Body>"
+        body_end = "</soap11:Body>"
+        self._assertion = base64.b64encode(body[body.find(body_start)+len(body_start):body.find(body_end)])
         self._arns = sorted([SamlRole(*arn.text.split(",")) for arn in arns], key = lambda a: a.role_arn)
 
     def exports(self, role):
@@ -354,6 +387,13 @@ class IamSaml(IamBase):
                 , username=self.keys.idp_username, provider=self.keys.provider, wanted=self.keys.role.role_arn
                 )
 
-        response = self.connection.assume_role_with_saml(role.role_arn, role.principal_arn, self.assertion, duration_seconds=3600)
-        raise NotImplementedError("Have to finish this implementation first")
+        result = self.connection.assume_role_with_saml(role.role_arn, role.principal_arn, self.assertion, duration_seconds=3600)
+        creds = result.credentials
+        return [
+              ("AWS_ACCESS_KEY_ID", creds.access_key)
+            , ("AWS_SECRET_ACCESS_KEY", creds.secret_key)
+
+            , ("AWS_SESSION_TOKEN", creds.session_token)
+            , ("AWS_SECURITY_TOKEN", creds.session_token)
+            ]
 
