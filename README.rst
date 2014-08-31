@@ -333,6 +333,11 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.2.7
+    Added register_saml function
+
+    And the ability to get credentials from a saml identity provider
+
 0.2.6
     Pinning install_requires dependencies
 
