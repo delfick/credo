@@ -3,7 +3,6 @@ from credo.cred_types.amazon import AmazonKeys
 from credo.errors import BadCredentialFile
 from credo.structure.keys import Keys
 from credo.asker import get_response
-from credo.errors import CredoError
 from credo.amazon import IamSaml
 import logging
 
@@ -19,7 +18,7 @@ class Credentials(Keys):
             self.keys.rotate(half_life)
 
         if force or self.changed or self.keys.changed:
-            self.contents.save(self.location, self.keys, access_keys=list(self.keys.access_keys()))
+            self.contents.save(self.location, self.keys, access_keys=list(self.keys.access_keys))
             self.keys.unchanged()
 
             cred_path = self.credential_path

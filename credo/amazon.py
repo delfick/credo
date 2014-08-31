@@ -152,8 +152,9 @@ class IamBase(object):
 ########################
 
 class IamPair(IamBase):
-    def __init__(self, aws_access_key_id, aws_secret_access_key, create_epoch=None, half_life=None):
+    def __init__(self, aws_access_key_id, aws_secret_access_key, aws_security_token=None, create_epoch=None, half_life=None):
         self.aws_access_key_id = aws_access_key_id
+        self.aws_security_token = aws_security_token
         self.aws_secret_access_key = aws_secret_access_key
         super(IamPair, self).__init__(create_epoch=create_epoch, half_life=half_life)
 

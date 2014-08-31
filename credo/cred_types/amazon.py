@@ -102,7 +102,7 @@ class AmazonKey(object):
         if (access_key, secret_key) not in self.iam_pairs:
             if half_life is None:
                 half_life = self.key_info.get("half_life")
-            iam_pair = IamPair(access_key, secret_key, self.key_info.get("create_epoch"), half_life)
+            iam_pair = IamPair(access_key, secret_key, create_epoch=self.key_info.get("create_epoch"), half_life=half_life)
             self.iam_pairs[(access_key, secret_key)] = iam_pair
         return self.iam_pairs[(access_key, secret_key)]
 
