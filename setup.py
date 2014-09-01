@@ -13,7 +13,7 @@ setup(
       , "paramiko==1.14.0"
       , "requests==2.2.1"
       , "keyring==3.5"
-      , "boto==2.20.1"
+      , "boto>=2.32.1"
       , "delfick_error==1.6"
       ]
 
