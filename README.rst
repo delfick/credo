@@ -236,6 +236,33 @@ credo serve
     Serve a fake metadata service. This needs to be run as root so that we can bind
     to port 80 on 169.254.169.254.
 
+    .. note:: You need to do ``sudo ifconfig lo0 alias 169.254.169.254`` first.
+
+    It's handy to have this startup by itself. So on a mac you can add something like the
+    following to ``/Library/LaunchDaemons/delfick.credo.fake_metadata.plist``::
+
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+          <key>Label</key>
+          <string>delfick.credo.fake_metadata</string>
+          <key>ProgramArguments</key>
+          <array>
+            <string>PATH_TO_CREDO</string>
+            <string>serve</string>
+          </array>
+          <key>RunAtLoad</key>
+          <true/>
+          <key>UserName</key>
+          <string>root</string>
+          <key>StandardOutPath</key>
+          <string>/var/log/credo/out.log</string>
+          <key>StandardErrorPath</key>
+          <string>/var/log/credo/err.log</string>
+        </dict>
+        </plist>
+
 credo switch
     Tell the fake metadata service which credentials to use. It behaves just like ``inject``.
 
