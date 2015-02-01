@@ -1,4 +1,4 @@
-from credo.actions import do_exports, do_exec, do_showavailable, do_import, do_rotate, do_current, do_remote, do_synchronize, do_capture, do_env, do_unset, do_register_saml
+from credo.actions import do_exports, do_exec, do_showavailable, do_import, do_rotate, do_current, do_remote, do_synchronize, do_capture, do_env, do_unset, do_register_saml, do_serve, do_switch
 from credo.errors import CredoError, NoExecCommand
 from credo.asker import secret_sources
 from credo.overview import Credo
@@ -74,6 +74,8 @@ class CliParser(object):
               "help": self.parse_help
             , "exec": self.parse_exec
             , "show": self.parse_show
+            , "serve": self.parse_serve
+            , "switch": self.parse_switch
             , "remote": self.parse_remote
             , "import": self.parse_import
             , "rotate": self.parse_rotate
@@ -370,6 +372,42 @@ class CliParser(object):
 
                 # Otherwise, not sourceable
                 sys.exit(1)
+
+    def parse_serve(self, action, argv):
+        """Args for registering a saml provider"""
+        parser = argparse.ArgumentParser(description="Serve a fake metadata service")
+
+        parser.add_argument("--port"
+            , help = "The port to serve it under"
+            , type = int
+            , default = 80
+            )
+
+        parser.add_argument("--host"
+            , help = "The host to serve it as"
+            , default = "169.254.169.254"
+            )
+
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_serve
+
+    def parse_switch(self, action, argv):
+        """Args for registering a saml provider"""
+        parser = argparse.ArgumentParser(description="Switch what creds the metadata service returns")
+
+        parser.add_argument("--port"
+            , help = "The port to serve it under"
+            , type = int
+            , default = 80
+            )
+
+        parser.add_argument("--host"
+            , help = "The host to serve it as"
+            , default = "169.254.169.254"
+            )
+
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_switch
 
 def main(argv=None):
     __import__("boto")

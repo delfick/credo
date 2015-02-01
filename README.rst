@@ -232,6 +232,13 @@ credo register_saml
     Used to register an idp provider so that when you do an inject it is
     available as a source of credentials
 
+credo serve
+    Serve a fake metadata service. This needs to be run as root so that we can bind
+    to port 80 on 169.254.169.254.
+
+credo switch
+    Tell the fake metadata service which credentials to use. It behaves just like ``inject``.
+
 It also does:
 
 * Stores your credentials so that you have repositories of users in particular

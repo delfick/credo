@@ -388,7 +388,7 @@ class IamSaml(IamBase):
                 , username=self.keys.idp_username, provider=self.keys.provider, wanted=self.keys.role.role_arn
                 )
 
-        result = self.connection.assume_role_with_saml(role.role_arn, role.principal_arn, self.assertion, duration_seconds=3600)
+        result = self.get_result(role)
         creds = result.credentials
         return [
               ("AWS_ACCESS_KEY_ID", creds.access_key)
@@ -397,4 +397,8 @@ class IamSaml(IamBase):
             , ("AWS_SESSION_TOKEN", creds.session_token)
             , ("AWS_SECURITY_TOKEN", creds.session_token)
             ]
+
+    def get_result(self, role):
+        """Get back the sts assume result"""
+        return self.connection.assume_role_with_saml(role.role_arn, role.principal_arn, self.assertion, duration_seconds=3600)
 

@@ -1,13 +1,45 @@
 from credo.asker import ask_user_for_secrets, ask_for_choice_or_new, ask_for_env, ask_user_for_saml, get_response, ask_for_choice
-from credo.errors import CantEncrypt, CantSign, BadCredential, ProgrammerError, SamlNotAuthorized
+from credo.errors import CantEncrypt, CantSign, BadCredential, ProgrammerError, SamlNotAuthorized, CredoError
 from credo.helper import print_list_of_tuples, make_export_commands, normalise_half_life
+from credo.structure.credentials import SamlCredentials
 from credo.amazon import IamPair, IamSaml
+from credo.server import Server
 from credo import structure
 
+import requests
 import logging
+import base64
+import pickle
+import json
 import os
 
 log = logging.getLogger("credo.actions")
+
+def do_serve(credo, port=80, host="169.254.169.254", **kwargs):
+    Server(host, port, credo).start()
+
+def do_switch(credo, port=80, host="169.254.169.254", **kwargs):
+    url = "http://{0}:{1}/latest/meta-data/switch/".format(host, port)
+    chosen = credo._chosen = credo.make_chosen(rotate=False)
+    if not isinstance(chosen, SamlCredentials):
+        raise CredoError("Switch only supports idp roles")
+
+    request = {"credentials": chosen}
+    while True:
+        response = requests.post(url, data=pickle.dumps(request))
+        if response.status_code == 500:
+            error = response.json()["error"]
+            if error in ("NEED_AUTH", "BAD_PASSWORD"):
+                if error == "BAD_PASSWORD":
+                    log.error("Password was incorrect")
+                password = get_response("Password for idp user {0}".format(chosen.keys.idp_username), password=True)
+                request["basic_auth"] = base64.b64encode("{0}:{1}".format(chosen.keys.idp_username, password))
+            else:
+                break
+        else:
+            break
+
+    print("{0}: {1}".format(response.status_code, response.text))
 
 def do_current(credo, **kwargs):
     """Print out what user is currently in our environment"""
