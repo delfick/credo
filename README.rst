@@ -340,6 +340,9 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.3.0
+    Added serve and switch to act as a fake metadata service
+
 0.2.8
     Some minor fixes
 
