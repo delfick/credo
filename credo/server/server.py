@@ -1,6 +1,7 @@
 from credo.structure.credential_path import CredentialPath
 from credo.errors import CredoError, SamlNotAuthorized
 from credo.amazon import IamSaml
+from credo import explorer
 
 from datetime import datetime, timedelta
 from boto.utils import parse_ts
@@ -130,6 +131,12 @@ class Server(object):
 
         return cookies
 
+    def find_credentials(self, account):
+        directory_structure, shortened = explorer.find_repo_structure(self.credo.root_dir, levels=3)
+        explorer.narrow(shortened, ["Repository", "Account", "User"], None, want_new=False, forced_vals=[None, account, None])
+        chains = explorer.flatten(directory_structure, shortened, want_new=False)
+        return list(self.credo.credentials_from(directory_structure, chains, complain_if_missing=True))[0]
+
     @keys.setter
     def keys(self, val):
         self._keys = val
@@ -168,7 +175,8 @@ class Server(object):
 
         @app.route('/latest/meta-data/switch/to/<account>', methods = ["GET"])
         def switch_to(account):
-            cookies = self.get_cookies(self.credentials)
+            credentials = self.find_credentials(account)
+            cookies = self.get_cookies(credentials)
             response = {"Location": "https://console.aws.amazon.com/console?region=ap-southeast-2", "Cookies": cookies}
             return make_response(jsonify(response))
 
