@@ -75,9 +75,9 @@ class Server(object):
 
         if keys is None:
             log.info("Assuming role")
-            pair = IamSaml(self.credentials.provider, self.credentials.idp_username, "")
+            pair = IamSaml(credentials.provider, credentials.idp_username, "")
             pair.basic_auth = self.basic_auth
-            keys = pair.get_result(self.credentials.role).credentials.to_dict()
+            keys = pair.get_result(credentials.role).credentials.to_dict()
 
             _keys = {
                   "Code": "Success"
@@ -135,7 +135,9 @@ class Server(object):
         directory_structure, shortened = explorer.find_repo_structure(self.credo.root_dir, levels=3)
         explorer.narrow(shortened, ["Repository", "Account", "User"], None, want_new=False, forced_vals=[None, account, None])
         chains = explorer.flatten(directory_structure, shortened, want_new=False)
-        return list(self.credo.credentials_from(directory_structure, chains, complain_if_missing=True))[0]
+        chosen = list(self.credo.credentials_from(directory_structure, chains, complain_if_missing=True))[0]
+        chosen.keys
+        return chosen
 
     @keys.setter
     def keys(self, val):
@@ -173,10 +175,31 @@ class Server(object):
         def switch_get():
             return 'to'
 
+        @app.route('/latest/meta-data/switch/to/', methods = ["GET"])
+        def switch_list():
+            directory_structure, shortened = explorer.find_repo_structure(self.credo.root_dir, levels=3)
+            html = []
+            html.append("<body>")
+            for repository, values in shortened.items():
+                html.append("<h1>Repository: {0}</h1>".format(repository))
+                html.append("<ul>")
+
+                for account, values in sorted(values.items()):
+                    html.append('<li><a href="/latest/meta-data/switch/to/{0}">{0}</a></li>'.format(account))
+
+                html.append("</ul>")
+            html.append("</body>")
+            return '\n'.join(html)
+
         @app.route('/latest/meta-data/switch/to/<account>', methods = ["GET"])
         def switch_to(account):
             credentials = self.find_credentials(account)
-            cookies = self.get_cookies(credentials)
+
+            try:
+                cookies = self.get_cookies(credentials)
+            except SamlNotAuthorized:
+                return make_response(jsonify({"error": "NEED_AUTH"}), 500)
+
             response = {"Location": "https://console.aws.amazon.com/console?region=ap-southeast-2", "Cookies": cookies}
             return make_response(jsonify(response))
 
