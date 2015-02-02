@@ -15,6 +15,7 @@ setup(
       , "keyring==3.5"
       , "boto>=2.32.1"
       , "delfick_error==1.6"
+      , "pytz"
       ]
 
     , extras_require =
