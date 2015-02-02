@@ -23,6 +23,8 @@ class Server(object):
         self.host = host
         self.port = port
         self.credo = credo
+        self.stored_keys = {}
+        self.stored_assertions = {}
 
     def start(self):
         try:
@@ -57,9 +59,10 @@ class Server(object):
 
     @property
     def keys(self):
-        return self.set_keys()
+        keys, _ = self.set_keys(self.credentials)
+        return keys
 
-    def set_keys(self, timeout=None):
+    def set_keys(self, credentials, timeout=None):
         keys = getattr(self, "_keys", None)
         if keys is not None:
             expiration = parse_ts(keys["Expiration"])
@@ -71,12 +74,11 @@ class Server(object):
 
         if keys is None:
             log.info("Assuming role")
-            pair = IamSaml(self.credentials.keys.provider, self.credentials.keys.idp_username, "")
+            pair = IamSaml(self.credentials.provider, self.credentials.idp_username, "")
             pair.basic_auth = self.basic_auth
-            keys = pair.get_result(self.credentials.keys.role).credentials.to_dict()
+            keys = pair.get_result(self.credentials.role).credentials.to_dict()
 
-            self.assertion = pair.assertion
-            self._keys = {
+            _keys = {
                   "Code": "Success"
                 , "LastUpdated": datetime.utcnow()
                 , "AccessKeyId": keys["access_key"]
@@ -84,9 +86,11 @@ class Server(object):
                 , "Token": keys["session_token"]
                 , "Expiration": keys["expiration"]
                 }
-        return self._keys
+            self.stored_keys[credentials.path] = _keys
+            self.stored_assertions[credentials.path] = pair.assertion
+        return _keys, pair.assertion
 
-    def get_cookies(self, saml_info):
+    def get_cookies(self, credentials):
         s = requests.Session()
         cookies = []
         def add_cookies(resp):
@@ -110,16 +114,16 @@ class Server(object):
                         cookie["expirationDate"] = time.mktime(cookie['expirationDate'].timetuple())
                         cookies.append(cookie)
 
-        resp = s.get("https://{0}".format(saml_info.provider))
+        resp = s.get("https://{0}".format(credentials.provider))
         add_cookies(resp)
 
-        nxt = "https://{0}{1}".format(saml_info.provider, re.findall('href="[^"]+"', resp.text)[0][6:-1])
+        nxt = "https://{0}{1}".format(credentials.provider, re.findall('href="[^"]+"', resp.text)[0][6:-1])
         resp2 = s.get(nxt, allow_redirects=False)
         add_cookies(resp2)
 
-        self.set_keys(timeout=timedelta(minutes=5))
+        keys, assertion = self.set_keys(credentials, timeout=timedelta(minutes=5))
         nxt = "https://signin.aws.amazon.com/saml"
-        data2 = urlencode({"SAMLResponse": self.assertion, "name": "", "roleIndex": saml_info.role.role_arn, "RelayState": ""})
+        data2 = urlencode({"SAMLResponse": assertion, "name": "", "roleIndex": credentials.role.role_arn, "RelayState": ""})
         headers2 = {"Content-Type": "application/x-www-form-urlencoded", "Content-Length": len(data2)}
         final_resp = s.post(nxt, data=data2, headers=headers2, allow_redirects=False)
         add_cookies(final_resp)
@@ -164,8 +168,7 @@ class Server(object):
 
         @app.route('/latest/meta-data/switch/to/<account>', methods = ["GET"])
         def switch_to(account):
-            saml_info = self.credentials.keys
-            cookies = self.get_cookies(saml_info)
+            cookies = self.get_cookies(self.credentials)
             response = {"Location": "https://console.aws.amazon.com/console?region=ap-southeast-2", "Cookies": cookies}
             return make_response(jsonify(response))
 

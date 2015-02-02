@@ -77,6 +77,10 @@ class SamlCredentials(Credentials):
     requires_encryption = False
 
     @property
+    def path(self):
+        return "role={0}|provider={1}|username={2}".format(self.role, self.provider, self.idp_username)
+
+    @property
     def default_keys_type(self):
         """Empty keys is a list"""
         return dict
@@ -101,12 +105,17 @@ class SamlCredentials(Credentials):
         pair = IamSaml(self.keys.provider, self.keys.idp_username, password)
         return pair.exports(self.keys.role)
 
-    def set_info(self, provider, role, idp_username):
-        """Register our provider, account and idp_user details"""
-        # self.contents.keys = SamlInfo(provider, account, idp_user)
-        self.role = role
-        self.provider = provider
-        self.idp_username = idp_username
+    @property
+    def role(self):
+        return self.keys.role
+
+    @property
+    def provider(self):
+        return self.keys.provider
+
+    @property
+    def idp_username(self):
+        return self.keys.idp_username
 
     def make_keys(self, contents):
         """Get us some keys"""

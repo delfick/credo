@@ -224,8 +224,6 @@ def do_import(credo, source=False, half_life=None, **kwargs):
                 )
 
         creds.keys.add(iam_pair)
-    elif typ == "saml":
-        creds.set_info(info, saml_account, idp_username)
 
     creds.save(half_life=half_life)
     cred_path.repository.synchronize()
