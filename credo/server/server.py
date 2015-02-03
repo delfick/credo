@@ -64,7 +64,7 @@ class Server(object):
         return keys
 
     def set_keys(self, credentials, timeout=None):
-        keys = getattr(self, "_keys", None)
+        keys = self.stored_keys.get(credentials.path)
         if keys is not None:
             expiration = parse_ts(keys["Expiration"])
             if timeout:
@@ -89,7 +89,7 @@ class Server(object):
                 }
             self.stored_keys[credentials.path] = _keys
             self.stored_assertions[credentials.path] = pair.assertion
-        return _keys, pair.assertion
+        return self.stored_keys[credentials.path], self.stored_assertions[credentials.path]
 
     def get_cookies(self, credentials):
         s = requests.Session()
