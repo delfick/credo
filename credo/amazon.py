@@ -136,11 +136,11 @@ class IamBase(object):
 
     def expired(self):
         """Say whether the age of this key is past twice it's half life or marked as invalid"""
-        return getattr(self, "invalidated", False) or self.age > self.half_life * 2
+        return getattr(self, "invalidated", False) or self.half_life > 0 and self.age > self.half_life * 2
 
     def past_half_life(self):
         """Say whether the age of this key is past it's half life"""
-        return self.age > self.half_life
+        return self.half_life > 0 and self.age > self.half_life
 
     @property
     def age(self):

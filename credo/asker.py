@@ -301,9 +301,10 @@ def ask_user_for_half_life(access_key):
     day_choice = "One day"
     hour_choice = "One hour"
     week_choice = "One week"
+    forever_choice = "forever"
 
     while True:
-        choice = ask_for_choice_or_new("What half life do you want for this key? ({0})".format(access_key), [hour_choice, day_choice, week_choice])
+        choice = ask_for_choice_or_new("What half life do you want for this key? ({0})".format(access_key), [hour_choice, day_choice, week_choice, forever_choice])
 
         if choice == hour_choice:
             return 3600
@@ -311,6 +312,8 @@ def ask_user_for_half_life(access_key):
             return 3600 * 24
         elif choice == week_choice:
             return 3600 * 24 * 7
+        elif choice == forever_choice:
+            return -1
         else:
             if not choice.isdigit():
                 print >> sys.stderr, "Please enter an integer representing the number of seconds in the half life"
