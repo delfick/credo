@@ -126,7 +126,7 @@ If you put something like this in your ~/.bashrc or ~/.zshrc::
         if command credo sourceable $@; then
             output=$(command credo $@)
             if (($? == 0)); then
-                source <(echo $output)
+                source <(echo "$output")
             else
                 echo "$output"
             fi
