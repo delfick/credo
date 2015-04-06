@@ -367,6 +367,15 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.3.1
+    Doesn't ask for half_life multiple times
+
+    Has a don't rotate option
+
+    One less bug with saving keys on rotate
+
+    Fixed a bug with importing from a boto config
+
 0.3.0
     Added serve and switch to act as a fake metadata service
 
