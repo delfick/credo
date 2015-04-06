@@ -383,10 +383,14 @@ class AmazonKeys(object):
                     half_life = ask_user_for_half_life(access_key)
                 iam_pair.set_half_life(half_life)
                 self.add_key(iam_pair)
+                usable.append(iam_pair)
 
             for key in for_deletion:
                 # Delete the other keys marked for deletion
                 key.delete()
+                usable = [pair for pair in usable if pair is not key.iam_pair]
 
+        usable_access_keys = [pair.aws_access_key_id for pair in usable]
+        self.keys = [key for key in self.keys if key.iam_pair and key.iam_pair.aws_access_key_id in usable_access_keys]
         return True
 
