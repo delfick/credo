@@ -143,7 +143,7 @@ def ask_user_for_secrets(credo, source=None):
         if source == secret_sources["boto_config"] and not os.path.exists(boto_location):
             raise BadCredentialSource("Couldn't find the boto config", location=boto_location)
 
-        if secret_sources["boto_location"] in (val, source):
+        if secret_sources["boto_config"] in (val, source):
             location = boto_location
         else:
             location = aws_location
