@@ -240,6 +240,10 @@ class IamPair(IamBase):
         pair._connection = IAMConnection()
         return pair
 
+    def synchronize_with(self, other):
+        """Synchronise non key information with another key"""
+        self.set_half_life(other._half_life)
+
 ########################
 ###   SAML CREDS
 ########################
@@ -401,4 +405,7 @@ class IamSaml(IamBase):
     def get_result(self, role):
         """Get back the sts assume result"""
         return self.connection.assume_role_with_saml(role.role_arn, role.principal_arn, self.assertion, duration_seconds=3600)
+
+    def synchronize_with(self, other):
+        """Nothing to synchronize"""
 

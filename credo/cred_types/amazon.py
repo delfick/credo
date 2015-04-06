@@ -173,7 +173,14 @@ class AmazonKeys(object):
         if not key.iam_pair or not key.iam_pair.works:
             raise BadCredential()
 
-        if key.iam_pair.aws_access_key_id not in self.access_keys:
+        found = False
+        for other in self.keys:
+            if other.iam_pair and key.iam_pair:
+                if other.iam_pair.aws_access_key_id == key.iam_pair.aws_access_key_id:
+                    other.iam_pair.synchronize_with(key.iam_pair)
+                    found = True
+
+        if not found:
             self.keys.append(key)
             self._changed = True
 

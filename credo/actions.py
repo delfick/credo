@@ -170,6 +170,10 @@ def do_import(credo, source=False, half_life=None, **kwargs):
 
         if not iam_pair.works:
             raise BadCredential("The credentials you just provided don't work....")
+        half_life = normalise_half_life(half_life, access_key) or getattr(credo, "half_life", None)
+        iam_pair.set_half_life(half_life)
+        iam_pair._changed = False
+
     elif typ == "saml":
         access_key = None
 
@@ -206,8 +210,6 @@ def do_import(credo, source=False, half_life=None, **kwargs):
             if not credo.crypto.can_sign:
                 raise CantSign("No private keys with matching public keys to sign with", repo=cred_path.repository.name)
 
-    half_life = normalise_half_life(half_life, access_key) or getattr(credo, "half_life", None)
-
     if typ == "amazon":
         account_id = cred_path.account.account_id(iam_pair=iam_pair)
         if iam_pair.ask_amazon_for_account() != account_id:
@@ -225,7 +227,7 @@ def do_import(credo, source=False, half_life=None, **kwargs):
     elif typ == "saml":
         creds.set_info(info, saml_account, idp_username)
 
-    creds.save()
+    creds.save(half_life=half_life)
     cred_path.repository.synchronize()
 
 def do_register_saml(credo, provider=None, **kwargs):
