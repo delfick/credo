@@ -224,6 +224,11 @@ def do_import(credo, source=False, half_life=None, **kwargs):
                 )
 
         creds.keys.add(iam_pair)
+    else:
+        contents = creds.contents
+        contents.keys["provider"] = info
+        contents.keys["role"] = saml_account.encrypted_values()
+        contents.keys["idp_username"] = idp_username
 
     creds.save(half_life=half_life)
     cred_path.repository.synchronize()
