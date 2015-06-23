@@ -301,7 +301,7 @@ def do_create_launch_daemon(credo, virtualenv, **kwargs):
     config_location = os.path.expanduser("~/.credo/config.json")
 
     if os.path.exists(output_file):
-        print("File already exists!")
+        print("File already exists! ({0})".format(output_file))
         return
 
     with open(output_file, "w") as fle:
