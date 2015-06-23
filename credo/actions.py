@@ -243,7 +243,7 @@ def do_register_saml(credo, provider=None, **kwargs):
     else:
         ask_user_for_saml(credo)
 
-def do_output_extension(credo, output=None, **kwargs):
+def do_output_extension(credo, output, **kwargs):
     """Output the Chrome extension for the metadata magic server."""
     source = pkg_resources.resource_filename("credo", "ext")
     try:
@@ -259,6 +259,40 @@ def do_output_extension(credo, output=None, **kwargs):
         - Load unpacked extension.
             - Choose {0}
     """.format(output)))
+
+def do_print_shell_function(credo, virtualenv, **kwargs):
+    """Print the shell function to add to your environment."""
+    print(dedent("""
+        Add the following to your shrc file (~/.bashrc, ~/.zshrc)
+
+        ======================================================
+        credo () {{
+            addr="169.254.169.254";
+            loopback_interface="lo0";
+            routed_interface="$(route get $addr | grep interface | awk '{{ print $2 }}')";
+            if [[ "$routed_interface" != "$loopback_interface" ]]; then
+                gecho "creating $addr alias";
+                sudo ifconfig lo0 alias $addr;
+                for action in unload load;
+                do
+                    sudo launchctl $action /Library/LaunchDaemons/delfick.credo.fake_metadata.plist;
+                done;
+            fi;
+            if {0}/bin/credo sourceable $@; then
+                output=$({0}/bin/credo $@);
+                if (($? == 0)); then
+                    gecho "$output" > /tmp/lolz;
+                    source /tmp/lolz;
+                else
+                    gecho "$output";
+                fi;
+            else
+                {0}/credo $@;
+            fi
+        }}
+        ======================================================
+    """.format(virtualenv)))
+
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""

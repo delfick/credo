@@ -4,6 +4,7 @@ from credo.actions import (
     , do_synchronize, do_capture, do_env
     , do_unset, do_register_saml, do_serve
     , do_switch, do_output_extension, do_exports
+    , do_print_shell_function
     )
 from credo.errors import CredoError, NoExecCommand
 from credo.asker import secret_sources
@@ -89,6 +90,7 @@ class CliParser(object):
             , "sourceable": self.parse_sourceable
             , "register_saml": self.parse_register_saml
             , "output_extension": self.parse_output_extension
+            , "print_shell_function": self.parse_print_shell_function
 
             , "env": self.parse_env
             , "capture": self.parse_env
@@ -283,6 +285,16 @@ class CliParser(object):
             )
         args = self.args_from_subparser(action, parser, argv)
         return args, do_output_extension
+
+    def parse_print_shell_function(self, action, argv):
+        """Show our credo bash function"""
+        parser = argparse.ArgumentParser(description="The current credo bash function")
+        parser.add_argument("--virtualenv"
+            , help = "The virtualenv where credo is installed."
+            , required = True
+            )
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_print_shell_function
 
     def parse_show(self, action, argv):
         """Parser for showing available credentials"""
