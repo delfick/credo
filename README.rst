@@ -370,6 +370,9 @@ Enjoy your new Magic Metadata Server.
 Changelog
 ---------
 
+0.4.0
+    Add more support for credo server.
+
 0.3.3
     Fixed the credo import function
 
