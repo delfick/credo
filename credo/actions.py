@@ -15,6 +15,7 @@ import base64
 import pickle
 import shutil
 import json
+import sys
 import os
 
 log = logging.getLogger("credo.actions")
@@ -261,8 +262,14 @@ def do_output_extension(credo, output, **kwargs):
             - Choose {0}
     """.format(output)))
 
-def do_print_shell_function(credo, virtualenv, **kwargs):
+def do_print_shell_function(credo, virtualenv=None, **kwargs):
     """Print the shell function to add to your environment."""
+
+    if virtualenv == None:
+        virtualenv = os.path.normpath(
+                os.path.join( os.path.dirname(sys.argv[0]), "../")
+            )
+
     mac_setup = """
         addr="169.254.169.254";
         loopback_interface="lo0";
@@ -318,10 +325,15 @@ def do_print_shell_function(credo, virtualenv, **kwargs):
         ======================================================
     """.format(virtualenv, setup)))
 
-def do_create_launch_daemon(credo, virtualenv, **kwargs):
+def do_create_launch_daemon(credo, virtualenv=None, **kwargs):
     """Write the LaunchConfig plist file."""
     output_file = "/Library/LaunchDaemons/delfick.credo.fake_metadata.plist"
     config_location = os.path.expanduser("~/.credo/config.json")
+
+    if virtualenv == None:
+        virtualenv = os.path.normpath(
+                os.path.join( os.path.dirname(sys.argv[0]), "../")
+            )
 
     if os.path.exists(output_file):
         print("File already exists! ({0})".format(output_file))

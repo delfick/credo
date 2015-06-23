@@ -304,7 +304,6 @@ class CliParser(object):
         parser = argparse.ArgumentParser(description="The current credo bash function")
         parser.add_argument("--virtualenv"
             , help = "The virtualenv where credo is installed."
-            , required = True
             )
         args = self.args_from_subparser(action, parser, argv)
         return args, do_print_shell_function
@@ -314,7 +313,6 @@ class CliParser(object):
         parser = argparse.ArgumentParser(description="Create the LaunchDaemon plist file.")
         parser.add_argument("--virtualenv"
             , help = "The virtualenv where credo is installed."
-            , required = True
             )
         args = self.args_from_subparser(action, parser, argv)
         return args, do_create_launch_daemon
