@@ -323,13 +323,18 @@ def do_create_launch_daemon(credo, virtualenv, **kwargs):
                     <true/>
                     <key>UserName</key>
                     <string>root</string>
+                    <key>EnvironmentVariables</key>
+                    <dict>
+                        <key>HOME</key>
+                        <string>{2}</string>
+                    </dict>
                     <key>StandardOutPath</key>
                     <string>/var/log/credo/out.log</string>
                     <key>StandardErrorPath</key>
                     <string>/var/log/credo/err.log</string>
             </dict>
             </plist>
-        """.format(virtualenv, config_location)))
+        """.format(virtualenv, config_location, os.path.expanduser("~"))))
 
     print(dedent("""
         LaunchDaemon has been written to {0}.
