@@ -8,6 +8,7 @@ from credo import structure
 
 from textwrap import dedent
 import pkg_resources
+import platform
 import requests
 import logging
 import base64
@@ -262,28 +263,50 @@ def do_output_extension(credo, output, **kwargs):
 
 def do_print_shell_function(credo, virtualenv, **kwargs):
     """Print the shell function to add to your environment."""
+    mac_setup = """
+        addr="169.254.169.254";
+        loopback_interface="lo0";
+        routed_interface="$(route get $addr | grep interface | awk '{{ print $2 }}')";
+        if [[ "$routed_interface" != "$loopback_interface" ]]; then
+            echo "creating $addr alias";
+            sudo ifconfig lo0 alias $addr;
+            for action in unload load; do
+                sudo launchctl $action /Library/LaunchDaemons/delfick.credo.fake_metadata.plist;
+            done;
+        fi;
+    """
+
+    linux_setup = """
+        addr="169.254.169.254";
+        if ! ip route get $addr | grep "dev lo"; then
+            echo "creating $addr alias";
+            sudo ip addr add $addr dev lo
+        fi;
+    """
+
+    if os.name == "posix":
+        if platform.system() == "Darwin":
+            setup = mac_setup
+        else:
+            setup = linux_setup
+    else:
+        setup = ""
+
+    setup = "\n    ".join(line for line in setup.split('\n'))
+
     print(dedent("""
         Add the following to your shrc file (~/.bashrc, ~/.zshrc)
 
         ======================================================
         credo () {{
-            addr="169.254.169.254";
-            loopback_interface="lo0";
-            routed_interface="$(route get $addr | grep interface | awk '{{ print $2 }}')";
-            if [[ "$routed_interface" != "$loopback_interface" ]]; then
-                echo "creating $addr alias";
-                sudo ifconfig lo0 alias $addr;
-                for action in unload load; do
-                    sudo launchctl $action /Library/LaunchDaemons/delfick.credo.fake_metadata.plist;
-                done;
-            fi;
+            {1}
             if {0}/bin/credo sourceable $@; then
                 output=$({0}/bin/credo $@);
                 if (($? == 0)); then
-                    gecho "$output" > /tmp/lolz;
+                    echo "$output" > /tmp/lolz;
                     source /tmp/lolz;
                 else
-                    gecho "$output";
+                    echo "$output";
                 fi;
             else
                 {0}/bin/credo $@;
@@ -293,7 +316,7 @@ def do_print_shell_function(credo, virtualenv, **kwargs):
             credo --account $1 switch
         }}
         ======================================================
-    """.format(virtualenv)))
+    """.format(virtualenv, setup)))
 
 def do_create_launch_daemon(credo, virtualenv, **kwargs):
     """Write the LaunchConfig plist file."""
