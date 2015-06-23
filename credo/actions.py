@@ -6,10 +6,13 @@ from credo.amazon import IamPair, IamSaml
 from credo.server import Server
 from credo import structure
 
+from textwrap import dedent
+import pkg_resources
 import requests
 import logging
 import base64
 import pickle
+import shutil
 import json
 import os
 
@@ -239,6 +242,23 @@ def do_register_saml(credo, provider=None, **kwargs):
         credo.register_saml_provider(provider)
     else:
         ask_user_for_saml(credo)
+
+def do_output_extension(credo, output=None, **kwargs):
+    """Output the Chrome extension for the metadata magic server."""
+    source = pkg_resources.resource_filename("credo", "ext")
+    try:
+        shutil.copytree(source, output)
+    except OSError as error:
+        raise CredoError("Failed to copy directory", source=source, output=output, error=error)
+
+    print(dedent("""
+        Congratulations, you know have the extension.
+        - Please go into Chrome.
+        - Go to chrome://extensions.
+        - Enable developer mode.
+        - Load unpacked extension.
+            - Choose {0}
+    """.format(output)))
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
