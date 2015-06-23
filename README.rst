@@ -367,6 +367,12 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.3.3
+    Fixed the credo import function
+
+0.3.2
+    Some fixes to credo serve
+
 0.3.1
     Doesn't ask for half_life multiple times
 
