@@ -382,6 +382,13 @@ Enjoy your new Magic Metadata Server.
 Changelog
 ---------
 
+0.4.1
+    Fixed a bug with the chrome extension
+
+    Fixed a bug with generating the shell script
+
+    Added a --config option
+
 0.4.0
     Add more support for credo server.
 
