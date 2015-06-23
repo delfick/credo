@@ -42,8 +42,7 @@ class Credo(object):
 
     def setup(self, config_file=Unspecified, root_dir=Unspecified, ssh_key_folders=Unspecified, providers=Unspecified, **kwargs):
         """Setup the credo!"""
-        if config_file is Unspecified:
-            config_file = self.find_config_file(config_file)
+        config_file, root_dir = self.find_config_file(config_file)
 
         if config_file:
             if not os.path.exists(config_file):
@@ -272,18 +271,30 @@ class Credo(object):
 
     def find_config_file(self, config_file=Unspecified):
         """Find a config file, use the one given if specified"""
-        if config_file is not Unspecified:
-            return config_file
+        if config_file in (None, Unspecified):
+            credo_home = os.path.expanduser("~/.credo")
+            home_config = os.path.join(credo_home, "config.json")
+            if os.path.exists(home_config) and os.stat(home_config).st_size > 0:
+                config_file = home_config
 
-        credo_home = os.path.expanduser("~/.credo")
-        home_config = os.path.join(credo_home, "config.json")
-        if os.path.exists(home_config) and os.stat(home_config).st_size > 0:
-            return home_config
+        if os.path.exists(config_file):
+            try:
+                current = json.load(open(config_file))
+            except (TypeError, ValueError) as error:
+                raise CredoError("Couldn't parse the config file", location=config_file, error=error)
+        else:
+            current = {}
 
-        if not os.path.exists(credo_home):
-            os.makedirs(credo_home)
-        json.dump({"root_dir": os.path.expanduser("~/.credo/repos")}, open(home_config, "w"))
-        return home_config
+        if "root_dir" not in current:
+            root_dir = os.path.join(os.path.dirname(config_file), "repos")
+            current["root_dir"] = root_dir
+            if not os.path.exists(os.path.dirname(config_file)):
+                os.makedirs(os.path.dirname(config_file))
+            json.dump(current, open(config_file, "w"))
+        else:
+            root_dir = current["root_dir"]
+
+        return config_file, root_dir
 
     def read_from_config(self, config_file):
         """Call find_options using options from the config file"""

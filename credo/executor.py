@@ -140,6 +140,18 @@ class CliParser(object):
             , action = "store_true"
             )
 
+        def folder(value):
+            location = os.path.expanduser(value)
+            if not os.path.isfile(location):
+                raise CredoError("Please specify a config file that exists", specified=location)
+            return location
+
+        parser.add_argument("--config"
+            , help = "The location to the config file"
+            , dest = "config_file"
+            , type = folder
+            )
+
         return parser
 
     def show_version_and_quit(self):
