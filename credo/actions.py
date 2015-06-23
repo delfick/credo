@@ -298,6 +298,7 @@ def do_print_shell_function(credo, virtualenv, **kwargs):
 def do_create_launch_daemon(credo, virtualenv, **kwargs):
     """Write the LaunchConfig plist file."""
     output_file = "/Library/LaunchDaemons/delfick.credo.fake_metadata.plist"
+    config_location = os.path.expanduser("~/.credo/config.json")
 
     if os.path.exists(output_file):
         print("File already exists!")
@@ -314,6 +315,8 @@ def do_create_launch_daemon(credo, virtualenv, **kwargs):
                     <key>ProgramArguments</key>
                     <array>
                             <string>{0}/bin/credo</string>
+                            <string>--config</string>
+                            <string>{1}</string>
                             <string>serve</string>
                     </array>
                     <key>RunAtLoad</key>
@@ -326,7 +329,7 @@ def do_create_launch_daemon(credo, virtualenv, **kwargs):
                     <string>/var/log/credo/err.log</string>
             </dict>
             </plist>
-        """.format(virtualenv)))
+        """.format(virtualenv, config_location)))
 
     print(dedent("""
         LaunchDaemon has been written to {0}.
