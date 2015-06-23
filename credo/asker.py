@@ -282,7 +282,8 @@ def ask_for_public_keys(remote=None, known_private_key_fingerprints=None):
             fingerprint = public_key_fingerprints[choice]
             del public_key_pems[choice]
             del public_key_fingerprints[choice]
-            del public_key_locations[fingerprint]
+            if fingerprint in public_key_locations:
+                del public_key_locations[fingerprint]
         else:
             try:
                 fingerprint = collection.add_public_key(choice)
