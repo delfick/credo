@@ -354,6 +354,18 @@ There are two parts of the server.
 Setting up the Magic Metadata Server
 ++++++++++++++++++++++++++++++++++++
 
+The magic metadata server is the http://169.254.169.254 server for your local
+machine.
+
+Currently it only supports /latest/meta-data/iam/security-credentials, thus
+allowing any amazon sdk to authenticate with amazon.
+
+Also, it only works with identity provider credentials (so it won't work with
+the user credentials you've imported into credo) but that restriction aside,
+it does work.
+
+To setup it up on your computer, follow the following instructions:
+
 1. ``virtualenv <virtualenv target directory>``
 2. ``source <virtualenv source>/bin/activate``
 3. ``pip install credo_manager``
