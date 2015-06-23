@@ -382,6 +382,9 @@ Enjoy your new Magic Metadata Server.
 Changelog
 ---------
 
+0.4.2
+    Trying to fix the launchdaemon to use correct home directory
+
 0.4.1
     Fixed a bug with the chrome extension
 
