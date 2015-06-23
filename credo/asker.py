@@ -5,7 +5,6 @@ from itertools import chain
 import ConfigParser
 import getpass
 import logging
-import keyring
 import boto
 import sys
 import os
@@ -177,6 +176,7 @@ def ask_user_for_secrets(credo, source=None):
         if parser.has_option(section, "aws_secret_access_key"):
             secret_key = parser.get(section, "aws_secret_access_key")
         else:
+            import keyring
             keyring_name = parser.get(section, 'keyring')
             secret_key = keyring.get_password(keyring_name, access_key)
 
