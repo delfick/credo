@@ -3,13 +3,13 @@ from credo.errors import CredoError, SamlNotAuthorized
 from credo.amazon import IamSaml
 from credo import explorer
 
+from six.moves.urllib.parse import urlencode
 from datetime import datetime, timedelta
+from six.moves import http_cookies
 from boto.utils import parse_ts
-from urllib import urlencode
 from uuid import uuid1
 import requests
 import logging
-import Cookie
 import pickle
 import time
 import pytz
@@ -97,7 +97,7 @@ class Server(object):
         def add_cookies(resp):
             for name, header in resp.headers.items():
                 if name.lower() == 'set-cookie' and header not in cookies:
-                    cookie = Cookie.SimpleCookie()
+                    cookie = http_cookies.SimpleCookie()
                     cookie.load(header)
                     for value in cookie.values():
                         url = "https://.amazon.com/"

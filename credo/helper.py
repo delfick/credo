@@ -4,6 +4,7 @@ from credo.errors import NoValueEntered, BadKeyFile, CredoError
 import logging
 import copy
 import json
+import six
 import os
 
 log = logging.getLogger("credo.helper")
@@ -11,7 +12,7 @@ log = logging.getLogger("credo.helper")
 def record_non_dicts(subject, memo):
     """Find all the things in subject that are not string or dicts and fill memo with {id(thing): thing}"""
     for key, val in subject.items():
-        if not isinstance(val, dict) and not isinstance(val, basestring):
+        if not isinstance(val, dict) and not isinstance(val, six.string_types):
             memo[id(val)] = val
 
         elif isinstance(val, dict):
@@ -26,7 +27,7 @@ def copy_dict_structure(structure):
 def print_list_of_tuples(lst, prefix):
     """Helper for printing out a list of tuples"""
     if any(val for _, val in lst):
-        print "{0}: {1}".format(prefix, " | ".join("{0}={1}".format(key, val) for key, val in lst if val))
+        print("{0}: {1}".format(prefix, " | ".join("{0}={1}".format(key, val) for key, val in lst if val)))
 
 def make_export_commands(exports, no_transform=False):
     for key, val in exports:
@@ -41,7 +42,7 @@ def normalise_half_life(half_life, access_key=None):
             return
         half_life = ask_user_for_half_life(access_key)
 
-    if isinstance(half_life, basestring) and not half_life.isdigit():
+    if isinstance(half_life, six.string_types) and not half_life.isdigit():
         if half_life == "hour":
             half_life = 60 * 60
         elif half_life == "day":
@@ -65,7 +66,7 @@ class SignedValueFile(object):
         value = self.recorded_value()
         if not value:
             value = self.ask_for_value(name, question, suggestions)
-            fingerprint, signature = self.crypto.create_signature(self.signature_value(value))
+            fingerprint, signature = self.crypto.create_signature(self.signature_value(value).encode('utf-8'))
 
             dirname = os.path.dirname(self.location)
             if not os.path.exists(dirname):
@@ -94,7 +95,7 @@ class SignedValueFile(object):
                 incorrect = True
             else:
                 value, fingerprint, signature = contents.split(',')
-                if not self.crypto.is_signature_valid(self.signature_value(value), fingerprint, signature):
+                if not self.crypto.is_signature_valid(self.signature_value(value).encode('utf-8'), fingerprint, signature):
                     incorrect = True
 
         if incorrect:

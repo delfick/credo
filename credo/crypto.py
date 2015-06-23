@@ -46,14 +46,14 @@ class KeyCollection(object):
         # None already, let's get one that we have a public key for
         unfullfilled = [fingerprint for fingerprint, rsaobj in self.private_fingerprints.items() if fingerprint in self.public_fingerprints]
         if unfullfilled:
-            return self.make_fingerprint(self.private_rsaobj_for(unfullfilled[0]))
+            return self.make_fingerprint(self.private_rsaobj_for(unfullfilled[0])).decode('utf-8')
 
         raise CantFindPrivateKey(**info)
 
     def add_public_key(self, pem_data, location=None):
         """Record this public key"""
         rsaobj = self.rsaobj_from_pem(pem_data)
-        fingerprint = self.make_fingerprint(rsaobj)
+        fingerprint = self.make_fingerprint(rsaobj).decode('utf-8')
         self.public_fingerprints[fingerprint] = rsaobj
         if location:
             self.fingerprint_to_location[fingerprint] = location
@@ -72,7 +72,7 @@ class KeyCollection(object):
         So we can delay getting the password till it's absolutely necessary
         """
         rsaobj = self.rsaobj_from_location(location, only_need_public=True)
-        fingerprint = self.make_fingerprint(rsaobj)
+        fingerprint = self.make_fingerprint(rsaobj).decode('utf-8')
         self.private_fingerprints[fingerprint] = None
         self.private_key_locations[fingerprint] = location
         self.fingerprint_to_location[fingerprint] = location
@@ -115,7 +115,7 @@ class KeyCollection(object):
     def make_fingerprint(self, rsa_obj):
         """Get us a fingerprint from this rsa_obj"""
         st = hexlify(rsa_obj.get_fingerprint())
-        return ":".join(re.findall("..", st))
+        return ":".join(re.findall("..", st.decode('utf-8'))).encode('utf-8')
 
     def rsaobj_from_pem(self, pem_data):
         """Get us a paramiko.RSAKey from a public key pem_data."""
@@ -293,7 +293,7 @@ class SSHKeys(object):
             encrypted = rsakey.encrypt(message)
         except ValueError as err:
             raise BadPlainText(error=err, **info)
-        return encrypted.encode('base64')
+        return b64encode(encrypted).decode('utf-8')
 
     def decrypt(self, package, fingerprint, **info):
         """Decrypt the specified base64 encoded package using specified private key"""
@@ -375,7 +375,7 @@ class Crypto(object):
         """Return a signature given this data"""
         fingerprint = self.keys.collection.get_any_private_fingerprint(need_private_key_for="signing")
         message = self.keys.collection.private_rsaobj_for(fingerprint).sign_ssh_data(for_signing)
-        return fingerprint, hexlify(str(message))
+        return fingerprint, hexlify(message.asbytes()).decode('utf-8')
 
     def zip_with_fingerprints(self, pems):
         """Return (fingerprint, pem) for each pem in pems"""
@@ -502,7 +502,7 @@ class Crypto(object):
         padded_message = pad(data)
         iv = Random.OSRNG.posix.new().read(AES.block_size)
         cipher = AES.new(secret, AES.MODE_CBC, iv)
-        return b64encode(iv + cipher.encrypt(padded_message))
+        return b64encode(iv + cipher.encrypt(padded_message)).decode('utf-8')
 
     def decrypt_with_secret(self, ciphertext, secret):
         """Return the decrypted value of the ciphtertext using AES with the provided secret"""
@@ -510,5 +510,5 @@ class Crypto(object):
         decoded = b64decode(ciphertext)
         iv = decoded[:AES.block_size]
         cipher = AES.new(secret, AES.MODE_CBC, iv)
-        return unpad(cipher.decrypt(decoded)[AES.block_size:])
+        return unpad(cipher.decrypt(decoded)[AES.block_size:].decode('utf-8'))
 

@@ -1,8 +1,10 @@
+from __future__ import print_function
+
 from credo.errors import BadConfigFile, BadSSHKey, BadCredentialSource, ProgrammerError, UserQuit
 
+from six.moves import configparser, input
 from collections import OrderedDict
 from itertools import chain
-import ConfigParser
 import getpass
 import logging
 import boto
@@ -22,12 +24,12 @@ def get_response(*messages, **kwargs):
     for message in messages:
         if isinstance(message, dict):
             for num, val in message.items():
-                print >> sys.stderr, "{0}) {1}".format(num, val)
+                print("{0}) {1}".format(num, val), file=sys.stderr)
         elif isinstance(message, list):
             for msg in message:
-                print >> sys.stderr, msg
+                print(msg, file=sys.stderr)
         else:
-            print >> sys.stderr, message
+            print(message, file=sys.stderr)
 
     if prompt:
         sys.stderr.write(str(prompt))
@@ -37,7 +39,7 @@ def get_response(*messages, **kwargs):
         if password:
             return getpass.getpass(" ")
         else:
-            return raw_input() or kwargs.get("default", "")
+            return input() or kwargs.get("default", "")
     except KeyboardInterrupt:
         raise UserQuit()
     except EOFError:
@@ -51,7 +53,7 @@ def ask_for_choice(message, choices):
         response = get_response(message, "Please choose a value from the following", mapped)
 
         if response is None or not response.isdigit() or int(response) not in mapped:
-            print >> sys.stderr, "Please choose a valid response ({0} is not valid)".format(response)
+            print("Please choose a valid response ({0} is not valid)".format(response), file=sys.stderr)
         else:
             no_value = False
             return mapped[int(response)]
@@ -67,7 +69,7 @@ def ask_for_choice_or_new(needed, choices):
                 )
 
             if response is None or not response.isdigit() or int(response) < 0 or int(response) > maximum + 1:
-                print >> sys.stderr, "Please choose a valid response ({0} is not valid)".format(response)
+                print("Please choose a valid response ({0} is not valid)".format(response), file=sys.stderr)
                 continue
             else:
                 response = int(response)
@@ -133,7 +135,7 @@ def ask_user_for_secrets(credo, source=None):
         secret_key = environment[secret_key_name]
 
     elif secret_sources["boto_config"] in (val, source) or secret_sources["aws_config"] in (val, source):
-        parser = ConfigParser.SafeConfigParser()
+        parser = configparser.SafeConfigParser()
         aws_location = os.path.expanduser("~/.aws/config")
         boto_location = os.path.expanduser("~/.boto")
 
@@ -268,7 +270,7 @@ def ask_for_public_keys(remote=None, known_private_key_fingerprints=None):
             public_key_fingerprints_choices["{0} ({1})".format(location, fingerprint)] = location
 
         if known_private_key_fingerprints:
-            log.info("Know the following private keys\n\t%s", "\n\t".join(known_private_key_fingerprints))
+            log.info("Know the following private keys\n\t%s", "\n\t".join(v.decode('utf-8') for v in known_private_key_fingerprints))
         choice = ask_for_choice_or_new("Do you want to add {0} public pem lines?".format(question), [quit_choice, no_choice] + sorted(public_key_fingerprints_choices.keys()))
         if choice == quit_choice:
             raise UserQuit()
@@ -317,7 +319,7 @@ def ask_user_for_half_life(access_key):
             return -1
         else:
             if not choice.isdigit():
-                print >> sys.stderr, "Please enter an integer representing the number of seconds in the half life"
+                print("Please enter an integer representing the number of seconds in the half life", file=sys.stderr)
             else:
                 return int(choice)
 
@@ -398,29 +400,29 @@ def ask_for_env(part, env, remove_env, ask_for_more=False):
             choices = [stop_choice, show_choice, add_new_choice, use_existing_choice]
             if any(env_file.keys):
                 choices.append(uncapture_choice)
-                print >> sys.stderr, "Captured env variables for [{0}]".format(", ".join('"{0}"'.format(key) for key in env_file.keys.keys()))
+                print("Captured env variables for [{0}]".format(", ".join('"{0}"'.format(key) for key in env_file.keys.keys())), file=sys.stderr)
 
             choice = ask_for_choice("What to do?", choices=choices)
             if choice == stop_choice:
                 break
             elif choice == show_choice:
-                print >> sys.stderr, ""
+                print("", file=sys.stderr)
                 for key, val in env_file.keys.items():
-                    print >> sys.stderr, "{0} = {1}".format(key, val)
-                    print >> sys.stderr, "---"
-                    print >> sys.stderr, ""
+                    print("{0} = {1}".format(key, val), file=sys.stderr)
+                    print("---", file=sys.stderr)
+                    print("", file=sys.stderr)
 
                 if hasattr(part, "parent_path_part"):
                     shell_exports = part.parent_path_part.shell_exports()
                     if shell_exports:
-                        print "=" * 80
-                        print "Overriding"
-                        print "-" * 40
-                        print ""
+                        print("=" * 80)
+                        print("Overriding")
+                        print("-" * 40)
+                        print("")
                         for key, val in shell_exports:
-                            print >> sys.stderr, "{0} = {1}".format(key, val)
-                            print >> sys.stderr, "==="
-                            print >> sys.stderr, ""
+                            print("{0} = {1}".format(key, val), file=sys.stderr)
+                            print("===", file=sys.stderr)
+                            print("", file=sys.stderr)
 
             elif choice == add_new_choice:
                 name = get_response(prompt="Name: ")

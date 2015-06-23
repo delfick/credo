@@ -7,10 +7,10 @@ from boto.sts.connection import STSConnection
 from boto.sts.credentials import AssumedRole
 from datetime import datetime, timedelta
 import xml.etree.ElementTree as ET
+from six.moves import http_client
 from textwrap import dedent
 import requests
 import xml.sax
-import httplib
 import logging
 import base64
 import time
@@ -280,7 +280,7 @@ class FixedSTSConnection(STSConnection):
 class IamSaml(IamBase):
     def __init__(self, provider, username, password, connection=None, create_epoch=None, half_life=None):
         self.provider = provider
-        self.basic_auth = base64.b64encode("{0}:{1}".format(username, password))
+        self.basic_auth = base64.b64encode("{0}:{1}".format(username, password).encode('utf-8'))
         self.username = username
         self._connection = connection
         super(IamSaml, self).__init__(create_epoch=create_epoch, half_life=half_life)
@@ -350,8 +350,8 @@ class IamSaml(IamBase):
             </S:Envelope>
             """).format(acsurl=acsurl, acsurlbinding=acsurlbinding, ident=ident, now=now, idpid=idpid, rpid=rpid)
 
-            headers = {"Accept": "*/*", "Authorization": "Basic {0}".format(self.basic_auth), "Content-Type": "application/x-www-form-urlencoded", "Content-Length": len(envelope)}
-            connection = httplib.HTTPSConnection(self.provider, 443)
+            headers = {"Accept": "*/*", "Authorization": "Basic {0}".format(self.basic_auth.decode('utf-8')), "Content-Type": "application/x-www-form-urlencoded", "Content-Length": len(envelope)}
+            connection = http_client.HTTPSConnection(self.provider, 443)
             connection.request("POST", "/idp/profile/SAML2/SOAP/ECP", envelope, headers)
             resp = connection.getresponse()
 
@@ -364,7 +364,7 @@ class IamSaml(IamBase):
                 time.sleep(5)
                 self._works = False
             else:
-                body = resp.read()
+                body = resp.read().decode('utf-8')
                 tree = ET.fromstring(body)
                 tree_body = tree.find("{http://schemas.xmlsoap.org/soap/envelope/}Body")
                 if tree_body is None:
@@ -382,7 +382,7 @@ class IamSaml(IamBase):
         self._works = True
         body_start = "<soap11:Body>"
         body_end = "</soap11:Body>"
-        self._assertion = base64.b64encode(body[body.find(body_start)+len(body_start):body.find(body_end)])
+        self._assertion = base64.b64encode(body[body.find(body_start)+len(body_start):body.find(body_end)].encode('utf-8'))
         self._arns = sorted([SamlRole(*arn.text.split(",")) for arn in arns], key = lambda a: a.role_arn)
 
     def exports(self, role):

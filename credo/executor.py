@@ -210,7 +210,7 @@ class CliParser(object):
     def parse_help(self, action, argv):
         """Just prints help and quits"""
         # It's late, I'm tired....
-        print "Try the --help option"
+        print("Try the --help option")
         sys.exit(1)
 
     def parse_version(self, action, argv):
@@ -470,10 +470,10 @@ def main(argv=None):
         credo, kwargs, function = CliParser().parse_args(argv)
         function(credo, **kwargs)
     except CredoError as error:
-        print ""
-        print "!" * 80
-        print "Something went wrong! -- {0}".format(error.__class__.__name__)
-        print "\t{0}".format(error)
+        print("")
+        print("!" * 80)
+        print("Something went wrong! -- {0}".format(error.__class__.__name__))
+        print("\t{0}".format(error))
         sys.exit(1)
 
 if __name__ == '__main__':

@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from credo.errors import BadCredentialFile, NoCredentialsFound, BadCredential, UserQuit
 from credo.asker import ask_user_for_half_life, ask_for_choice_or_new
 from credo.amazon import IamPair
@@ -287,7 +289,7 @@ class AmazonKeys(object):
                     if key:
                         return key
                 else:
-                    print >> sys.stderr, "The secret key you entered was not valid"
+                    print("The secret key you entered was not valid", file=sys.stderr)
 
     def needs_rotation(self):
         """Say whether the current keys that we know about need any rotation"""
@@ -388,7 +390,7 @@ class AmazonKeys(object):
             for key in for_deletion:
                 # Delete the other keys marked for deletion
                 key.delete()
-                usable = [pair for pair in usable if pair is not key.iam_pair]
+                usable = [pair for pair in usable if pair is not key]
 
         usable_access_keys = [pair.aws_access_key_id for pair in usable]
         self.keys = [key for key in self.keys if key.iam_pair and key.iam_pair.aws_access_key_id in usable_access_keys]

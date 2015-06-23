@@ -6,7 +6,7 @@ import os
 
 log = logging.getLogger("credo.structure.user")
 
-class User(object, EnvironmentMixin):
+class User(EnvironmentMixin):
     def __init__(self, name, location, credential_path):
         self.name = name
         self.location = location

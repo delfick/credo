@@ -8,6 +8,7 @@ import logging
 import json
 import time
 import sys
+import six
 import os
 
 log = logging.getLogger("credo.pub_keys")
@@ -70,7 +71,7 @@ class PubKeySyncer(object):
             else:
                 break
 
-        for fingerprint in crypto.public_key_fingerprints:
+        for fingerprint in list(crypto.public_key_fingerprints):
             if fingerprint not in added:
                 log.info("Removing public key we aren't encrypting with anymore\tfingerprint=%s", fingerprint)
                 crypto.remove_public_key(fingerprint)
@@ -104,7 +105,7 @@ class PubKeySyncer(object):
         cached = []
         if last_downloaded is not None and url in cache.get("cached", {}):
             cached = cache["cached"][url]
-            if isinstance(cached, list) and all(isinstance(pem, basestring) for pem in cached):
+            if isinstance(cached, list) and all(isinstance(pem, six.string_types) for pem in cached):
                 log.info("Using %s cached pem keys from %s", len(cached), url)
                 return cached
 
@@ -179,7 +180,7 @@ class PubKeySyncer(object):
         pems = result.get("pems", [])
 
         if urls or pems:
-            for_signing = self.make_signing_value(urls, pems)
+            for_signing = self.make_signing_value(urls, pems).encode('utf-8')
             result["signature"] = self.crypto.create_signature(for_signing)
             try:
                 content = json.dumps(result, indent=4)
@@ -256,7 +257,7 @@ class PubKeySyncer(object):
             log.info("You need to confirm that you own the private keys for these public keys")
             fingerprints_with_pems = self.crypto.zip_with_fingerprints(pems)
             print("File contains public keys with these fingerprints", file=sys.stderr)
-            print("\t{0}".format("\n\t".join(v[0] for v in fingerprints_with_pems)), file=sys.stderr)
+            print("\t{0}".format("\n\t".join(v[0].decode('utf-8') for v in fingerprints_with_pems)), file=sys.stderr)
 
             if self.crypto.private_key_fingerprints:
                 print("\nWe know about these private keys", file=sys.stderr)

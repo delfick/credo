@@ -7,7 +7,7 @@ import os
 
 log = logging.getLogger("credo.cred_types.environment")
 
-class EnvironmentMixin:
+class EnvironmentMixin(object):
     requires_encryption = True
 
     @property

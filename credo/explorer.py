@@ -27,12 +27,12 @@ def filtered(original, looking_for=None, required_files=None):
         thing = original
         if isinstance(thing, dict):
             if last_level > 0:
-                for key, val in thing.items():
+                for key, val in list(thing.items()):
                     delete_not(thing[key], last_level-1, wanted, only_if=only_if)
                     if not val or (last_level-1 > 0 and not isinstance(val, dict)):
                         del thing[key]
             else:
-                for key, val in thing.items():
+                for key, val in list(thing.items()):
                     if wanted and not fnmatch(key, wanted):
                         del thing[key]
                     elif only_if and not only_if(val):
@@ -195,10 +195,9 @@ def narrow(structure, chain, asker, want_new=None, want_any_after=None, forced_v
                 if len(structure.keys()) > 1 or want_new:
                     chosen = asker(nxt, sorted(structure.keys()))
                 elif structure:
-                    chosen = structure.keys()[0]
+                    chosen = list(structure.keys())[0]
 
-        for key in structure.keys():
-            if key != chosen:
+        for key in list(structure.keys()):
             if chosen is not None and key != chosen:
                 del structure[key]
 
@@ -206,7 +205,7 @@ def narrow(structure, chain, asker, want_new=None, want_any_after=None, forced_v
             structure[chosen] = {} if chain else []
 
         if structure:
-            narrow(structure.values()[0], chain, asker, want_new=want_new, want_any_after=want_any_after, forced_vals=forced_vals, level=level+1)
+            narrow(list(structure.values())[0], chain, asker, want_new=want_new, want_any_after=want_any_after, forced_vals=forced_vals, level=level+1)
 
 def flatten(directory_structure, mask, want_new=False):
     """

@@ -63,7 +63,7 @@ def configure(repo_name, location, crypto, new_remote=None, version_with=None):
         if choice == change_choice:
             repository.change_remote(new_remote, remote_type=version_with)
 
-class Repository(object, EnvironmentMixin):
+class Repository(EnvironmentMixin):
     """Understands how to version a directory"""
     def __init__(self, name, location, crypto):
         self.name = name

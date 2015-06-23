@@ -29,14 +29,14 @@ def do_switch(credo, port=80, host="169.254.169.254", **kwargs):
 
     request = {"credentials": chosen}
     while True:
-        response = requests.post(url, data=pickle.dumps(request))
+        response = requests.post(url, data=pickle.dumps(request), headers={"Content-Type": "application/octet-stream"})
         if response.status_code == 500:
             error = response.json()["error"]
             if error in ("NEED_AUTH", "BAD_PASSWORD"):
                 if error == "BAD_PASSWORD":
                     log.error("Password was incorrect")
                 password = get_response("Password for idp user {0}".format(chosen.keys.idp_username), password=True)
-                request["basic_auth"] = base64.b64encode("{0}:{1}".format(chosen.keys.idp_username, password))
+                request["basic_auth"] = base64.b64encode("{0}:{1}".format(chosen.keys.idp_username, password).encode('utf-8'))
             else:
                 break
         else:
@@ -47,19 +47,19 @@ def do_switch(credo, port=80, host="169.254.169.254", **kwargs):
 def do_current(credo, **kwargs):
     """Print out what user is currently in our environment"""
     if "AWS_ACCESS_KEY_ID" not in os.environ or "AWS_SECRET_ACCESS_KEY" not in os.environ:
-        print "There are currently no credentials in your environment!"
+        print("There are currently no credentials in your environment!")
     else:
         iam_pair = IamPair.from_environment()
-        print "Asking amazon for details"
+        print("Asking amazon for details")
         if not iam_pair.works:
-            print "Your current credentials are not valid...."
+            print("Your current credentials are not valid....")
         else:
             aliases = iam_pair.ask_amazon_for_account_aliases()
             if not aliases:
                 aliases = ["<no_account_alias>"]
-            print "You are currently \"{0}\" from \"{1}\" (account {2})".format(
+            print("You are currently \"{0}\" from \"{1}\" (account {2})".format(
                 iam_pair.ask_amazon_for_username(), aliases[0], iam_pair.ask_amazon_for_account()
-                )
+                ))
 
 def do_unset(credo, **kwargs):
     """Just print out the exports and unsets necessary to unset credo exports"""
@@ -423,16 +423,16 @@ def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs
             cred = cred()
         as_string = cred.as_string()
         for line in as_string.split('\n'):
-            print "{0}{1}".format(indent * 3, line)
+            print("{0}{1}".format(indent * 3, line))
 
     def display_result(result):
         """Display the result from get_displayable"""
         heading, children = result
-        print ""
-        print heading
+        print("")
+        print(heading)
         for child, values in children.items():
-            print ""
-            print child
+            print("")
+            print(child)
             if isinstance(values, list) or isinstance(values, tuple) or isinstance(values, dict):
                 display_result(values)
             elif values:
@@ -440,7 +440,7 @@ def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs
 
     # Complain if no found chains
     if not chains:
-        print "Didn't find any credential files"
+        print("Didn't find any credential files")
         return
 
     # Special case if we only found one
