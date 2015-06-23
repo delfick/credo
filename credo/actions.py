@@ -293,6 +293,52 @@ def do_print_shell_function(credo, virtualenv, **kwargs):
         ======================================================
     """.format(virtualenv)))
 
+def do_create_launch_daemon(credo, virtualenv, **kwargs):
+    """Write the LaunchConfig plist file."""
+    output_file = "/Library/LaunchDaemons/delfick.credo.fake_metadata.plist"
+
+    if os.path.exists(output_file):
+        print("File already exists!")
+        return
+
+    with open(output_file, "w") as fle:
+        fle.write(dedent("""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+                    <key>Label</key>
+                    <string>delfick.credo.fake_metadata</string>
+                    <key>ProgramArguments</key>
+                    <array>
+                            <string>{0}/bin/credo</string>
+                            <string>serve</string>
+                    </array>
+                    <key>RunAtLoad</key>
+                    <true/>
+                    <key>UserName</key>
+                    <string>root</string>
+                    <key>StandardOutPath</key>
+                    <string>/var/log/credo/out.log</string>
+                    <key>StandardErrorPath</key>
+                    <string>/var/log/credo/err.log</string>
+            </dict>
+            </plist>
+        """.format(virtualenv)))
+
+    print(dedent("""
+        LaunchDaemon has been written to {0}.
+
+        To load the daemon use the following command:
+
+           $ launchctl load {0}
+
+        If there are every any problems, try:
+
+           $ launchctl unload {0}
+           $ launchctl load {0}
+
+    """.format(output_file)))
 
 def do_showavailable(credo, force_show_all=False, collapse_if_one=True, **kwargs):
     """Show all what available repos, accounts and users we have"""
