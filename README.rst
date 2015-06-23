@@ -236,32 +236,7 @@ credo serve
     Serve a fake metadata service. This needs to be run as root so that we can bind
     to port 80 on 169.254.169.254.
 
-    .. note:: You need to do ``sudo ifconfig lo0 alias 169.254.169.254`` first.
-
-    It's handy to have this startup by itself. So on a mac you can add something like the
-    following to ``/Library/LaunchDaemons/delfick.credo.fake_metadata.plist``::
-
-        <?xml version="1.0" encoding="UTF-8"?>
-        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-        <plist version="1.0">
-        <dict>
-          <key>Label</key>
-          <string>delfick.credo.fake_metadata</string>
-          <key>ProgramArguments</key>
-          <array>
-            <string>PATH_TO_CREDO</string>
-            <string>serve</string>
-          </array>
-          <key>RunAtLoad</key>
-          <true/>
-          <key>UserName</key>
-          <string>root</string>
-          <key>StandardOutPath</key>
-          <string>/var/log/credo/out.log</string>
-          <key>StandardErrorPath</key>
-          <string>/var/log/credo/err.log</string>
-        </dict>
-        </plist>
+    <look further down for more instructions>
 
 credo switch
     Tell the fake metadata service which credentials to use. It behaves just like ``inject``.
@@ -363,6 +338,34 @@ AES using that secret.
 Each ``env.json`` file has a similar format to ``credentials.json`` but it has
 type of ``environment`` and includes environment variables that have been captured
 by the ``credo capture`` command.
+
+The Magic Metadata Server
+-------------------------
+
+The magic metadata server provides your local IAM tools with credentials needed
+to access your AWS account. It works the same way an ec2 instance is able to
+access it's role credentials (over http://169.254.169.254).
+
+There are two parts of the server.
+
+  - The credo shell function that is used as a wrapper to access the `credo` tool in your virtualenv.
+  - The LaunchDaemon plist which defines how to start the magic metadata server.
+
+Setting up the Magic Metadata Server
+++++++++++++++++++++++++++++++++++++
+
+1. ``virtualenv <virtualenv target directory>``
+2. ``source <virtualenv source>/bin/activate``
+3. ``pip install credo_manager``
+4. ``credo create_launch_daemon``
+5. ``credo print_shell_function`` and follow instructions.
+6. ``credo output_extension --output <directory where chrome extension will be
+   stored>`` and follow instructions
+
+To quickly switch between environments, you can now run the command ``switch
+<environment>``.
+
+Enjoy your new Magic Metadata Server.
 
 Changelog
 ---------

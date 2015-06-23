@@ -290,6 +290,9 @@ def do_print_shell_function(credo, virtualenv, **kwargs):
                 {0}/credo $@;
             fi
         }}
+        switch () {{
+            credo --account $1 switch
+        }}
         ======================================================
     """.format(virtualenv)))
 
