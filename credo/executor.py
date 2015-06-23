@@ -1,4 +1,11 @@
-from credo.actions import do_exports, do_exec, do_showavailable, do_import, do_rotate, do_current, do_remote, do_synchronize, do_capture, do_env, do_unset, do_register_saml, do_serve, do_switch
+from credo.actions import (
+      do_exec, do_showavailable, do_import
+    , do_rotate, do_current, do_remote
+    , do_synchronize, do_capture, do_env
+    , do_unset, do_register_saml, do_serve
+    , do_switch, do_output_extension, do_exports
+    , do_print_shell_function, do_create_launch_daemon
+    )
 from credo.errors import CredoError, NoExecCommand
 from credo.asker import secret_sources
 from credo.overview import Credo
@@ -82,6 +89,9 @@ class CliParser(object):
             , "version": self.parse_version
             , "sourceable": self.parse_sourceable
             , "register_saml": self.parse_register_saml
+            , "output_extension": self.parse_output_extension
+            , "print_shell_function": self.parse_print_shell_function
+            , "create_launch_daemon": self.parse_create_launch_daemon
 
             , "env": self.parse_env
             , "capture": self.parse_env
@@ -266,6 +276,36 @@ class CliParser(object):
             )
         args = self.args_from_subparser(action, parser, argv)
         return args, do_rotate
+
+    def parse_output_extension(self, action, argv):
+        """Rotate our credentials"""
+        parser = argparse.ArgumentParser(description="Output the chrome extension for the metadata server.")
+        parser.add_argument("--output"
+            , help = "The folder where the extension will be saved to."
+            , required = True
+            )
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_output_extension
+
+    def parse_print_shell_function(self, action, argv):
+        """Show our credo bash function"""
+        parser = argparse.ArgumentParser(description="The current credo bash function")
+        parser.add_argument("--virtualenv"
+            , help = "The virtualenv where credo is installed."
+            , required = True
+            )
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_print_shell_function
+
+    def parse_create_launch_daemon(self, action, argv):
+        """Create the LaunchDaemon plist file."""
+        parser = argparse.ArgumentParser(description="Create the LaunchDaemon plist file.")
+        parser.add_argument("--virtualenv"
+            , help = "The virtualenv where credo is installed."
+            , required = True
+            )
+        args = self.args_from_subparser(action, parser, argv)
+        return args, do_create_launch_daemon
 
     def parse_show(self, action, argv):
         """Parser for showing available credentials"""
