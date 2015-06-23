@@ -179,10 +179,12 @@ def narrow(structure, chain, asker, want_new=None, want_any_after=None, forced_v
         else:
             chosen = None
 
+        forced = False
         if forced_vals:
             chosen = forced_vals.pop(0)
+            forced = True
 
-        if not chosen:
+        if not chosen and not forced:
             if want_any_after is not None and level >= want_any_after:
                 choices = sorted(structure.keys())
                 all_choice = "All {0}".format(nxt)
@@ -197,6 +199,7 @@ def narrow(structure, chain, asker, want_new=None, want_any_after=None, forced_v
 
         for key in structure.keys():
             if key != chosen:
+            if chosen is not None and key != chosen:
                 del structure[key]
 
         if not structure and want_new:
