@@ -271,10 +271,9 @@ def do_print_shell_function(credo, virtualenv, **kwargs):
             loopback_interface="lo0";
             routed_interface="$(route get $addr | grep interface | awk '{{ print $2 }}')";
             if [[ "$routed_interface" != "$loopback_interface" ]]; then
-                gecho "creating $addr alias";
+                echo "creating $addr alias";
                 sudo ifconfig lo0 alias $addr;
-                for action in unload load;
-                do
+                for action in unload load; do
                     sudo launchctl $action /Library/LaunchDaemons/delfick.credo.fake_metadata.plist;
                 done;
             fi;
@@ -287,7 +286,7 @@ def do_print_shell_function(credo, virtualenv, **kwargs):
                     gecho "$output";
                 fi;
             else
-                {0}/credo $@;
+                {0}/bin/credo $@;
             fi
         }}
         switch () {{
