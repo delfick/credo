@@ -1,5 +1,7 @@
+*.sw?
 *.pyc
 *~
+.DS_Store
 .ropeproject/
 *.egg-info/
 dist/
