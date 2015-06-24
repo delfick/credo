@@ -377,9 +377,6 @@ Finally, we shall import accounts:
 1. ``credo register_saml``
 2. For each account run ``credo import --source saml_provider``
 
-To quickly switch between environments, you can now run the command ``switch
-<environment>``.
-
 Setting up Helpers
 ++++++++++++++++++
 
@@ -392,6 +389,9 @@ Install the CLI tools:
 Install the Chrome Extensions:
 
     ``credo output_extension --output ~/credo_venv/ext`` and follow instructions.
+
+To quickly switch between environments, you can now run the command ``switch
+<environment>``.
 
 Enjoy your new Magic Metadata Server.
 
