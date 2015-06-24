@@ -10,28 +10,9 @@ encrypted on disk until you need to use them.
 Installation
 ------------
 
-Install the dependencies:
-
-Mac OSX::
-
-    brew install libgit2 gmp
-
-For ubuntu::
-
-    sudo add-apt-repository ppa:dennis/python
-    sudo apt-get update
-    sudo apt-get install python-crypto python-pygit2
-
-For other systems, see the ``Compiled Python Dependencies`` section below
-
-And then use pip!::
+Use pip!::
 
     pip install credo_manager
-
-Or if you're developing it::
-
-    pip install -e .
-    pip install -e ".[tests]"
 
 Usage
 -----
@@ -83,62 +64,6 @@ The <credo_options> filter can be:
 
     Where repo is the name of the repository.
 
-Compiled Python dependencies
-----------------------------
-
-If you don't want to use prebuilt packages for pycrypto you could make sure you
-don't have that package installed, then install the python development libraries
-and the gmp development libraries (gmp is needed for crypto to be faster).
-
-So,
-
-For debian systems, something like
-  sudo apt-get install libpython-dev libgmp-dev
-
-For those with yum
-  yum install python-devel gmp-devel
-
-And then do ``pip install credo``.
-
-You can also compile libgit2 yourself if you want::
-
-    # sudo apt-get install cmake gcc
-    # or
-    # sudo yum install cmake make gcc
-
-    git clone -b master git://github.com/libgit2/libgit2.git
-    mkdir libgit2/build
-    cd libgit2/build
-    cmake ..
-    cmake --build .
-    sudo cmake --build . --target install
-
-    pip install pygit2
-
-Pygit2 is an optional dependency, and for now, git support is rather weak anyway.
-
-Advanced Usage
---------------
-
-If you put something like this in your ~/.bashrc or ~/.zshrc::
-
-    credo() {
-        if command credo sourceable $@; then
-            output=$(command credo $@)
-            if (($? == 0)); then
-                source <(echo "$output")
-            else
-                echo "$output"
-            fi
-        else
-            command credo $@
-        fi
-    }
-
-Then when you run ``credo inject`` it will source the exports into your
-environment and you don't need to do anything other than just use credo at the
-command line.
-
 Status
 ------
 
@@ -152,12 +77,6 @@ likely there are hidden bugs in some of the code that handles the corner cases
 I don't see in my normal usage.
 
 So until tests are written, this should be **considered alpha quality**.
-
-Also, credulous has more people working on it and one of the reasons they chose
-golang was the ability to distribute a single, static binary.
-
-Credo, however, does have some things credulous doesn't and a different approach
-to storing and retrieving information.
 
 Features
 --------
@@ -240,6 +159,15 @@ credo serve
 
 credo switch
     Tell the fake metadata service which credentials to use. It behaves just like ``inject``.
+
+credo print_shell_function
+    Dump some helper shell functions that you can add into your shrc.
+
+credo output_extension
+    Where to save your Chrome Extension.
+
+credo create_launch_daemon
+    Task to generate a launchd.plist configuration.
 
 It also does:
 
@@ -339,46 +267,6 @@ Each ``env.json`` file has a similar format to ``credentials.json`` but it has
 type of ``environment`` and includes environment variables that have been captured
 by the ``credo capture`` command.
 
-The Magic Metadata Server
--------------------------
-
-The magic metadata server provides your local IAM tools with credentials needed
-to access your AWS account. It works the same way an ec2 instance is able to
-access it's role credentials (over http://169.254.169.254).
-
-There are two parts of the server.
-
-  - The credo shell function that is used as a wrapper to access the `credo` tool in your virtualenv.
-  - The LaunchDaemon plist which defines how to start the magic metadata server.
-
-Setting up the Magic Metadata Server
-++++++++++++++++++++++++++++++++++++
-
-The magic metadata server is the http://169.254.169.254 server for your local
-machine.
-
-Currently it only supports /latest/meta-data/iam/security-credentials, thus
-allowing any amazon sdk to authenticate with amazon.
-
-Also, it only works with identity provider credentials (so it won't work with
-the user credentials you've imported into credo) but that restriction aside,
-it does work.
-
-To setup it up on your computer, follow the following instructions:
-
-1. ``virtualenv <virtualenv target directory>``
-2. ``source <virtualenv source>/bin/activate``
-3. ``pip install credo_manager``
-4. ``credo create_launch_daemon``
-5. ``credo print_shell_function`` and follow instructions.
-6. ``credo output_extension --output <directory where chrome extension will be
-   stored>`` and follow instructions
-
-To quickly switch between environments, you can now run the command ``switch
-<environment>``.
-
-Enjoy your new Magic Metadata Server.
-
 Changelog
 ---------
 
@@ -444,12 +332,120 @@ Changelog
     Tiny bug fixes I noticed after release
 
 0.2
-    Initial version that is opensourced
+    Initial version that is open-sourced
+
+The Magic Metadata Server
+-------------------------
+
+The magic metadata server provides your local IAM tools with credentials needed
+to access your AWS account. It works the same way an ec2 instance is able to
+access it's role credentials (over http://169.254.169.254).
+
+There are two parts of the server.
+
+  - The credo shell function that is used as a wrapper to access the `credo`
+    tool in your virtualenv.
+  - The LaunchDaemon plist which defines how to start the magic metadata
+    server.
+
+Setting up the Magic Metadata Server
+++++++++++++++++++++++++++++++++++++
+
+The magic metadata server listens at http://169.254.169.254 on your local
+machine.
+
+Currently it only supports /latest/meta-data/iam/security-credentials, thus
+allowing any amazon sdk to authenticate with Amazon.
+
+Also, it only works with identity provider credentials (so it won't work with
+the user credentials you've imported into credo) but that restriction aside,
+it does work.
+
+To setup it up on your computer, follow the following instructions:
+
+First, let's choose where you're gonna create a virtualenv for credo.
+
+Let's say ``~/credo_venv``, but you can change that to what you want:
+
+1. ``virtualenv ~/credo_venv``
+2. ``source ~/credo_venv/bin/activate``
+3. ``pip install credo_manager tornado flask``
+4. ``credo create_launch_daemon``
+5. ``credo print_shell_function`` and follow instructions.
+6. ``credo output_extension --output ~/credo_venv/ext`` and follow instructions.
+
+Finally, we shall import accounts:
+
+1. ``credo register_saml``
+2. For each account run ``credo import --source saml_provider``
+
+To quickly switch between environments, you can now run the command ``switch
+<environment>``.
+
+Enjoy your new Magic Metadata Server.
+
 
 Tests
 -----
+
+If you're developing it::
+
+    pip install -e .
+    pip install -e ".[tests]"
 
 Run the helpful script::
 
     ./test.sh
 
+Git Integration
+---------------
+
+** The Git integration doesn't really work. **
+
+Install the dependencies:
+
+Mac OSX::
+
+    brew install libgit2 gmp
+
+For ubuntu::
+
+    sudo add-apt-repository ppa:dennis/python
+    sudo apt-get update
+    sudo apt-get install python-crypto python-pygit2
+
+For other systems, see the ``Compiled Python Dependencies`` section below
+
+Compiled Python dependencies
+----------------------------
+
+If you don't want to use pre-built packages for pycrypto you could make sure you
+don't have that package installed, then install the python development libraries
+and the gmp development libraries (gmp is needed for crypto to be faster).
+
+So,
+
+For Debian systems, something like
+  sudo apt-get install libpython-dev libgmp-dev
+
+For those with yum
+  yum install python-devel gmp-devel
+
+And then do ``pip install credo``.
+
+You can also compile libgit2 yourself if you want::
+
+    # sudo apt-get install cmake gcc
+    # or
+    # sudo yum install cmake make gcc
+
+    git clone -b master git://github.com/libgit2/libgit2.git
+    mkdir libgit2/build
+    cd libgit2/build
+    cmake ..
+    cmake --build .
+    sudo cmake --build . --target install
+
+    pip install pygit2
+
+Pygit2 is an optional dependency, and for now, git support is rather weak anyway.
