@@ -265,8 +265,8 @@ def do_output_extension(credo, output, **kwargs):
 def do_print_shell_function(credo, virtualenv=None, **kwargs):
     """Print the shell function to add to your environment."""
 
-    if virtualenv == None:
-        virtualenv = os.path.normpath(
+    if virtualenv is None:
+        virtualenv = os.path.abspath(
                 os.path.join( os.path.dirname(sys.argv[0]), "../")
             )
 
@@ -330,8 +330,8 @@ def do_create_launch_daemon(credo, virtualenv=None, **kwargs):
     output_file = "/Library/LaunchDaemons/delfick.credo.fake_metadata.plist"
     config_location = os.path.expanduser("~/.credo/config.json")
 
-    if virtualenv == None:
-        virtualenv = os.path.normpath(
+    if virtualenv is None:
+        virtualenv = os.path.abspath(
                 os.path.join( os.path.dirname(sys.argv[0]), "../")
             )
 
