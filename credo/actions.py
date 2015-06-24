@@ -330,7 +330,7 @@ def do_create_launch_daemon(credo, virtualenv=None, **kwargs):
     output_file = "/Library/LaunchDaemons/delfick.credo.fake_metadata.plist"
     config_location = os.path.expanduser("~/.credo/config.json")
 
-    if virtualenv is None:
+    if virtualenv == None:
         virtualenv = os.path.abspath(
                 os.path.join( os.path.dirname(sys.argv[0]), "../")
             )
