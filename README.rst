@@ -371,8 +371,6 @@ Let's say ``~/credo_venv``, but you can change that to what you want:
 2. ``source ~/credo_venv/bin/activate``
 3. ``pip install credo_manager tornado flask``
 4. ``credo create_launch_daemon``
-5. ``credo print_shell_function`` and follow instructions.
-6. ``credo output_extension --output ~/credo_venv/ext`` and follow instructions.
 
 Finally, we shall import accounts:
 
@@ -382,8 +380,20 @@ Finally, we shall import accounts:
 To quickly switch between environments, you can now run the command ``switch
 <environment>``.
 
-Enjoy your new Magic Metadata Server.
+Setting up Helpers
+++++++++++++++++++
 
+To help you use the credo, there are some CLI tools and Chrome Extension.
+
+Install the CLI tools:
+
+    ``credo print_shell_function`` and follow instructions.
+
+Install the Chrome Extensions:
+
+    ``credo output_extension --output ~/credo_venv/ext`` and follow instructions.
+
+Enjoy your new Magic Metadata Server.
 
 Tests
 -----
