@@ -270,6 +270,13 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.4.3
+    Python3 support
+
+    Some fixes
+
+    Readme improvement
+
 0.4.2
     Trying to fix the launchdaemon to use correct home directory
 
