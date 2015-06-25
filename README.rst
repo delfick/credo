@@ -270,6 +270,9 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.4.4
+    Some fixes
+
 0.4.3
     Python3 support
 
