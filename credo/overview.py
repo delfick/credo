@@ -273,9 +273,7 @@ class Credo(object):
         """Find a config file, use the one given if specified"""
         if config_file in (None, Unspecified):
             credo_home = os.path.expanduser("~/.credo")
-            home_config = os.path.join(credo_home, "config.json")
-            if os.path.exists(home_config) and os.stat(home_config).st_size > 0:
-                config_file = home_config
+            config_file = os.path.join(credo_home, "config.json")
 
         if os.path.exists(config_file):
             try:
