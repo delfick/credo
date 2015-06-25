@@ -246,6 +246,9 @@ def flatten(directory_structure, mask, want_new=False):
         new_collected = []
 
         for nxt, remaining_mask in mask.items():
+            if nxt is None:
+                break
+
             if nxt not in structure and want_new:
                 location = os.path.join(structure['/location/'], nxt)
                 structure[nxt] = {'/location/': location, '/files/': [], '/dirs/': []}
