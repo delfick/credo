@@ -182,7 +182,8 @@ def narrow(structure, chain, asker, want_new=None, want_any_after=None, forced_v
         forced = False
         if forced_vals:
             chosen = forced_vals.pop(0)
-            forced = True
+            if chosen is not None:
+                forced = True
 
         if not chosen and not forced:
             if want_any_after is not None and level >= want_any_after:
