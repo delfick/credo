@@ -321,7 +321,7 @@ def do_print_shell_function(credo, virtualenv=None, **kwargs):
         }}
         switch () {{
             if [[ -z $1 ]]; then
-                credo show
+                credo switch
             else
                 credo --account $1 switch
             fi
