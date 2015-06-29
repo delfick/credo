@@ -320,7 +320,11 @@ def do_print_shell_function(credo, virtualenv=None, **kwargs):
             fi
         }}
         switch () {{
-            credo --account $1 switch
+            if [[ -z $1 ]]; then
+                credo show
+            else
+                credo --account $1 switch
+            fi
         }}
         ======================================================
     """.format(virtualenv, setup)))
