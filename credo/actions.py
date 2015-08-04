@@ -273,8 +273,7 @@ def do_print_shell_function(credo, virtualenv=None, **kwargs):
     mac_setup = """
         addr="169.254.169.254";
         loopback_interface="lo0";
-        routed_interface="$(route get $addr | grep interface | awk '{{ print $2 }}')";
-        if [[ "$routed_interface" != "$loopback_interface" ]]; then
+        if ! ifconfig ${loopback_interface} | grep ${addr} > /dev/null; then;
             echo "creating $addr alias";
             sudo ifconfig lo0 alias $addr;
             for action in unload load; do
