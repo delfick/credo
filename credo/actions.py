@@ -276,8 +276,9 @@ def do_print_shell_function(credo, virtualenv=None, **kwargs):
         if ! ifconfig ${loopback_interface} | grep ${addr} > /dev/null; then;
             echo "creating $addr alias";
             sudo ifconfig lo0 alias $addr;
-            for action in unload load; do
-                sudo launchctl $action /Library/LaunchDaemons/delfick.credo.fake_metadata.plist;
+            plist=/Library/LaunchDaemons/delfick.credo.fake_metadata.plist;
+            for action in unload load; do;
+                sudo launchctl $action $plist;
             done;
         fi;
     """
