@@ -350,7 +350,13 @@ class IamSaml(IamBase):
             </S:Envelope>
             """).format(acsurl=acsurl, acsurlbinding=acsurlbinding, ident=ident, now=now, idpid=idpid, rpid=rpid)
 
-            headers = {"Accept": "*/*", "Authorization": "Basic {0}".format(self.basic_auth.decode('utf-8')), "Content-Type": "application/x-www-form-urlencoded", "Content-Length": len(envelope)}
+            headers = {
+                "Content-Type": "text/xml; charset=utf-8"
+              , "Accept": "*/*"
+              , "Authorization": "Basic {0}".format(self.basic_auth.decode('utf-8'))
+              , "Content-Length": len(envelope)
+              }
+
             connection = http_client.HTTPSConnection(self.provider, 443)
             connection.request("POST", "/idp/profile/SAML2/SOAP/ECP", envelope, headers)
             resp = connection.getresponse()
@@ -360,7 +366,7 @@ class IamSaml(IamBase):
                 self._works = False
                 raise SamlNotAuthorized()
             elif resp.status != 200:
-                log.info("Failed to authenticate, trying again in 5 seconds")
+                log.info("Failed to authenticate, trying again in 5 seconds: %s:%s", resp.status, resp.read())
                 time.sleep(5)
                 self._works = False
             else:
