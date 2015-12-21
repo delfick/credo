@@ -118,7 +118,8 @@ class Server(object):
         resp = s.get("https://{0}".format(credentials.provider))
         add_cookies(resp)
 
-        nxt = "https://{0}{1}".format(credentials.provider, re.findall('href="[^"]+"', resp.text)[0][6:-1])
+        sso_link = filter(lambda t: "SSO" in t, re.findall('href="[^"]+"', resp.text)[0])[6:-1]
+        nxt = "https://{0}{1}".format(credentials.provider, sso_link)
         resp2 = s.get(nxt, allow_redirects=False)
         add_cookies(resp2)
 
