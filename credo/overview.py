@@ -57,7 +57,7 @@ class Credo(object):
         for key, val in (("root_dir", root_dir), ("ssh_key_folders", ssh_key_folders), ("providers", providers)):
             if val is not Unspecified:
                 setattr(self, key, val)
-            elif not hasattr(self, key):
+            else:
                 setattr(self, key, None)
 
         try:
