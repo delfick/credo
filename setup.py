@@ -8,13 +8,13 @@ setup(
     , include_package_data = True
 
     , install_requires =
-      [ "rainbow_logging_handler==2.2.0"
+      [ "rainbow_logging_handler==2.2.2"
       , "pycryptodome==3.6.4"
-      , "paramiko==1.14.0"
-      , "requests==2.8.1"
-      , "keyring==3.5"
-      , "boto>=2.32.1"
-      , "delfick_error==1.6"
+      , "paramiko==2.4.1"
+      , "requests==2.19.1"
+      , "keyring==13.2.1"
+      , "boto==2.49.0"
+      , "delfick_error==1.7.8"
       , "pytz"
       ]
 
