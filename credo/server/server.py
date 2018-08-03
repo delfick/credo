@@ -33,9 +33,9 @@ class Server(object):
             from tornado.ioloop import IOLoop
         except ImportError:
             raise CredoError("Please pip install tornado")
+        log.info("Starting server on http://%s:%s", self.host, self.port)
         http_server = HTTPServer(WSGIContainer(self.app))
         http_server.listen(self.port, self.host)
-        log.info("Starting server on http://%s:%s", self.host, self.port)
         IOLoop.instance().start()
 
     @property
