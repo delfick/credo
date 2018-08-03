@@ -270,6 +270,11 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.5
+    Stop using pycrpto (it's unmaintained and has a cve)
+
+    Upgrade other dependencies
+
 0.4.4
     Some fixes
 
