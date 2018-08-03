@@ -16,7 +16,6 @@ setup(
       , "boto>=2.32.1"
       , "delfick_error==1.6"
       , "pytz"
-      , "six"
       ]
 
     , extras_require =

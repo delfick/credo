@@ -1,10 +1,10 @@
 from credo.asker import ask_for_choice_or_new, ask_user_for_half_life
 from credo.errors import NoValueEntered, BadKeyFile, CredoError
+from credo.compat import string_types
 
 import logging
 import copy
 import json
-import six
 import os
 
 log = logging.getLogger("credo.helper")
@@ -12,7 +12,7 @@ log = logging.getLogger("credo.helper")
 def record_non_dicts(subject, memo):
     """Find all the things in subject that are not string or dicts and fill memo with {id(thing): thing}"""
     for key, val in subject.items():
-        if not isinstance(val, dict) and not isinstance(val, six.string_types):
+        if not isinstance(val, dict) and not isinstance(val, string_types):
             memo[id(val)] = val
 
         elif isinstance(val, dict):
@@ -42,7 +42,7 @@ def normalise_half_life(half_life, access_key=None):
             return
         half_life = ask_user_for_half_life(access_key)
 
-    if isinstance(half_life, six.string_types) and not half_life.isdigit():
+    if isinstance(half_life, string_types) and not half_life.isdigit():
         if half_life == "hour":
             half_life = 60 * 60
         elif half_life == "day":

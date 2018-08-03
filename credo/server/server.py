@@ -1,11 +1,10 @@
 from credo.structure.credential_path import CredentialPath
 from credo.errors import CredoError, SamlNotAuthorized
+from credo.compat import urlencode, http_cookies
 from credo.amazon import IamSaml
 from credo import explorer
 
-from six.moves.urllib.parse import urlencode
 from datetime import datetime, timedelta
-from six.moves import http_cookies
 from boto.utils import parse_ts
 from uuid import uuid1
 import requests

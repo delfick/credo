@@ -2,13 +2,13 @@ from __future__ import print_function
 
 from credo.asker import ask_for_choice, ask_for_public_keys
 from credo.errors import BadConfiguration, UserQuit
+from credo.compat import string_types
 
 import requests
 import logging
 import json
 import time
 import sys
-import six
 import os
 
 log = logging.getLogger("credo.pub_keys")
@@ -105,7 +105,7 @@ class PubKeySyncer(object):
         cached = []
         if last_downloaded is not None and url in cache.get("cached", {}):
             cached = cache["cached"][url]
-            if isinstance(cached, list) and all(isinstance(pem, six.string_types) for pem in cached):
+            if isinstance(cached, list) and all(isinstance(pem, string_types) for pem in cached):
                 log.info("Using %s cached pem keys from %s", len(cached), url)
                 return cached
 
