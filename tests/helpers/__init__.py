@@ -17,7 +17,7 @@ for name in os.listdir(mixin_dir):
     # Name convention is <Name>AssertionsMixin
     name = name[:-3]
     mixin = "%sAssertionsMixin" % name.capitalize()
-    imported = __import__("mixins.{0}".format(name), globals(), locals(), [mixin], -1)
+    imported = __import__("tests.helpers.mixins.{0}".format(name), globals(), locals(), [mixin], 0)
     bases.append(getattr(imported, mixin))
 
 def credocase_teardown(self):

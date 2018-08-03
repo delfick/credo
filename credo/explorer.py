@@ -143,20 +143,20 @@ def find_repo_structure(root_dir, collection=None, sofar=None, shortened=None, l
             else:
                 dirs.append((filename, location))
 
-    collection["/dirs/"] = extra_dirs
-    collection["/files/"] = basenames
+    collection["/dirs/"] = sorted(extra_dirs)
+    collection["/files/"] = sorted(basenames)
     collection["/location/"] = root_dir
     if not collection["/location/"].endswith('/'):
         collection["/location/"] = "{0}/".format(collection["/location/"])
 
     if levels == 0:
         s = shortened
-        collection["/dirs/"] = extra_dirs + [dr for dr, _ in dirs]
+        collection["/dirs/"] = sorted(extra_dirs + [dr for dr, _ in dirs])
         for part in sofar[:-1]:
             if part not in s:
                 s[part] = {}
             s = s[part]
-        s[sofar[-1]] = basenames
+        s[sofar[-1]] = sorted(basenames)
     else:
         for filename, location in dirs:
             nxt_collection = {}
