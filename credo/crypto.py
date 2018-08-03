@@ -200,6 +200,8 @@ class KeyCollection(object):
             raise PasswordRequired()
         except paramiko.ssh_exception.SSHException as err:
             raise BadSSHKey("Couldn't decode key, perhaps bad password?", err=err)
+        except UnicodeDecodeError as err:
+            raise BadSSHKey("Couldn't decode key", err=err)
 
 class SSHKeys(object):
     """Stores private and public ssh keys by fingerprint"""
@@ -238,14 +240,14 @@ class SSHKeys(object):
                             try:
                                 with open(location) as fle:
                                     self.collection.add_public_key(fle.read(), location)
-                            except BadSSHKey:
+                            except (UnicodeDecodeError, BadSSHKey):
                                 pass
 
                 elif filename.endswith(".pub"):
                     try:
                         with open(location) as fle:
                             self.collection.add_public_key(fle.read(), location)
-                    except BadSSHKey:
+                    except (UnicodeDecodeError, BadSSHKey):
                         pass
 
     def add_public_keys(self, public_keys):
@@ -280,7 +282,8 @@ class SSHKeys(object):
             location_str = "at {0} ".format(location)
         log.debug("Using private key %s(%s) to decrypt (%s)", location_str, fingerprint, " || ".join("{0}={1}".format(key, val) for key, val in info.items()))
 
-        key = RSA.construct((key.n, key.e, key.d, key.p, key.q))
+        private_numbers = key.key.private_numbers()
+        key = RSA.construct((key.public_numbers.n, key.public_numbers.e, private_numbers.d, private_numbers.p, private_numbers.q))
         self._RSA[fingerprint] = key
         return key
 
@@ -491,7 +494,7 @@ class Crypto(object):
 
     def generate_secret(self, key_size=256):
         """Generate a secret that may be used for encrypting values"""
-        return Random.OSRNG.posix.new().read(key_size // 8)
+        return Random.get_random_bytes(key_size // 8)
 
     def encrypt_with_secret(self, data, secret):
         """Return the data as an encrypted value, using AES with the provided secret"""
@@ -500,9 +503,9 @@ class Crypto(object):
             return s + ''.join([random.choice(string.ascii_letters + string.digits) for n in range(x)])
 
         padded_message = pad(data)
-        iv = Random.OSRNG.posix.new().read(AES.block_size)
+        iv = Random.get_random_bytes(AES.block_size)
         cipher = AES.new(secret, AES.MODE_CBC, iv)
-        return b64encode(iv + cipher.encrypt(padded_message)).decode('utf-8')
+        return b64encode(iv + cipher.encrypt(padded_message.encode())).decode('utf-8')
 
     def decrypt_with_secret(self, ciphertext, secret):
         """Return the decrypted value of the ciphtertext using AES with the provided secret"""
