@@ -41,6 +41,7 @@ setup(
     , author = "Stephen Moore"
     , author_email = "stephen@delfick.com"
     , description = "Manager for aws credentials"
+    , long_description = open("README.rst").read()
     , license = "MIT"
     , keywords = "iam amazon credentials"
     )

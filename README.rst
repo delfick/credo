@@ -270,6 +270,9 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.5.1
+    Update pycryptodome for CVE-2018-15560
+
 0.5
     Stop using pycrpto (it's unmaintained and has a cve)
 
