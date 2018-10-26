@@ -10,7 +10,7 @@ setup(
     , install_requires =
       [ "rainbow_logging_handler==2.2.2"
       , "pycryptodome==3.6.6"
-      , "paramiko==2.4.1"
+      , "paramiko==2.4.2"
       , "requests==2.19.1"
       , "keyring==13.2.1"
       , "boto==2.49.0"

@@ -270,6 +270,9 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.5.2
+    Update paramiko for CVE-2018-1000805
+
 0.5.1
     Update pycryptodome for CVE-2018-15560
 
