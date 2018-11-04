@@ -11,7 +11,7 @@ setup(
       [ "rainbow_logging_handler==2.2.2"
       , "pycryptodome==3.6.6"
       , "paramiko==2.4.2"
-      , "requests==2.19.1"
+      , "requests==2.20.0"
       , "keyring==13.2.1"
       , "boto==2.49.0"
       , "delfick_error==1.7.8"

@@ -270,6 +270,9 @@ by the ``credo capture`` command.
 Changelog
 ---------
 
+0.5.3
+    Update requests for CVE-2018-18074
+
 0.5.2
     Update paramiko for CVE-2018-1000805
 
